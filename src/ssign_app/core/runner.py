@@ -74,7 +74,10 @@ class PipelineConfig:
     use_input_annotations: bool = False
     # FASTA contigs input always needs an ORF caller. run_bakta=True picks
     # Bakta (richer); otherwise Pyrodigal runs via extract_proteins.py.
-    run_bakta: bool = False
+    # Default True per plan addendum A.6 ("always run Bakta on the input").
+    # Set --no-run-bakta to fall back to Pyrodigal (FASTA contigs only;
+    # GenBank is governed by use_input_annotations).
+    run_bakta: bool = True
     bakta_db: str = ""  # Required for any Bakta run (FASTA or GenBank re-annotation)
     bakta_threads: int = 4
 
@@ -151,13 +154,23 @@ class PipelineConfig:
     ortholog_min_qcov: float = 70.0
 
     def __post_init__(self) -> None:
-        # Env-var fallbacks for HH-suite database paths. Empty field means
-        # "use the env var if set" — documented in --hhsuite-*-db help text
-        # and docs/how-to/install.md. Explicit non-empty paths always win.
+        # Env-var fallbacks for database / weight paths. Empty config field
+        # means "use the env var if set" — documented in the matching CLI
+        # --*-db / --*-dir help text and docs/how-to/install.md. Explicit
+        # non-empty paths from the CLI always win.
+        #
+        # Env-var names match upstream conventions where one exists
+        # (BAKTA_DB, EGGNOG_DATA_DIR) and the SSIGN_-prefixed names
+        # printed by scripts/fetch_databases.sh otherwise.
         for attr, env in (
+            ("bakta_db", "BAKTA_DB"),
             ("hhsuite_pfam_db", "SSIGN_HHSUITE_PFAM"),
             ("hhsuite_pdb70_db", "SSIGN_HHSUITE_PDB70"),
             ("hhsuite_uniclust_db", "SSIGN_HHSUITE_UNICLUST"),
+            ("interproscan_db", "SSIGN_INTERPROSCAN_PATH"),
+            ("eggnog_db", "EGGNOG_DATA_DIR"),
+            ("plmblast_db", "SSIGN_ECOD70_DB"),
+            ("plm_effector_weights_dir", "SSIGN_PLM_EFFECTOR_WEIGHTS"),
         ):
             if not getattr(self, attr) and os.environ.get(env):
                 value = os.environ[env]
@@ -685,13 +698,17 @@ class PipelineRunner:
 
         if reannotate_gbff or bakta_only:
             if not self.config.bakta_db:
+                opt_out = (
+                    "--use-input-annotations (preserve the input's annotations)"
+                    if reannotate_gbff
+                    else "--no-run-bakta (fall back to Pyrodigal)"
+                )
                 return StepResult(
                     "extract_proteins",
                     False,
-                    "Bakta re-annotation requires --bakta-db path. "
-                    "Pass --use-input-annotations to skip Bakta and parse the "
-                    "input file's annotations as-is. "
-                    "Download a DB with: bakta_db download --output /path/to/db --type light",
+                    f"Bakta runs by default (per plan A.6) and requires --bakta-db "
+                    f"(or BAKTA_DB env var). Pass {opt_out} to skip Bakta. "
+                    f"Download a DB with: bakta_db download --output /path/to/db --type light",
                 )
 
             # For GenBank: capture the original annotations into a side

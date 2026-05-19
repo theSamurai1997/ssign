@@ -66,7 +66,7 @@ class TestRunInterProScan:
         os.makedirs(output_dir)
         result_path = run_local_interproscan(
             query_fasta=t1ss_fixture_proteins,
-            db_path="",  # use default DBs from the install
+            install_dir="",  # resolve via PATH / $SSIGN_INTERPROSCAN_PATH
             output_dir=output_dir,
         )
 

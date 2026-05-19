@@ -134,7 +134,7 @@ class TestBooleanFlags:
             ("skip_protparam", False),
             ("filter_dse_type_mismatch", True),
             ("use_input_annotations", False),
-            ("run_bakta", False),
+            ("run_bakta", True),
             ("dlp_whole_genome", False),
             ("dse_whole_genome", False),
             ("sp_whole_genome", False),

@@ -265,7 +265,13 @@ fetch_bakta() {
 
     _run mkdir -p "$dir"
     _run bakta_db download --output "$dir" --type "$variant"
-    _log "OK — Bakta $variant DB ready"
+    # bakta_db creates `db/` (full) or `db-light/` (light) inside --output.
+    # Glob both rather than guessing; fall back to a sensible default if the
+    # glob comes up empty so the log line doesn't print `BAKTA_DB=`.
+    local bakta_subdir
+    bakta_subdir=$(compgen -G "$dir/db*" | head -n 1)
+    : "${bakta_subdir:=$dir/db-${variant}}"
+    _log "OK — Bakta $variant DB ready (set BAKTA_DB=$bakta_subdir)"
 }
 
 fetch_eggnog() {
@@ -315,7 +321,7 @@ fetch_interproscan() {
     _run tar -xzf "$tarball" -C "$dir"
     _run touch "$extracted/$_FETCH_DONE"
     _run rm -f "$tarball"
-    _log "OK — InterProScan at $extracted"
+    _log "OK — InterProScan at $extracted (set SSIGN_INTERPROSCAN_PATH=$extracted)"
 }
 
 fetch_hhsuite_pfam() {

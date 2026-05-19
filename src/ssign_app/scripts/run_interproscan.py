@@ -51,15 +51,42 @@ DEFAULT_IPS_APPLICATIONS = (
 )
 
 
+def _resolve_interproscan_binary(install_dir):
+    """Return an absolute path to interproscan.sh, or the bare name for PATH lookup.
+
+    Resolution order:
+      1. `install_dir` argument (from --interproscan-db CLI flag)
+      2. SSIGN_INTERPROSCAN_PATH environment variable
+      3. Fall back to "interproscan.sh" (PATH lookup)
+
+    When invoked via the ssign runner, the env-var branch is unreachable —
+    PipelineConfig.__post_init__ already copies SSIGN_INTERPROSCAN_PATH into
+    `interproscan_db` and the runner passes that as `install_dir`. The branch
+    only fires when this wrapper is invoked standalone (e.g. unit tests,
+    manual debugging). Keep the precedence in sync with runner.py if either
+    side changes.
+    """
+    for candidate in (install_dir, os.environ.get("SSIGN_INTERPROSCAN_PATH", "")):
+        if candidate:
+            binary = os.path.join(candidate, "interproscan.sh")
+            if os.path.isfile(binary):
+                return binary
+    return "interproscan.sh"
+
+
 def run_local_interproscan(
     query_fasta,
-    db_path,
+    install_dir,
     output_dir,
     applications="",
     offline=False,
     cpu=None,
 ):
     """Run InterProScan locally and return path to the TSV output.
+
+    `install_dir` is the InterProScan install directory containing
+    `interproscan.sh`. Empty string falls back to SSIGN_INTERPROSCAN_PATH
+    env var, then to a PATH lookup.
 
     By default, IPS queries the EBI precalculated-match lookup service
     (5-10× speedup on previously-seen sequences; falls back to local
@@ -80,8 +107,9 @@ def run_local_interproscan(
     if cpu is None:
         cpu = max(1, (os.cpu_count() or 2))
     output_file = os.path.join(output_dir, "results.tsv")
+    binary = _resolve_interproscan_binary(install_dir)
     cmd = [
-        "interproscan.sh",
+        binary,
         "-i",
         query_fasta,
         "-o",
@@ -97,11 +125,10 @@ def run_local_interproscan(
         cmd.append("-dp")
     if applications:
         cmd.extend(["-appl", applications])
-    if db_path:
-        cmd.extend(["-d", db_path])
 
     logger.info("Running local InterProScan...")
-    # FRAGILE: subprocess call requires interproscan.sh on PATH
+    # FRAGILE: needs interproscan.sh — either at $install_dir/, via
+    # $SSIGN_INTERPROSCAN_PATH, or on PATH.
     # If this breaks: install InterProScan from https://www.ebi.ac.uk/interpro/download/
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=TOOL_TIMEOUT_S)
@@ -109,10 +136,12 @@ def run_local_interproscan(
         raise RuntimeError(
             f"InterProScan (interproscan.sh) not found: {e}\n"
             f"  Common causes:\n"
-            f"    - InterProScan is not installed or not on PATH\n"
+            f"    - InterProScan is not installed\n"
+            f"    - Wrong --interproscan-db path / SSIGN_INTERPROSCAN_PATH\n"
+            f"    - interproscan.sh not on PATH\n"
             f"  How to fix:\n"
-            f"    - Download: https://www.ebi.ac.uk/interpro/download/\n"
-            f"    - See docs/how-to/install.md for full setup steps"
+            f"    - Run: scripts/fetch_databases.sh --tier extended\n"
+            f"    - Then pass --interproscan-db <install_dir> or export SSIGN_INTERPROSCAN_PATH=<install_dir>"
         ) from e
     except subprocess.TimeoutExpired as e:
         raise RuntimeError(
@@ -185,7 +214,10 @@ def main():
     parser.add_argument(
         "--db",
         default="",
-        help="Optional -d path to custom InterProScan data directory",
+        help=(
+            "InterProScan install directory (contains interproscan.sh). "
+            "Falls back to $SSIGN_INTERPROSCAN_PATH, then to PATH lookup."
+        ),
     )
     parser.add_argument(
         "--applications",

@@ -465,3 +465,41 @@ ssign run input.gbff --outdir /tmp/test --resume   # pre-flight prints all detec
 The pre-flight log lists every external tool plus its detected version (or a
 warning if not found). A missing tool is non-fatal: the corresponding step is
 skipped at run time and the rest of the pipeline continues.
+
+## Canonical command — extended tier (every annotation tool on)
+
+Most extended-tier annotation steps default to `--skip-*=True` because each
+one needs an external database or binary. Once `fetch_databases.sh --tier
+extended` has run and every tool from the sections above is installed, this
+is the canonical command that exercises everything in the extended tier on
+a single GenBank input.
+
+```bash
+# Point ssign at the databases / weights (matches the env vars
+# scripts/fetch_databases.sh prints; CLI flags override these).
+DBROOT=~/.ssign/databases   # or wherever you ran --target
+export BAKTA_DB=$DBROOT/bakta/db-light
+export SSIGN_HHSUITE_PFAM=$DBROOT/hhsuite/pfam
+export SSIGN_HHSUITE_PDB70=$DBROOT/hhsuite/pdb70
+export SSIGN_INTERPROSCAN_PATH=$DBROOT/interproscan/interproscan-5.77-108.0
+export EGGNOG_DATA_DIR=$DBROOT/eggnog
+export SSIGN_ECOD70_DB=$DBROOT/plm_blast/ECOD70
+export SSIGN_PLM_EFFECTOR_WEIGHTS=$DBROOT/plm_effector_weights
+
+ssign run input.gbff --outdir results \
+    --no-skip-hhsuite \
+    --no-skip-eggnog \
+    --no-skip-plmblast \
+    --no-skip-plm-effector \
+    --skip-blastp        # NR (390 GB) only ships in `--tier full`
+```
+
+For HPC users who installed each tool into a separate conda env, prepend
+them to PATH first:
+
+```bash
+export PATH=~/.conda/envs/bakta/bin:~/.conda/envs/hhsuite/bin:~/.conda/envs/eggnog/bin:$SSIGN_INTERPROSCAN_PATH:$PATH
+```
+
+Drop `--skip-blastp` and re-run after `fetch_databases.sh --tier full` if
+you also want local NR BLASTp.
