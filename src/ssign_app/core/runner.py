@@ -204,6 +204,18 @@ def run_script(script_name: str, args: list, timeout: int = 7200) -> tuple:
             text=True,
             timeout=timeout,
         )
+        if result.returncode != 0:
+            # StepResult callers truncate stderr to ~500 chars; benign HF /
+            # tokenizer warnings eat that budget before the traceback. Log
+            # the tail so the stack frame survives without blowing up the
+            # run log when tools (IPS, BLASTp) dump megabytes on failure.
+            logger.error(
+                "%s exited with code %s\n--- stdout (tail) ---\n%s\n--- stderr (tail) ---\n%s",
+                script_name,
+                result.returncode,
+                result.stdout[-8000:],
+                result.stderr[-8000:],
+            )
         return (result.returncode, result.stdout, result.stderr)
     except subprocess.TimeoutExpired:
         return (-1, "", f"Timeout after {timeout}s")
