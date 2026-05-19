@@ -119,15 +119,19 @@ practice; bioconda relies on the same:
 pip install --no-deps eggnog-mapper
 ```
 
-After installing eggnog-mapper, fetch the database (~50 GB):
+Fetch the database (~25 GB extracted):
 
 ```bash
-download_eggnog_data.py -y --data_dir ~/.ssign/databases/eggnog
+scripts/fetch_databases.sh --tier extended --target ~/.ssign/databases
 ```
 
-`scripts/fetch_databases.sh --tier {extended,full}` runs that step for you
-once `download_eggnog_data.py` is on PATH. Tell ssign where the database
-lives:
+This wgets the three required files (`eggnog.db`, `eggnog.taxa.db`,
+`eggnog_proteins.dmnd`) directly from `eggnog5.embl.de`. We don't use
+`download_eggnog_data.py` because eggnog-mapper 2.1.13 (the latest on
+bioconda as of 2026-05) still hardcodes the retired `eggnogdb.embl.de`
+hostname and produces 0-byte files with exit-code 0. 2.1.14 fixed it
+upstream but never reached PyPI — so the fetch script bypasses that
+breakage. Tell ssign where the database lives:
 
 ```bash
 ssign run input.gbff --outdir results --eggnog-db ~/.ssign/databases/eggnog
@@ -166,23 +170,16 @@ The bundle is large (~24 GB extracted) but installs as a single tarball:
 # 1. Java 11+ on PATH (Ubuntu / Debian):
 sudo apt install openjdk-17-jre-headless
 
-# 2. Download the latest InterProScan release (replace 5.74-105.0 with
-#    the current version listed at https://www.ebi.ac.uk/interpro/download/):
-mkdir -p ~/interproscan && cd ~/interproscan
-wget https://ftp.ebi.ac.uk/pub/software/unix/iprscan/5/5.74-105.0/interproscan-5.74-105.0-64-bit.tar.gz
-tar -xzf interproscan-5.74-105.0-64-bit.tar.gz
-cd interproscan-5.74-105.0
-
-# 3. Initialise HMMs + indexes (writes ~1 GB of derived files):
-python3 setup.py interproscan.properties
+# 2. Fetch + extract via the helper script (pinned version, currently
+#    5.77-108.0; bump scripts/fetch_databases.sh `IPS_VERSION` when EBI
+#    rotates it off — old version dirs get 404'd after a few releases):
+scripts/fetch_databases.sh --tier extended --target ~/.ssign/databases
 ```
 
-Point ssign at the install directory (the one containing
-`interproscan.sh`):
+Point ssign at the install directory (the one containing `interproscan.sh`):
 
 ```bash
-export SSIGN_INTERPROSCAN_PATH=~/interproscan/interproscan-5.74-105.0
-# or pass --interproscan-db ~/interproscan/interproscan-5.74-105.0
+export SSIGN_INTERPROSCAN_PATH=~/.ssign/databases/interproscan/interproscan-5.77-108.0
 ```
 
 ssign runs InterProScan with the bacterial-relevant member DBs by default
@@ -276,29 +273,17 @@ is 10+ hours just for embedding.
 ## PLM-Effector (vendored; weights download only)
 
 PLM-Effector source code is shipped with ssign under `src/ssign_app/scripts/plm_effector/`.
-Only the trained weights and pretrained protein language models need
-downloading.
+The trained weights (~1.7 GB) and four pretrained protein language models
+(~17 GB) are fetched by `scripts/fetch_databases.sh` at every tier:
 
 ```bash
-# Trained models (~1.7 GB)
-wget https://www.mgc.ac.cn/PLM-Effector/download/sourcecode.zip
-unzip sourcecode.zip
-mv sourcecode/trained_models /path/to/plm_effector_weights/
-
-# Pretrained PLMs from HuggingFace (~17 GB total)
-hf download Rostlab/prot_t5_xl_uniref50 \
-    --include "config.json" "spiece.model" "tokenizer_config.json" \
-    "special_tokens_map.json" "pytorch_model.bin" \
-    --local-dir /path/to/plm_effector_weights/transformers_pretrained/prot_t5_xl_uniref50
-hf download facebook/esm1b_t33_650M_UR50S \
-    --local-dir /path/to/plm_effector_weights/transformers_pretrained/esm1b_t33_650M_UR50S
-hf download facebook/esm2_t33_650M_UR50D \
-    --local-dir /path/to/plm_effector_weights/transformers_pretrained/esm2_t33_650M_UR50D
-hf download Rostlab/prot_bert \
-    --local-dir /path/to/plm_effector_weights/transformers_pretrained/prot_bert
-
-export SSIGN_PLM_EFFECTOR_WEIGHTS=/path/to/plm_effector_weights
+scripts/fetch_databases.sh --tier base --target ~/.ssign/databases
+export SSIGN_PLM_EFFECTOR_WEIGHTS=~/.ssign/databases/plm_effector_weights
 ```
+
+The sourcecode.zip download from `www.mgc.ac.cn` runs at ~2 MB/s
+(slow academic mirror, ~11 min for 1.5 GB). The HuggingFace pulls are fast.
+You need the `hf` CLI on PATH (`pip install 'huggingface_hub[cli]'`).
 
 CUDA GPU required for practical runtime; CPU is ~100x slower. ssign's
 PLM-Effector test hard-skips on systems without a GPU.

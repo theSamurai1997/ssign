@@ -5,19 +5,19 @@
 #   bash scripts/fetch_databases.sh --tier {base,extended,full} [--target DIR] [--dry-run]
 #
 # Tier sizes (post-extraction):
-#   base       ~3 GB    NCBI taxdump + Bakta light
-#   extended   ~150 GB  + EggNOG + HH-suite (Pfam + PDB70) + InterProScan + ECOD70
-#   full       ~630 GB  + BLAST NR + Bakta full + HH-suite UniRef30
+#   base       ~22 GB   NCBI taxdump + Bakta light + PLM-Effector weights
+#   extended   ~170 GB  + EggNOG + HH-suite (Pfam + PDB70) + InterProScan + ECOD70
+#   full       ~650 GB  + BLAST NR + Bakta full + HH-suite UniRef30
 #
 # Default target: ~/.ssign/databases (override with --target /path).
 # Resumes interrupted downloads (wget -c). Skips items already extracted.
 #
 # Required:
-#   wget, tar
+#   wget, tar, unzip
 #
 # Per-tier tool dependencies (the script will tell you which to install):
-#   base | full       bakta_db                    pip install ssign[bakta]
-#   extended | full   download_eggnog_data.py     conda install -c bioconda eggnog-mapper
+#   all tiers         hf                          pip install 'huggingface_hub[cli]'
+#   base | full       bakta_db, amrfinder         pip install ssign[bakta] + mamba ncbi-amrfinderplus
 #   full              update_blastdb.pl           OS package: ncbi-blast+
 
 set -euo pipefail
@@ -47,6 +47,18 @@ HHSUITE_UNIREF30_GWDG="https://wwwuser.gwdg.de/~compbiol/uniclust/2023_02/UniRef
 
 # pLM-BLAST — ECOD70 prebuilt embedding database.
 ECOD70_URL="http://ftp.tuebingen.mpg.de/ebio/protevo/toolkit/databases/plmblast_dbs/ecod70db_20240417.tar.gz"
+
+# EggNOG — current host. The legacy hostname `eggnogdb.embl.de` was retired;
+# eggnog-mapper 2.1.13 (latest on bioconda as of 2026-05) still hardcodes the
+# dead host and produces 0-byte files with exit-code 0. 2.1.14 fixed the URL
+# on GitHub but never reached PyPI. We wget directly from the live host
+# instead of relying on download_eggnog_data.py.
+EGGNOG_BASE_URL="http://eggnog5.embl.de/download/emapperdb-5.0.2"
+
+# PLM-Effector — trained model weights from upstream (slow Chinese academic
+# mirror at ~2 MB/s; ~11 min wall for the 1.5 GB sourcecode.zip). The PLMs
+# themselves come from HuggingFace (~17 GB across four repos).
+PLM_EFFECTOR_SOURCECODE_URL="https://www.mgc.ac.cn/PLM-Effector/download/sourcecode.zip"
 
 # InterProScan — pin version explicitly. Bump together with the
 # `interproscan-*-bin.tar.gz` checksum file from the EBI release page.
@@ -157,11 +169,24 @@ _wget_with_fallback() {
         # wget -c on a partial file with a different URL is risky if the file
         # contents differ; remove the partial first so resume can't corrupt.
         rm -f "$out"
-        wget -c -O "$out" "$mirror"
-    else
-        echo "Error: download failed and no mirror available: $primary" >&2
-        return 1
+        if wget -c -O "$out" "$mirror"; then
+            return 0
+        fi
     fi
+
+    # Distinguish "version rotated off server" (404) from a transient failure.
+    # IPS, NCBI, and EMBL all silently remove old version dirs when newer ones
+    # ship — surface that as a specific pointer rather than a generic wget error.
+    if wget --server-response --spider "$primary" 2>&1 | grep -q "404 Not Found"; then
+        echo "Error: $primary returned 404." >&2
+        echo "  The pinned version may have been rotated off the server." >&2
+        echo "  Check the index page and update the matching *_VERSION constant" >&2
+        echo "  at the top of scripts/fetch_databases.sh." >&2
+    else
+        echo "Error: download failed (not a 404): $primary" >&2
+        echo "  URL is reachable; the failure was likely transient — retry the fetch." >&2
+    fi
+    return 1
 }
 
 # Sentinel filename written into a destination directory after a successful
@@ -244,18 +269,35 @@ fetch_bakta() {
 }
 
 fetch_eggnog() {
-    _log "==> EggNOG database (~50 GB; eggnog-mapper 2.1.13 + EggNOG v6.0)"
-    _require_command download_eggnog_data.py \
-        "conda install -c bioconda eggnog-mapper  (or 'mamba create -n eggnog -c bioconda eggnog-mapper -y' then 'export PATH=~/.conda/envs/eggnog/bin:\$PATH')"
-
+    # Three files match what download_eggnog_data.py would fetch for the
+    # default (non-HMMER, non-novel-families, non-MMseqs) install path —
+    # the same defaults ssign's eggnog wrapper relies on at runtime.
+    _log "==> EggNOG database (~25 GB extracted; emapperdb v5.0.2)"
     local dir="$TARGET/eggnog"
-    if [[ -f "$dir/eggnog.db" ]]; then
-        _log "Skipping (eggnog.db already at $dir)"
+
+    if [[ -f "$dir/eggnog.db" && -f "$dir/eggnog.taxa.db" && -f "$dir/eggnog_proteins.dmnd" ]]; then
+        _log "Skipping (eggnog.{db,taxa.db,_proteins.dmnd} already at $dir)"
         return 0
     fi
 
     _run mkdir -p "$dir"
-    _run download_eggnog_data.py -y --data_dir "$dir"
+
+    if [[ ! -f "$dir/eggnog.db" ]]; then
+        _wget_with_fallback "$dir/eggnog.db.gz" "$EGGNOG_BASE_URL/eggnog.db.gz"
+        _run gunzip -f "$dir/eggnog.db.gz"
+    fi
+
+    if [[ ! -f "$dir/eggnog.taxa.db" ]]; then
+        _wget_with_fallback "$dir/eggnog.taxa.tar.gz" "$EGGNOG_BASE_URL/eggnog.taxa.tar.gz"
+        _run tar -zxf "$dir/eggnog.taxa.tar.gz" -C "$dir"
+        _run rm -f "$dir/eggnog.taxa.tar.gz"
+    fi
+
+    if [[ ! -f "$dir/eggnog_proteins.dmnd" ]]; then
+        _wget_with_fallback "$dir/eggnog_proteins.dmnd.gz" "$EGGNOG_BASE_URL/eggnog_proteins.dmnd.gz"
+        _run gunzip -f "$dir/eggnog_proteins.dmnd.gz"
+    fi
+
     _log "OK — EggNOG DB ready (set EGGNOG_DATA_DIR=$dir)"
 }
 
@@ -329,6 +371,63 @@ fetch_ecod70() {
     _log "OK — set SSIGN_ECOD70_DB=$extracted"
 }
 
+fetch_plm_effector_weights() {
+    # PLM-Effector ships its own trained_models bundle plus four pretrained
+    # protein language models from HuggingFace. ssign reads them via
+    # SSIGN_PLM_EFFECTOR_WEIGHTS. GPU strongly recommended at runtime
+    # (~100x speedup over CPU).
+    _log "==> PLM-Effector weights (~19 GB total; mgc.ac.cn + HuggingFace)"
+    _require_command hf "pip install 'huggingface_hub[cli]'"
+    _require_command unzip "OS package: unzip"
+
+    local dir="$TARGET/plm_effector_weights"
+    local hf_dir="$dir/transformers_pretrained"
+    _run mkdir -p "$dir" "$hf_dir"
+
+    # Part 1: trained_models (~1.7 GB, slow mirror).
+    if [[ ! -d "$dir/trained_models" ]]; then
+        local zip="$dir/sourcecode.zip"
+        _wget_with_fallback "$zip" "$PLM_EFFECTOR_SOURCECODE_URL"
+        _run unzip -q -d "$dir" "$zip"
+        _run mv "$dir/sourcecode/trained_models" "$dir/trained_models"
+        _run rm -rf "$dir/sourcecode" "$zip"
+    else
+        _log "Skipping trained_models (already present)"
+    fi
+
+    # Part 2: four pretrained PLMs from HuggingFace (~17 GB).
+    # prot_t5_xl_uniref50 carries a TF checkpoint we don't need; include-list
+    # trims the download to the PyTorch + tokenizer files.
+    if [[ ! -d "$hf_dir/prot_t5_xl_uniref50" ]]; then
+        _run hf download Rostlab/prot_t5_xl_uniref50 \
+            --include "config.json" "spiece.model" "tokenizer_config.json" \
+                "special_tokens_map.json" "pytorch_model.bin" \
+            --local-dir "$hf_dir/prot_t5_xl_uniref50"
+    else
+        _log "Skipping prot_t5_xl_uniref50 (already present)"
+    fi
+    if [[ ! -d "$hf_dir/esm1b_t33_650M_UR50S" ]]; then
+        _run hf download facebook/esm1b_t33_650M_UR50S \
+            --local-dir "$hf_dir/esm1b_t33_650M_UR50S"
+    else
+        _log "Skipping esm1b_t33_650M_UR50S (already present)"
+    fi
+    if [[ ! -d "$hf_dir/esm2_t33_650M_UR50D" ]]; then
+        _run hf download facebook/esm2_t33_650M_UR50D \
+            --local-dir "$hf_dir/esm2_t33_650M_UR50D"
+    else
+        _log "Skipping esm2_t33_650M_UR50D (already present)"
+    fi
+    if [[ ! -d "$hf_dir/prot_bert" ]]; then
+        _run hf download Rostlab/prot_bert \
+            --local-dir "$hf_dir/prot_bert"
+    else
+        _log "Skipping prot_bert (already present)"
+    fi
+
+    _log "OK — set SSIGN_PLM_EFFECTOR_WEIGHTS=$dir"
+}
+
 fetch_blast_nr() {
     _log "==> BLAST NR (~390 GB; via update_blastdb.pl)"
     _require_command update_blastdb.pl "sudo apt install ncbi-blast+ (or brew/conda)"
@@ -350,6 +449,7 @@ fetch_blast_nr() {
 run_base() {
     fetch_taxdump
     fetch_bakta light
+    fetch_plm_effector_weights
 }
 
 run_extended() {
@@ -368,6 +468,7 @@ run_full() {
     # run_extended directly.
     fetch_taxdump
     fetch_bakta full
+    fetch_plm_effector_weights
     fetch_eggnog
     fetch_hhsuite_pfam
     fetch_hhsuite_pdb70
