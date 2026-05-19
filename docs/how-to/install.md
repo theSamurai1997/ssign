@@ -501,11 +501,16 @@ ssign run input.gbff --outdir results \
 ```
 
 For HPC users who installed each tool into a separate conda env, prepend
-them to PATH first:
+them to PATH **before** activating the ssign venv:
 
 ```bash
 export PATH=~/.conda/envs/bakta/bin:~/.conda/envs/hhsuite/bin:~/.conda/envs/eggnog/bin:$SSIGN_INTERPROSCAN_PATH:$PATH
+source ~/.ssign-env/bin/activate     # activate LAST so the venv's python wins
 ```
+
+Order matters: if you prepend the conda envs *after* activating the venv,
+one of their `python` binaries (which lacks ssign's deps, including torch)
+shadows the venv's interpreter and `ssign` fails with `ModuleNotFoundError`.
 
 Drop `--skip-blastp` and re-run after `fetch_databases.sh --tier full` if
 you also want local NR BLASTp.
