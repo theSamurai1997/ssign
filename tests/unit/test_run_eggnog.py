@@ -8,11 +8,55 @@ the pure-Python parser that reads the tool's TSV output.
 import os
 
 from run_eggnog import (
+    _build_emapper_cmd,
     _split_rich_field,
     load_substrate_ids,
     parse_eggnog_annotations,
     write_substrates_only_fasta,
 )
+
+
+class TestBuildEmapperCmd:
+    """Verify the emapper.py argv assembly.
+
+    The hung-2.5h-on-CX3 incident traced back to a missing `--dbmem`
+    flag — without it, emapper mmaps the 39 GB eggnog.db SQLite file,
+    which is pathological on NFS-backed shared scratch. The default
+    must include --dbmem; users with the DB on local SSD can opt out.
+    """
+
+    def _common_args(self):
+        return dict(
+            proteins_fasta="/tmp/proteins.faa",
+            db_path="/db/eggnog",
+            sample_id="sample",
+            output_dir="/tmp/out",
+        )
+
+    def test_dbmem_default_on(self):
+        cmd = _build_emapper_cmd(**self._common_args())
+        assert cmd.count("--dbmem") == 1
+
+    def test_dbmem_can_be_disabled(self):
+        cmd = _build_emapper_cmd(**self._common_args(), dbmem=False)
+        assert "--dbmem" not in cmd
+
+    def test_required_flags_present(self):
+        """Sanity: the existing fixed flags survive the refactor."""
+        cmd = _build_emapper_cmd(**self._common_args())
+        for flag in (
+            "-i",
+            "--itype",
+            "--output_dir",
+            "-o",
+            "--data_dir",
+            "--cpu",
+            "--tax_scope",
+            "--sensmode",
+            "--override",
+        ):
+            assert flag in cmd, f"expected {flag} in cmd, got {cmd}"
+
 
 # Representative emapper 2.1.x .annotations fixture. Lines starting with
 # '##' are comments emitted by emapper before and after the data block;

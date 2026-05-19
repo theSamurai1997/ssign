@@ -80,7 +80,7 @@ def _write_empty_output(out_path):
         writer.writeheader()
 
 
-def run_emapper(
+def _build_emapper_cmd(
     proteins_fasta,
     db_path,
     sample_id,
@@ -88,24 +88,9 @@ def run_emapper(
     threads=4,
     tax_scope="2",
     sensmode="more-sensitive",
+    dbmem=True,
 ):
-    """Run emapper.py on a protein FASTA file.
-
-    `tax_scope` restricts which orthologous groups are reported (post-
-    filter on DIAMOND seed-ortholog hits) — ssign is gram-negative-
-    bacteria-only, so NCBI taxid "2" (Bacteria) keeps eukaryotic OGs
-    out of the output. Numeric taxids are version-stable; named scopes
-    like "bacteria" only resolve if they match an eggnog tax-tree node
-    label and have shifted across emapper releases.
-
-    `sensmode` selects the DIAMOND sensitivity preset; "more-sensitive"
-    is ~3× slower than DIAMOND default but recovers more remote
-    orthologs (acceptable for the ~30 substrate proteins ssign typically
-    annotates).
-
-    Returns:
-        str: path to the `.emapper.annotations` file written by emapper.
-    """
+    """Build the emapper.py argv list. Exposed for unit testing."""
     cmd = [
         "emapper.py",
         "-i",
@@ -132,6 +117,56 @@ def run_emapper(
         sensmode,
         "--override",
     ]
+    if dbmem:
+        # `--dbmem` loads the ~39 GB eggnog.db SQLite into RAM (~44 GB
+        # resident). Without it, emapper mmaps the file — pathological on
+        # NFS-backed shared scratch (Imperial CX3 RDS, similar clusters),
+        # where startup hangs silently for hours instead of running.
+        # eggnog-mapper issue #267 / #277.
+        cmd.append("--dbmem")
+    return cmd
+
+
+def run_emapper(
+    proteins_fasta,
+    db_path,
+    sample_id,
+    output_dir,
+    threads=4,
+    tax_scope="2",
+    sensmode="more-sensitive",
+    dbmem=True,
+):
+    """Run emapper.py on a protein FASTA file.
+
+    `tax_scope` restricts which orthologous groups are reported (post-
+    filter on DIAMOND seed-ortholog hits) — ssign is gram-negative-
+    bacteria-only, so NCBI taxid "2" (Bacteria) keeps eukaryotic OGs
+    out of the output. Numeric taxids are version-stable; named scopes
+    like "bacteria" only resolve if they match an eggnog tax-tree node
+    label and have shifted across emapper releases.
+
+    `sensmode` selects the DIAMOND sensitivity preset; "more-sensitive"
+    is ~3× slower than DIAMOND default but recovers more remote
+    orthologs (acceptable for the ~30 substrate proteins ssign typically
+    annotates).
+
+    `dbmem` (default True) passes `--dbmem`. See `_build_emapper_cmd`
+    for the rationale.
+
+    Returns:
+        str: path to the `.emapper.annotations` file written by emapper.
+    """
+    cmd = _build_emapper_cmd(
+        proteins_fasta,
+        db_path,
+        sample_id,
+        output_dir,
+        threads=threads,
+        tax_scope=tax_scope,
+        sensmode=sensmode,
+        dbmem=dbmem,
+    )
 
     logger.info(f"Running EggNOG-mapper: emapper.py -i {proteins_fasta} -o {sample_id} --cpu {threads}")
     # FRAGILE: subprocess call requires `emapper.py` on PATH.
@@ -277,6 +312,12 @@ def main():
         ],
         help="DIAMOND sensitivity preset (default: more-sensitive).",
     )
+    parser.add_argument(
+        "--no-dbmem",
+        dest="dbmem",
+        action="store_false",
+        help="Disable --dbmem (see _build_emapper_cmd for why it's on by default).",
+    )
     parser.add_argument("--out", required=True, help="Output annotations TSV (ssign format)")
     args = parser.parse_args()
 
@@ -305,6 +346,7 @@ def main():
             threads=args.threads,
             tax_scope=args.tax_scope,
             sensmode=args.sensmode,
+            dbmem=args.dbmem,
         )
         entries = parse_eggnog_annotations(annotations_path)
 

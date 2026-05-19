@@ -270,6 +270,17 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
         help="Skip EggNOG-mapper step (default: skip).",
     )
     g.add_argument("--eggnog-db", default="", help="Path to EggNOG database directory.")
+    g.add_argument(
+        "--eggnog-dbmem",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Pass --dbmem to emapper.py (default: enabled). Loads eggnog.db "
+            "into RAM (~44 GB resident); required on NFS-backed cluster "
+            "scratch where the SQLite mmap otherwise hangs. Disable only on "
+            "RAM-constrained machines with the DB on local SSD."
+        ),
+    )
 
     g = p.add_argument_group("PLM-Effector")
     g.add_argument(
@@ -387,6 +398,7 @@ def _config_from_args(args: argparse.Namespace) -> "PipelineConfig":
         "plmblast_db": args.plmblast_db,
         "skip_eggnog": args.skip_eggnog,
         "eggnog_db": args.eggnog_db,
+        "eggnog_dbmem": args.eggnog_dbmem,
         "skip_plm_effector": args.skip_plm_effector,
         "plm_effector_weights_dir": args.plm_effector_weights_dir,
         "plm_effector_types": list(args.plm_effector_types),

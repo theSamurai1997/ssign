@@ -140,6 +140,12 @@ ssign run input.gbff --outdir results --eggnog-db ~/.ssign/databases/eggnog
 EggNOG annotation is off by default (`--skip-eggnog` defaults to `true`).
 Pass `--no-skip-eggnog` to enable it.
 
+> **HPC / shared scratch users:** `--dbmem` is on by default and loads
+> `eggnog.db` into RAM (~44 GB resident). Required on NFS-backed cluster
+> scratch (Imperial CX3 RDS and similar) — without it, emapper mmaps the
+> 39 GB SQLite DB and hangs silently for hours. Pass `--no-eggnog-dbmem`
+> only on RAM-constrained machines with the database on local SSD.
+
 ---
 
 ## BLAST+ (system binary)

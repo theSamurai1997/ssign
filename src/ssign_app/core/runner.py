@@ -118,6 +118,8 @@ class PipelineConfig:
     # since the database is ~50 GB; extended/full install tier enables it.
     skip_eggnog: bool = True
     eggnog_db: str = ""
+    # `--dbmem` defaults on. See run_eggnog._build_emapper_cmd for why.
+    eggnog_dbmem: bool = True
 
     # Phase 3.2.d: PLM-Effector (prediction-tier, equal to DLP/DSE per
     # the cross-validate refactor in 3.2.b). Skipped by default — needs a
@@ -1455,6 +1457,8 @@ class PipelineRunner:
             "--out",
             output,
         ]
+        if not self.config.eggnog_dbmem:
+            args.append("--no-dbmem")
         rc, stdout, stderr = run_script("run_eggnog.py", args, timeout=14400)
         if rc == 0:
             self.files["eggnog"] = output
