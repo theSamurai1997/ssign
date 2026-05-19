@@ -50,7 +50,7 @@ ECOD70_URL="http://ftp.tuebingen.mpg.de/ebio/protevo/toolkit/databases/plmblast_
 
 # InterProScan — pin version explicitly. Bump together with the
 # `interproscan-*-bin.tar.gz` checksum file from the EBI release page.
-IPS_VERSION="5.71-103.0"
+IPS_VERSION="5.77-108.0"
 IPS_URL="https://ftp.ebi.ac.uk/pub/software/unix/iprscan/5/${IPS_VERSION}/interproscan-${IPS_VERSION}-64-bit.tar.gz"
 
 # ---------------------------------------------------------------------------
@@ -138,6 +138,10 @@ _wget_with_fallback() {
     # one would treat a killed-mid-download partial file as complete.
     local out="$1" primary="$2" mirror="${3:-}"
 
+    # Some callers (HH-suite) download to a path whose parent dir isn't
+    # created by the per-fetcher mkdir. Cover that here so callers don't have to.
+    _run mkdir -p "$(dirname "$out")"
+
     _log "Fetching $primary -> $out"
     if [[ "$DRY_RUN" -eq 1 ]]; then
         _log "(dry-run; not downloading)"
@@ -224,7 +228,7 @@ fetch_bakta() {
     # separate NCBI binary. Catch it here with a useful pointer instead
     # of letting bakta_db crash mid-run.
     _require_command amrfinder \
-        "mamba install -c bioconda ncbi-amrfinderplus  (or 'mamba create -n bakta -c bioconda bakta' to get every Bakta binary dep at once)"
+        "mamba install -c bioconda ncbi-amrfinderplus  (or 'mamba create -n bakta-deps -c bioconda ncbi-amrfinderplus -y' then 'export PATH=~/.conda/envs/bakta-deps/bin:\$PATH')"
 
     local dir="$TARGET/bakta"
     # bakta_db creates either db/ or db-light/ inside --output depending on
@@ -241,7 +245,8 @@ fetch_bakta() {
 
 fetch_eggnog() {
     _log "==> EggNOG database (~50 GB; eggnog-mapper 2.1.13 + EggNOG v6.0)"
-    _require_command download_eggnog_data.py "conda install -c bioconda eggnog-mapper"
+    _require_command download_eggnog_data.py \
+        "conda install -c bioconda eggnog-mapper  (or 'mamba create -n eggnog -c bioconda eggnog-mapper -y' then 'export PATH=~/.conda/envs/eggnog/bin:\$PATH')"
 
     local dir="$TARGET/eggnog"
     if [[ -f "$dir/eggnog.db" ]]; then
