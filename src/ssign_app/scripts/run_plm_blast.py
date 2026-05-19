@@ -153,8 +153,15 @@ def _embed_query_fasta(
         os.symlink(os.path.abspath(proteins_fasta), embed_input)
 
     pt_path = f"{out_base}.pt"
+    # Route through _plm_blast_embed_bootstrap.py so torch.distributed /
+    # torch.multiprocessing get stubbed if absent — see that script's
+    # docstring for the why. Without the bootstrap, stripped torch wheels
+    # (some HPC modules, some CPU-only builds) crash at module load before
+    # any embedding work happens.
+    bootstrap = os.path.join(_scripts_dir, "_plm_blast_embed_bootstrap.py")
     cmd = [
-        "python",
+        sys.executable,
+        bootstrap,
         embed_script,
         "start",
         embed_input,
@@ -230,7 +237,7 @@ def run_plmblast(
         # plmblast.py uses single-dash long flags (`-cpc`, `-workers`)
         # per its argparse setup in alntools/parser.py.
         cmd = [
-            "python",
+            sys.executable,
             script,
             ecod_db,
             query_emb_base,
