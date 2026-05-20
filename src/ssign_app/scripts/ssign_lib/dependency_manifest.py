@@ -44,13 +44,20 @@ class PythonDep:
 
 @dataclass(frozen=True)
 class ExternalBinary:
-    """An executable that must be discoverable on ``PATH``."""
+    """An executable that must be discoverable on ``PATH`` (or via a configured-install env var).
+
+    ``install_dir_env`` names an env var holding a directory where the binary
+    might also live — e.g. InterProScan ships as a tarball that the user
+    extracts somewhere, then sets ``SSIGN_INTERPROSCAN_PATH``. Doctor checks
+    ``PATH`` first, then ``${install_dir_env}/<binary>``.
+    """
 
     name: str
     binary: str
     install_hint: str
     tier: Tier = "extended"
     optional: bool = False
+    install_dir_env: str = ""
 
 
 @dataclass(frozen=True)
@@ -58,10 +65,10 @@ class DatabasePath:
     """An on-disk database directory.
 
     Doctor resolves the path in this order: ``$SSIGN_<NAME>`` env var, then
-    the default ``~/.ssign/databases/...`` directory written by
-    ``scripts/fetch_databases.sh``. ``sentinel_file`` is one specific file
-    inside the directory whose presence confirms the DB is set up, not just
-    that an empty directory exists.
+    the ``$TARGET`` recorded in ``~/.ssign/db_root`` by the install script,
+    then the default ``~/.ssign/databases/...``. ``sentinel_file`` is one
+    specific file inside the directory whose presence confirms the DB is
+    set up, not just that an empty directory exists.
     """
 
     name: str
@@ -74,12 +81,20 @@ class DatabasePath:
 
 @dataclass(frozen=True)
 class ModelWeights:
-    """A model checkpoint / weights bundle."""
+    """A model checkpoint / weights bundle.
+
+    ``under_db_root`` toggles between the two layouts ssign uses:
+      - False (default): subpath is relative to ``~/.ssign`` — covers things
+        that auto-download on first pipeline run (DeepSecE checkpoint).
+      - True: subpath is relative to the fetch_databases.sh target — covers
+        bundles fetched by the install script (PLM-Effector weights).
+    """
 
     name: str
     default_subpath: str
     install_hint: str
     tier: Tier = "base"
+    under_db_root: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -177,6 +192,7 @@ EXTERNAL_BINARIES: tuple[ExternalBinary, ...] = (
         "InterProScan",
         "interproscan.sh",
         "see docs/how-to/install.md § InterProScan (Java + 30 GB tarball)",
+        install_dir_env="SSIGN_INTERPROSCAN_PATH",
     ),
     ExternalBinary(
         "SignalP 6 (local)",
@@ -280,9 +296,10 @@ MODEL_WEIGHTS: tuple[ModelWeights, ...] = (
     ),
     ModelWeights(
         "PLM-Effector ensemble weights",
-        "databases/plm_effector_weights",
+        "plm_effector_weights",
         "bash scripts/fetch_weights.sh (or scripts/fetch_databases.sh --tier extended)",
         tier="extended",
+        under_db_root=True,
     ),
 )
 

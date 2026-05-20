@@ -503,4 +503,14 @@ case "$TIER" in
     full)     run_full ;;
 esac
 
-_log "Done. Set the SSIGN_* env vars listed above to point ssign at this directory."
+# Record the data root so `ssign doctor` can find these databases without
+# the user having to export an env var per DB. Doctor reads this file first
+# (overriding the ~/.ssign/databases default) and resolves every sub-path
+# beneath it via the same layout fetch_databases.sh just wrote.
+if [[ "$DRY_RUN" -eq 0 ]]; then
+    mkdir -p "${HOME}/.ssign"
+    printf '%s\n' "$(cd "$TARGET" && pwd)" > "${HOME}/.ssign/db_root"
+    _log "Recorded data root at ~/.ssign/db_root → $TARGET"
+fi
+
+_log "Done. ssign doctor will read ~/.ssign/db_root automatically; SSIGN_* env vars override per-DB if you need them."

@@ -103,10 +103,22 @@ def check_external_binary(b: ExternalBinary) -> CheckResult:
     found = shutil.which(b.binary)
     if found:
         return CheckResult(name=b.name, ok=True, detail=found)
+    # Some tools (e.g. InterProScan) ship as a tarball the user extracts
+    # somewhere, then points an env var at the install dir. Honour that
+    # so doctor doesn't false-flag the binary as missing.
+    if b.install_dir_env:
+        install_dir = os.environ.get(b.install_dir_env, "").strip()
+        if install_dir:
+            candidate = os.path.join(install_dir, b.binary)
+            if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+                return CheckResult(name=b.name, ok=True, detail=candidate)
+    detail = f"`{b.binary}` not on PATH"
+    if b.install_dir_env:
+        detail += f" (and ${b.install_dir_env} unset or doesn't contain it)"
     return CheckResult(
         name=b.name + (" [optional]" if b.optional else ""),
-        ok=b.optional,  # optional missing = treated as OK for exit code
-        detail=f"`{b.binary}` not on PATH",
+        ok=b.optional,
+        detail=detail,
         fix=b.install_hint,
     )
 
@@ -116,15 +128,43 @@ def check_external_binary(b: ExternalBinary) -> CheckResult:
 # ---------------------------------------------------------------------------
 
 
-def _resolve_db_path(d: DatabasePath, data_root: str) -> str:
+def read_db_root_marker(data_root: str) -> str | None:
+    """Return the ``$TARGET`` value ``fetch_databases.sh`` recorded, or None.
+
+    The install script writes its absolute target path to
+    ``<data_root>/db_root`` at the end of a successful run, so users don't
+    have to set ``SSIGN_*`` env vars for every DB just for doctor to find
+    them. Returns None when the marker doesn't exist or points at a path
+    that's since gone away.
+    """
+    marker = os.path.join(data_root, "db_root")
+    if not os.path.isfile(marker):
+        return None
+    try:
+        with open(marker, encoding="utf-8") as f:
+            recorded = f.read().strip()
+    except OSError:
+        return None
+    return recorded if recorded and os.path.isdir(recorded) else None
+
+
+def resolve_db_root(data_root: str) -> str:
+    """The directory where bakta/, eggnog/, etc. live as direct children.
+
+    Precedence: ``<data_root>/db_root`` marker → ``<data_root>/databases``.
+    """
+    return read_db_root_marker(data_root) or os.path.join(data_root, "databases")
+
+
+def _resolve_db_path(d: DatabasePath, db_root: str) -> str:
     env_value = os.environ.get(d.env_var, "").strip()
     if env_value:
         return env_value
-    return os.path.join(data_root, "databases", d.default_subpath)
+    return os.path.join(db_root, d.default_subpath)
 
 
-def check_database(d: DatabasePath, data_root: str) -> CheckResult:
-    resolved = _resolve_db_path(d, data_root)
+def check_database(d: DatabasePath, db_root: str) -> CheckResult:
+    resolved = _resolve_db_path(d, db_root)
     sentinel = os.path.join(resolved, d.sentinel_file)
     if os.path.isfile(sentinel):
         return CheckResult(name=d.name, ok=True, detail=resolved)
@@ -143,8 +183,9 @@ def check_database(d: DatabasePath, data_root: str) -> CheckResult:
     )
 
 
-def check_weights(w: ModelWeights, data_root: str) -> CheckResult:
-    resolved = os.path.join(data_root, w.default_subpath)
+def check_weights(w: ModelWeights, data_root: str, db_root: str) -> CheckResult:
+    base = db_root if w.under_db_root else data_root
+    resolved = os.path.join(base, w.default_subpath)
     if os.path.exists(resolved):
         return CheckResult(name=w.name, ok=True, detail=resolved)
     return CheckResult(
@@ -191,8 +232,18 @@ def run(
     ``imports_only=True`` skips binaries / DBs / weights — used by CI where
     only the Python environment can be verified.
     """
+    db_root = resolve_db_root(data_root)
+    marker_used = read_db_root_marker(data_root) is not None
+
     print(f"ssign doctor — checking tier '{tier}'", file=stream)
-    print(f"  data root: {data_root}  (override sub-paths via SSIGN_* env vars)", file=stream)
+    print(f"  data root: {data_root}", file=stream)
+    if marker_used:
+        print(f"  db root:   {db_root}  (from {data_root}/db_root, written by fetch_databases.sh)", file=stream)
+    else:
+        print(
+            f"  db root:   {db_root}  (default; run fetch_databases.sh to record a custom location)",
+            file=stream,
+        )
 
     failures = 0
 
@@ -209,11 +260,11 @@ def run(
     # optional-missing was already counted as ok=True in check_external_binary
     failures += sum(1 for r in bin_results if not r.ok)
 
-    db_results = [check_database(d, data_root) for d in databases_for_tier(tier)]
+    db_results = [check_database(d, db_root) for d in databases_for_tier(tier)]
     ok, total = _render("Databases", db_results, stream)
     failures += total - ok
 
-    w_results = [check_weights(w, data_root) for w in weights_for_tier(tier)]
+    w_results = [check_weights(w, data_root, db_root) for w in weights_for_tier(tier)]
     ok, total = _render("Model weights", w_results, stream)
     failures += total - ok
 
