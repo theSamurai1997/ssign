@@ -259,15 +259,12 @@ class PipelineConfig:
             if getattr(self, field_name) is None:
                 setattr(self, field_name, not enabled_default)
 
-        # Env-var fallbacks for database / weight / install paths. Empty
-        # config field means "use the env var if set" — documented in the
-        # matching CLI --*-db / --*-dir / --*-path help text and
-        # docs/how-to/install.md. Explicit non-empty paths from the CLI
-        # always win.
-        #
-        # Env-var names match upstream conventions where one exists
-        # (BAKTA_DB, EGGNOG_DATA_DIR) and the SSIGN_-prefixed names
-        # printed by scripts/fetch_databases.sh otherwise.
+        # Step A — env-var verbatim. Trust whatever path the user (or HPC
+        # session script) exported, even if the layout doesn't match
+        # ssign's expectations yet. Tools that ship under their own
+        # conventional env var (BAKTA_DB, EGGNOG_DATA_DIR) and our
+        # SSIGN_*_DB family both get a chance here. Documented in the
+        # matching CLI --*-db / --*-dir help and docs/how-to/install.md.
         for attr, env in (
             ("bakta_db", "BAKTA_DB"),
             ("hhsuite_pfam_db", "SSIGN_HHSUITE_PFAM"),
@@ -285,12 +282,17 @@ class PipelineConfig:
                 setattr(self, attr, value)
                 logger.info("Using %s from env var %s: %s", attr, env, value)
 
-        # Marker-driven fallback for any DB / weights path still empty.
-        # Uses the same DatabasePath.resolve_path that doctor consumes, so
-        # the runner and doctor agree on where each DB lives — no more
-        # "doctor green but runner can't find Bakta" gaps. The user only
-        # needs ~/.ssign/db_root (written by fetch_databases.sh, or set
-        # manually) plus optional per-DB env-var overrides.
+        # Step B — marker fill-in + sentinel-driven descent. Uses
+        # DatabasePath.resolve_path (the same resolver doctor consumes),
+        # which globs the sentinel inside each candidate path and returns
+        # the dir containing the first match. For each DB:
+        #   - If the attr is unset, resolve_path returns the right path
+        #     under the marker root.
+        #   - If the attr is set (Step A) but points at the parent of the
+        #     actual DB dir (e.g. BAKTA_DB=<dir>/bakta when the version-
+        #     stamped subdir is at <dir>/bakta/db-light), resolve_path
+        #     descends into the right inner dir and we update the attr.
+        # This is what closes the "doctor green but Bakta crashes" gap.
         db_root = _resolve_db_root_for_runner()
         for attr, manifest_env_var in (
             ("bakta_db", "SSIGN_BAKTA_DB"),
@@ -301,23 +303,27 @@ class PipelineConfig:
             ("eggnog_db", "SSIGN_EGGNOG_DB"),
             ("plmblast_db", "SSIGN_ECOD70_DB"),
         ):
-            if getattr(self, attr):
-                continue
             entry = next((d for d in DATABASE_PATHS if d.env_var == manifest_env_var), None)
             if entry is None:
                 continue
-            resolved = entry.resolve_path(db_root)
-            if resolved:
+            current = getattr(self, attr)
+            extras = (current,) if current else ()
+            resolved = entry.resolve_path(db_root, *extras)
+            if resolved and resolved != current:
                 setattr(self, attr, resolved)
-                logger.info("Resolved %s from ~/.ssign/db_root: %s", attr, resolved)
-        # PLM-Effector weights live under db_root too (ModelWeights entry
-        # with under_db_root=True). One-off because it's not in
-        # DATABASE_PATHS.
+                if current:
+                    logger.info("Normalized %s: %s → %s", attr, current, resolved)
+                else:
+                    logger.info("Resolved %s → %s", attr, resolved)
+
+        # PLM-Effector weights also live under db_root when the user used
+        # fetch_databases.sh's default layout. ModelWeights entry with
+        # under_db_root=True; not part of DATABASE_PATHS so handled here.
         if not self.plm_effector_weights_dir:
             candidate = os.path.join(db_root, "plm_effector_weights")
             if os.path.isdir(candidate):
                 self.plm_effector_weights_dir = candidate
-                logger.info("Resolved plm_effector_weights_dir from ~/.ssign/db_root: %s", candidate)
+                logger.info("Resolved plm_effector_weights_dir → %s", candidate)
 
         # Auto-detect DTU-tool mode when the user didn't pin it. Defaults
         # to local if a binary is discoverable (configured path or PATH);

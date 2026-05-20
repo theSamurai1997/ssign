@@ -219,12 +219,35 @@ class TestPipelineConfigMarkerFallback:
         assert c.plm_effector_weights_dir == str(root / "plm_effector_weights")
 
     def test_env_var_wins_over_marker(self, tmp_path, monkeypatch):
+        # Env var pointing at a valid alternate layout wins. Lay down a
+        # second Bakta DB in a separate dir and point BAKTA_DB at it.
         root = self._stage_dbs(tmp_path, monkeypatch)
-        monkeypatch.setenv("BAKTA_DB", "/explicit/override/path")
+        alt = tmp_path / "alt-bakta"
+        (alt / "db-light").mkdir(parents=True)
+        (alt / "db-light" / "version.json").touch()
+        monkeypatch.setenv("BAKTA_DB", str(alt))
         c = PipelineConfig(input_path="x.gbff")
-        assert c.bakta_db == "/explicit/override/path"
+        assert c.bakta_db == str(alt / "db-light")
         # Other DBs still resolve via marker
         assert c.plmblast_db == str(root / "plm_blast" / "ECOD70")
+
+    def test_env_var_pointing_at_parent_dir_auto_descends(self, tmp_path, monkeypatch):
+        # The key bug-fix: BAKTA_DB=<root>/bakta (the parent of db-light)
+        # used to crash Bakta with "version.json not readable". Now the
+        # runner descends into db-light/ via the sentinel `db*/version.json`.
+        root = self._stage_dbs(tmp_path, monkeypatch)
+        monkeypatch.setenv("BAKTA_DB", str(root / "bakta"))
+        c = PipelineConfig(input_path="x.gbff")
+        assert c.bakta_db == str(root / "bakta" / "db-light")
+
+    def test_bogus_env_var_falls_through_to_marker(self, tmp_path, monkeypatch):
+        # If the env var points at a non-existent dir, runner ignores it and
+        # falls back to the marker layout — better than handing the broken
+        # path to the wrapper and dying with a tool-specific error.
+        root = self._stage_dbs(tmp_path, monkeypatch)
+        monkeypatch.setenv("BAKTA_DB", "/does/not/exist")
+        c = PipelineConfig(input_path="x.gbff")
+        assert c.bakta_db == str(root / "bakta" / "db-light")
 
 
 class TestPipelineConfigHHsuiteEnvFallback:

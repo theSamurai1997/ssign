@@ -84,15 +84,39 @@ class DatabasePath:
     install_hint: str
     tier: Tier = "extended"
 
-    def resolve_path(self, db_root: str) -> Optional[str]:
-        """Return the path the tool should consume, or None if not present."""
+    def resolve_path(self, db_root: str, *extra_paths: str) -> Optional[str]:
+        """Return the path the tool should consume, or None if not present.
+
+        Tries candidates in this order, returning the first whose sentinel
+        glob matches:
+
+          1. Any ``extra_paths`` the caller passed (typically the value of a
+             tool-specific env var like ``BAKTA_DB`` or ``EGGNOG_DATA_DIR``
+             that the runner already extracted).
+          2. ``$<env_var>`` (the ssign-prefixed env var on this manifest entry).
+          3. ``<db_root>/<default_subpath>``.
+
+        For each candidate, ``glob.glob(<cand>/<sentinel_file>)`` runs and
+        the dirname of the first match is returned. This handles two cases
+        in one pass:
+
+          - sentinel is a flat filename → match.dirname == cand → cand is
+            already the right dir.
+          - sentinel includes an inner-dir pattern (e.g. ``db*/version.json``)
+            → match.dirname is the inner version-stamped subdir → caller
+            gets the dir Bakta / IPS / etc. actually consume.
+        """
+        candidates = list(extra_paths)
         env_value = os.environ.get(self.env_var, "").strip()
         if env_value:
-            return env_value
-        candidate_dir = os.path.join(db_root, self.default_subpath)
-        matches = glob.glob(os.path.join(candidate_dir, self.sentinel_file))
-        if matches:
-            return os.path.dirname(matches[0])
+            candidates.append(env_value)
+        candidates.append(os.path.join(db_root, self.default_subpath))
+        for cand in candidates:
+            if not cand or not os.path.isdir(cand):
+                continue
+            matches = glob.glob(os.path.join(cand, self.sentinel_file))
+            if matches:
+                return os.path.dirname(matches[0])
         return None
 
 
