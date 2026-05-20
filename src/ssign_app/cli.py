@@ -464,6 +464,47 @@ def _run_pipeline(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
+# `ssign doctor` subcommand
+# ---------------------------------------------------------------------------
+
+
+def _add_doctor_parser(subparsers: argparse._SubParsersAction) -> None:
+    """Build the `ssign doctor` subcommand parser.
+
+    Implementation lives in ``ssign_app.scripts.doctor``; this stub just
+    exposes the flags the runtime function consumes. Defaults are imported
+    from there to avoid drift.
+    """
+    from ssign_app.scripts.doctor import DEFAULT_DATA_ROOT, DEFAULT_TIER
+
+    p = subparsers.add_parser(
+        "doctor",
+        help="Verify the install: Python packages, external binaries, databases, model weights.",
+        description=(
+            "Check every dependency ssign needs and report what's missing with the exact "
+            "fix command. Exit non-zero on any failure so you can chain `ssign doctor && "
+            "ssign run ...` in scripts."
+        ),
+    )
+    p.add_argument(
+        "--tier",
+        choices=("base", "extended", "full"),
+        default=DEFAULT_TIER,
+        help=f"Install tier to verify against (default: {DEFAULT_TIER}).",
+    )
+    p.add_argument(
+        "--imports-only",
+        action="store_true",
+        help="Only check Python imports; skip binaries / DBs / weights (used by CI).",
+    )
+    p.add_argument(
+        "--data-root",
+        default=DEFAULT_DATA_ROOT,
+        help=f"Root for databases + models (default: {DEFAULT_DATA_ROOT}). SSIGN_* env vars override per-DB paths.",
+    )
+
+
+# ---------------------------------------------------------------------------
 # `ssign` (no subcommand) — Streamlit GUI launcher
 # ---------------------------------------------------------------------------
 
@@ -601,6 +642,7 @@ def main() -> int:
 
     subparsers = parser.add_subparsers(dest="subcommand")
     _add_run_parser(subparsers)
+    _add_doctor_parser(subparsers)
 
     args = parser.parse_args()
 
@@ -612,6 +654,15 @@ def main() -> int:
 
     if args.subcommand == "run":
         return _run_pipeline(args)
+
+    if args.subcommand == "doctor":
+        from ssign_app.scripts.doctor import run as doctor_run
+
+        return doctor_run(
+            tier=args.tier,
+            imports_only=args.imports_only,
+            data_root=args.data_root,
+        )
 
     return _launch_gui(args)
 

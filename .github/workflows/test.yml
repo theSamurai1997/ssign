@@ -29,3 +29,30 @@ jobs:
 
       - name: Run unit tests
         run: pytest tests/unit/ -v
+
+  dep-check:
+    # Verifies pyproject.toml [extended] is complete: imports every Python dep
+    # and every lazy symbol the codebase reaches for. Catches drift the moment
+    # it lands, instead of waiting for a pipeline run to fail hours in.
+    # One Python version is enough — this is an install-completeness check,
+    # not a compatibility matrix.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install ssign[extended,dev]
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[extended,dev]"
+
+      - name: Eager-import every declared dep
+        run: pytest -m integration tests/integration/test_imports.py -v
+
+      - name: ssign doctor (imports-only)
+        run: ssign doctor --imports-only --tier extended
