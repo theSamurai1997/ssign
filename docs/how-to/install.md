@@ -492,16 +492,25 @@ skipped at run time and the rest of the pipeline continues.
 
 ## Canonical command — extended tier (every annotation tool on)
 
-Most extended-tier annotation steps default to `--skip-*=True` because each
-one needs an external database or binary. Once `fetch_databases.sh --tier
-extended` has run and every tool from the sections above is installed, this
-is the canonical command that exercises everything in the extended tier on
-a single GenBank input.
+After `fetch_databases.sh --tier extended` has run and every tool from the
+sections above is installed, the canonical command is just:
 
 ```bash
-# Point ssign at the databases / weights (matches the env vars
-# scripts/fetch_databases.sh prints; CLI flags override these).
-DBROOT=~/.ssign/databases   # or wherever you ran --target
+ssign run input.gbff --outdir results
+```
+
+That's it. `fetch_databases.sh` records the tier at `~/.ssign/tier`; ssign
+reads it and enables exactly the tools the extended bundle ships (EggNOG,
+HH-suite Pfam+PDB70, InterProScan, pLM-BLAST, PLM-Effector) while leaving
+BLASTp off because NR is only present at `--tier full`. The database paths
+come from `~/.ssign/db_root` (also written by `fetch_databases.sh`) — no
+per-DB env var exports needed for the common case.
+
+If your databases live somewhere other than what's recorded in
+`~/.ssign/db_root`, set the env vars below to point at them:
+
+```bash
+DBROOT=/path/to/your/databases
 export BAKTA_DB=$DBROOT/bakta/db-light
 export SSIGN_HHSUITE_PFAM=$DBROOT/hhsuite/pfam
 export SSIGN_HHSUITE_PDB70=$DBROOT/hhsuite/pdb70
@@ -509,13 +518,16 @@ export SSIGN_INTERPROSCAN_PATH=$DBROOT/interproscan/interproscan-5.77-108.0
 export EGGNOG_DATA_DIR=$DBROOT/eggnog
 export SSIGN_ECOD70_DB=$DBROOT/plm_blast/ECOD70
 export SSIGN_PLM_EFFECTOR_WEIGHTS=$DBROOT/plm_effector_weights
+```
 
-ssign run input.gbff --outdir results \
-    --no-skip-hhsuite \
-    --no-skip-eggnog \
-    --no-skip-plmblast \
-    --no-skip-plm-effector \
-    --skip-blastp        # NR (390 GB) only ships in `--tier full`
+To deviate from the tier default for one tool (e.g. you have NR locally
+even on an extended-tier install, or you want to skip EggNOG on this
+specific run), pass the per-tool override:
+
+```bash
+ssign run input.gbff --outdir results --no-skip-blastp        # opt-in to BLASTp
+ssign run input.gbff --outdir results --skip-eggnog           # opt-out of EggNOG
+ssign run input.gbff --outdir results --tier base             # force a tier
 ```
 
 For HPC users who installed each tool into a separate conda env, prepend
@@ -529,6 +541,3 @@ source ~/.ssign-env/bin/activate     # activate LAST so the venv's python wins
 Order matters: if you prepend the conda envs *after* activating the venv,
 one of their `python` binaries (which lacks ssign's deps, including torch)
 shadows the venv's interpreter and `ssign` fails with `ModuleNotFoundError`.
-
-Drop `--skip-blastp` and re-run after `fetch_databases.sh --tier full` if
-you also want local NR BLASTp.

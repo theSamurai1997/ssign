@@ -510,7 +510,9 @@ esac
 if [[ "$DRY_RUN" -eq 0 ]]; then
     mkdir -p "${HOME}/.ssign"
     printf '%s\n' "$(cd "$TARGET" && pwd)" > "${HOME}/.ssign/db_root"
+    printf '%s\n' "$TIER" > "${HOME}/.ssign/tier"
     _log "Recorded data root at ~/.ssign/db_root → $TARGET"
+    _log "Recorded tier      at ~/.ssign/tier     → $TIER"
 fi
 
 _log "Done. ssign doctor will read ~/.ssign/db_root automatically; SSIGN_* env vars override per-DB if you need them."

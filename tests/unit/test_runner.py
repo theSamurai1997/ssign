@@ -76,18 +76,48 @@ class TestPipelineConfig:
         assert "EXTRA" not in b.plm_effector_types
 
     def test_skip_flags_align_with_install_tier(self):
-        c = PipelineConfig()
-        # base tier defaults: HH-suite, pLM-BLAST, EggNOG, PLM-Effector skipped
-        assert c.skip_hhsuite is True
-        assert c.skip_plmblast is True
+        # At tier='base' (small install, no annotation DBs), heavy DB-bound
+        # tools are off and the prediction core is on.
+        c = PipelineConfig(tier="base")
+        assert c.skip_blastp is True
         assert c.skip_eggnog is True
-        assert c.skip_plm_effector is True
-        # base tier defaults: BLASTp, IPS, ProtParam, DeepSecE, SignalP active
-        assert c.skip_blastp is False
-        assert c.skip_interproscan is False
-        assert c.skip_protparam is False
-        assert c.skip_deepsece is False
+        assert c.skip_hhsuite is True
+        assert c.skip_interproscan is True
+        assert c.skip_plmblast is True
+        # base-tier predictors all run
+        assert c.skip_deeplocpro is False
         assert c.skip_signalp is False
+        assert c.skip_deepsece is False
+        assert c.skip_plm_effector is False
+        assert c.skip_protparam is False
+
+    def test_skip_flags_extended_tier_enables_annotation_tools(self):
+        # At tier='extended', EggNOG / HH-suite / IPS / pLM-BLAST come on
+        # because the extended DB bundle ships them. BLAST NR is still
+        # off (it's full-tier only).
+        c = PipelineConfig(tier="extended")
+        assert c.skip_eggnog is False
+        assert c.skip_hhsuite is False
+        assert c.skip_interproscan is False
+        assert c.skip_plmblast is False
+        assert c.skip_blastp is True
+
+    def test_skip_flags_full_tier_enables_blast(self):
+        c = PipelineConfig(tier="full")
+        assert c.skip_blastp is False
+
+    def test_explicit_skip_overrides_tier_default(self):
+        # CLI --skip-eggnog at extended-tier should still skip.
+        c = PipelineConfig(tier="extended", skip_eggnog=True)
+        assert c.skip_eggnog is True
+        # HH-suite still on (no override): tier default sticks.
+        assert c.skip_hhsuite is False
+
+    def test_unknown_tier_raises(self):
+        import pytest
+
+        with pytest.raises(ValueError, match="Unknown tier"):
+            PipelineConfig(tier="ludicrous")
 
     def test_cpu_per_genome_factory_yields_positive_int(self):
         c = PipelineConfig()

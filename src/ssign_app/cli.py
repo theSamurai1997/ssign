@@ -96,6 +96,16 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
         help="Skip steps that already have a successful entry in the progress "
         "manifest at <outdir>/.ssign/<sid>_progress.json.",
     )
+    g.add_argument(
+        "--tier",
+        choices=("base", "extended", "full"),
+        default=None,
+        help=(
+            "Install tier the run targets — sets each tool's default on/off "
+            "state to what that tier ships. Leave unset to use what "
+            "fetch_databases.sh recorded; defaults to 'extended'."
+        ),
+    )
 
     # ── Phase 2: SS detection ──────────────────────────────────────────
     g = p.add_argument_group("SS detection (MacSyFinder)")
@@ -192,8 +202,24 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
         default="",
         help="Path to local SignalP 6 install. Empty = expect 'signalp6' on PATH.",
     )
-    g.add_argument("--skip-signalp", action=argparse.BooleanOptionalAction, default=False, help="Skip SignalP step.")
-    g.add_argument("--skip-deepsece", action=argparse.BooleanOptionalAction, default=False, help="Skip DeepSecE step.")
+    g.add_argument(
+        "--skip-deeplocpro",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Skip DeepLocPro step (overrides --tier default).",
+    )
+    g.add_argument(
+        "--skip-signalp",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Skip SignalP step (overrides --tier default).",
+    )
+    g.add_argument(
+        "--skip-deepsece",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Skip DeepSecE step (overrides --tier default).",
+    )
     g.add_argument(
         "--dlp-whole-genome",
         action=argparse.BooleanOptionalAction,
@@ -215,7 +241,12 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
 
     # ── Phase 5: Annotation tools ───────────────────────────────────────
     g = p.add_argument_group("BLASTp")
-    g.add_argument("--skip-blastp", action=argparse.BooleanOptionalAction, default=False)
+    g.add_argument(
+        "--skip-blastp",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Skip BLASTp (overrides --tier default; on at tier=full only because NR is ~390 GB).",
+    )
     g.add_argument("--blastp-db", default="", help="Path to BLAST database (NR or Swiss-Prot).")
     g.add_argument("--blastp-exclude-taxid", default="", help="Comma-separated taxid(s) to exclude from BLASTp hits.")
     g.add_argument(
@@ -228,8 +259,8 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
     g.add_argument(
         "--skip-hhsuite",
         action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Skip HH-suite step (default: skip).",
+        default=None,
+        help="Skip HH-suite step (overrides --tier default).",
     )
     g.add_argument(
         "--hhsuite-pfam-db", default="", help="Path to HH-suite Pfam database. Falls back to $SSIGN_HHSUITE_PFAM."
@@ -247,7 +278,12 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
     )
 
     g = p.add_argument_group("InterProScan")
-    g.add_argument("--skip-interproscan", action=argparse.BooleanOptionalAction, default=False)
+    g.add_argument(
+        "--skip-interproscan",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Skip InterProScan (overrides --tier default).",
+    )
     g.add_argument("--interproscan-db", default="", help="Path to InterProScan install dir.")
     g.add_argument(
         "--interproscan-min-evalue", type=float, default=1e-5, help="InterProScan e-value threshold (default: 1e-5)."
@@ -257,8 +293,8 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
     g.add_argument(
         "--skip-plmblast",
         action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Skip pLM-BLAST step (default: skip).",
+        default=None,
+        help="Skip pLM-BLAST step (overrides --tier default).",
     )
     g.add_argument("--plmblast-db", default="", help="Path to ECOD70 pLM-BLAST database.")
 
@@ -266,8 +302,8 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
     g.add_argument(
         "--skip-eggnog",
         action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Skip EggNOG-mapper step (default: skip).",
+        default=None,
+        help="Skip EggNOG-mapper step (overrides --tier default).",
     )
     g.add_argument("--eggnog-db", default="", help="Path to EggNOG database directory.")
     g.add_argument(
@@ -286,8 +322,8 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
     g.add_argument(
         "--skip-plm-effector",
         action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Skip PLM-Effector step (default: skip).",
+        default=None,
+        help="Skip PLM-Effector step (overrides --tier default).",
     )
     g.add_argument("--plm-effector-weights-dir", default="", help="Directory with PLM-Effector weights + ProtT5 cache.")
     g.add_argument(
@@ -298,7 +334,12 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
     )
 
     g = p.add_argument_group("misc annotation")
-    g.add_argument("--skip-protparam", action=argparse.BooleanOptionalAction, default=False)
+    g.add_argument(
+        "--skip-protparam",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Skip ProtParam step (overrides --tier default).",
+    )
     g.add_argument(
         "--filter-dse-type-mismatch",
         action=argparse.BooleanOptionalAction,
@@ -361,6 +402,7 @@ def _config_from_args(args: argparse.Namespace) -> "PipelineConfig":
         "original_filename": args.original_filename,
         "sample_id": sample_id,
         "outdir": args.outdir,
+        "tier": args.tier,
         "wholeness_threshold": args.wholeness_threshold,
         "excluded_systems": list(args.excluded_systems),
         "macsyfinder_db_type": args.macsyfinder_db_type,
@@ -376,6 +418,7 @@ def _config_from_args(args: argparse.Namespace) -> "PipelineConfig":
         "deeplocpro_path": args.deeplocpro_path,
         "signalp_mode": args.signalp_mode,
         "signalp_path": args.signalp_path,
+        "skip_deeplocpro": args.skip_deeplocpro,
         "skip_signalp": args.skip_signalp,
         "skip_deepsece": args.skip_deepsece,
         "dlp_whole_genome": args.dlp_whole_genome,

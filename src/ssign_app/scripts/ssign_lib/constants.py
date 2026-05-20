@@ -97,3 +97,38 @@ DSE_TO_MACSYFINDER = {
     "T4SS": ["pT4SSt", "T4SS"],
     "T6SS": ["T6SSi", "T6SS"],
 }
+
+
+# --- Install-tier defaults ---
+# Which optional tools default on at each install tier. The user's tier
+# comes from --tier on the CLI, or ~/.ssign/tier (written by
+# fetch_databases.sh at the end of a successful fetch), or falls back to
+# "extended". Per-tool overrides (--skip-X / --no-skip-X) still win when
+# the user is explicit.
+#
+# Mapping reflects "what does this tier ship?":
+#   - base: Bakta light DB + DeepSecE/PLM-Effector weights → those tools
+#     default on. Annotation tools that need extended DBs (EggNOG ~50 GB,
+#     HH-suite ~30 GB, IPS ~24 GB, ECOD70 ~24 GB) default off.
+#   - extended: adds those four DBs, so EggNOG/HH-suite/IPS/pLM-BLAST
+#     default on.
+#   - full: adds BLAST NR (390 GB) + HH-suite UniRef30, so BLASTp turns
+#     on at the full tier.
+#
+# `run_bakta` is governed by --use-input-annotations + Bakta-DB-present
+# invariant separately; not in this table.
+# Each tool listed exactly once at the tier it first becomes available.
+# The full per-tier on/off map is built below.
+_BASE_ENABLED = frozenset({"deeplocpro", "signalp", "deepsece", "plm_effector", "protparam"})
+_EXTENDED_ADDS = frozenset({"interproscan", "hhsuite", "eggnog", "plmblast"})
+_FULL_ADDS = frozenset({"blastp"})
+
+_TIER_ENABLED = {
+    "base": _BASE_ENABLED,
+    "extended": _BASE_ENABLED | _EXTENDED_ADDS,
+    "full": _BASE_ENABLED | _EXTENDED_ADDS | _FULL_ADDS,
+}
+_ALL_TOOLS = _TIER_ENABLED["full"]
+
+TIER_TOOL_DEFAULTS = {tier: {tool: (tool in enabled) for tool in _ALL_TOOLS} for tier, enabled in _TIER_ENABLED.items()}
+DEFAULT_TIER = "extended"

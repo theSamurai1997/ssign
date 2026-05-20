@@ -19,7 +19,11 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Callable, Optional
 
-from ssign_app.scripts.ssign_lib.constants import HHSUITE_MIN_PROB
+from ssign_app.scripts.ssign_lib.constants import (
+    DEFAULT_TIER,
+    HHSUITE_MIN_PROB,
+    TIER_TOOL_DEFAULTS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +38,24 @@ BIN_DIR = _PACKAGE_SCRIPTS if _PACKAGE_SCRIPTS.exists() else _DEV_BIN
 # 4h matches the longest-running per-step subprocess timeout, so a single
 # stalled DTU job can't deadlock parallel-genome runs forever.
 DTU_SEMAPHORE_TIMEOUT_S = 14400
+
+
+def _read_tier_marker() -> Optional[str]:
+    """Return the tier ``fetch_databases.sh`` recorded, or None.
+
+    Looks at ``~/.ssign/tier`` (a one-line file with ``base`` /
+    ``extended`` / ``full``). Returns None when the marker doesn't exist
+    or holds an unrecognised value — caller falls back to ``DEFAULT_TIER``.
+    """
+    marker = os.path.expanduser("~/.ssign/tier")
+    if not os.path.isfile(marker):
+        return None
+    try:
+        with open(marker, encoding="utf-8") as f:
+            value = f.read().strip().lower()
+    except OSError:
+        return None
+    return value if value in TIER_TOOL_DEFAULTS else None
 
 
 @dataclass
@@ -81,57 +103,66 @@ class PipelineConfig:
     bakta_db: str = ""  # Required for any Bakta run (FASTA or GenBank re-annotation)
     bakta_threads: int = 4
 
+    # --- Install tier (governs which optional tools default on) ------------
+    # If unset (None), __post_init__ reads ~/.ssign/tier (written by
+    # fetch_databases.sh) and falls back to DEFAULT_TIER. CLI --tier wins.
+    # Every `skip_*` field below defaults to None ("use tier default");
+    # __post_init__ resolves each one to a concrete bool via
+    # TIER_TOOL_DEFAULTS. Passing --skip-X / --no-skip-X on the CLI bypasses
+    # the tier-default lookup for that one tool.
+    tier: Optional[str] = None
+
     # Phase 3: Tool paths (DTU licensed). ssign is offline-first: local installs
     # are the canonical path; remote submits to the DTU webserver as a fallback.
     deeplocpro_mode: str = "local"  # "local" or "remote"
     deeplocpro_path: str = ""
     signalp_mode: str = "local"
     signalp_path: str = ""
-    skip_signalp: bool = False
-    skip_deepsece: bool = False
+    skip_deeplocpro: Optional[bool] = None
+    skip_signalp: Optional[bool] = None
+    skip_deepsece: Optional[bool] = None
     dlp_whole_genome: bool = False  # Run on all proteins, not just neighborhood
     dse_whole_genome: bool = False
     sp_whole_genome: bool = False
 
     # Phase 5: Annotation tools
-    skip_blastp: bool = False
+    skip_blastp: Optional[bool] = None
     blastp_db: str = ""
     blastp_exclude_taxid: str = ""
     blastp_min_pident: float = 80.0
     blastp_min_qcov: float = 80.0
     blastp_evalue: float = 1e-5
 
-    skip_hhsuite: bool = True
+    skip_hhsuite: Optional[bool] = None
     hhsuite_pfam_db: str = ""
     hhsuite_pdb70_db: str = ""
     hhsuite_uniclust_db: str = ""
     hhsuite_min_prob: float = HHSUITE_MIN_PROB
 
-    skip_interproscan: bool = False
+    skip_interproscan: Optional[bool] = None
     interproscan_db: str = ""
     interproscan_min_evalue: float = 1e-5
 
-    skip_plmblast: bool = True
+    skip_plmblast: Optional[bool] = None
     plmblast_db: str = ""
 
-    # Phase 3.2.d: EggNOG-mapper (annotation-tier). Skipped by default
-    # since the database is ~50 GB; extended/full install tier enables it.
-    skip_eggnog: bool = True
+    # Phase 3.2.d: EggNOG-mapper (annotation-tier). Tier-driven default:
+    # off at base (no DB shipped), on at extended/full.
+    skip_eggnog: Optional[bool] = None
     eggnog_db: str = ""
     # `--dbmem` defaults on. See run_eggnog._build_emapper_cmd for why.
     eggnog_dbmem: bool = True
 
     # Phase 3.2.d: PLM-Effector (prediction-tier, equal to DLP/DSE per
-    # the cross-validate refactor in 3.2.b). Skipped by default — needs a
-    # GPU plus ~15 GB of pretrained PLM weights. When enabled, ssign runs
-    # PLM-Effector once per SS type in `plm_effector_types` and merges
-    # the outputs into a single `passes_threshold` flag fed to
-    # cross_validate_predictions.
-    skip_plm_effector: bool = True
+    # the cross-validate refactor in 3.2.b). Tier-driven default: on at
+    # every tier (weights ship with the base bundle), but the user can
+    # --skip-plm-effector on CPU-only nodes where the per-type ESM forward
+    # is too slow.
+    skip_plm_effector: Optional[bool] = None
     plm_effector_weights_dir: str = ""
     plm_effector_types: list = field(default_factory=lambda: ["T1SE", "T2SE", "T3SE", "T4SE", "T6SE"])
 
-    skip_protparam: bool = False
+    skip_protparam: Optional[bool] = None
 
     # DSE type-match filter: remove DSE-only substrates where predicted
     # SS type doesn't match nearby MacSyFinder system
@@ -156,6 +187,26 @@ class PipelineConfig:
     ortholog_min_qcov: float = 70.0
 
     def __post_init__(self) -> None:
+        # Resolve the install tier first (every skip_* default depends on it):
+        # explicit `tier` wins, then the marker at ~/.ssign/tier written by
+        # fetch_databases.sh, then DEFAULT_TIER.
+        if self.tier is None:
+            self.tier = _read_tier_marker() or DEFAULT_TIER
+        if self.tier not in TIER_TOOL_DEFAULTS:
+            raise ValueError(f"Unknown tier {self.tier!r}; expected one of {sorted(TIER_TOOL_DEFAULTS)}")
+
+        # Resolve each unset `skip_*` field via TIER_TOOL_DEFAULTS. The
+        # dataclass field name is `skip_<tool>`, the tier-defaults key is
+        # `<tool>`, and the tier table is keyed by "is enabled?" (True),
+        # which inverts to skip=False. If the user explicitly set the flag
+        # (True or False on the CLI), the dataclass arrives here non-None
+        # and we leave it alone.
+        tier_defaults = TIER_TOOL_DEFAULTS[self.tier]
+        for tool, enabled_default in tier_defaults.items():
+            field_name = f"skip_{tool}"
+            if getattr(self, field_name) is None:
+                setattr(self, field_name, not enabled_default)
+
         # Env-var fallbacks for database / weight paths. Empty config field
         # means "use the env var if set" — documented in the matching CLI
         # --*-db / --*-dir help text and docs/how-to/install.md. Explicit
@@ -388,9 +439,9 @@ class PipelineRunner:
         # Prediction tools (parallel group 1) — equal secretion predictors
         # per cross_validate 3.2.b. SignalP runs with them but is recorded
         # evidence-only in the cross-validation step.
-        prediction_steps = [
-            ("Predicting localization (DeepLocPro)", self._step_deeplocpro),
-        ]
+        prediction_steps = []
+        if not self.config.skip_deeplocpro:
+            prediction_steps.append(("Predicting localization (DeepLocPro)", self._step_deeplocpro))
         if not self.config.skip_deepsece:
             prediction_steps.append(("Predicting secretion type (DeepSecE)", self._step_deepsece))
         if not self.config.skip_plm_effector:
