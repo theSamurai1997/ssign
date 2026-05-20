@@ -58,11 +58,20 @@ _COL_PFAMS = "PFAMs"
 _EMAPPER_MISSING = "-"
 
 
+# Column names follow the ssign convention used by every other annotation
+# wrapper (run_blastp, run_interproscan, run_hhsuite, ...):
+#   - join key is named `locus_tag` so integrate_annotations.py merges it
+#     against the substrate master table without falling through to its
+#     "no join column" branch and silently dropping the file.
+#   - description-style fields are tool-namespaced (`eggnog_description`,
+#     same shape as `bakta_product`, `blastp_hit_description`,
+#     `interpro_descriptions`) so the consensus voting in
+#     integrate_annotations.py `TOOL_HIT_COLUMNS` resolves them.
 _OUTPUT_FIELDNAMES = [
-    "protein_id",
+    "locus_tag",
     "seed_ortholog",
     "evalue",
-    "description",
+    "eggnog_description",
     "preferred_name",
     "cog_category",
     "ec_numbers",
@@ -226,7 +235,7 @@ def parse_eggnog_annotations(annotations_path):
     on the remaining tab-separated rows.
 
     Returns list of dicts with columns:
-        protein_id, seed_ortholog, evalue, description, preferred_name,
+        locus_tag, seed_ortholog, evalue, eggnog_description, preferred_name,
         cog_category, ec_numbers, kegg_ko, go_terms, pfam_ids
 
     Multi-value fields (ec_numbers, kegg_ko, go_terms, pfam_ids) are
@@ -241,8 +250,8 @@ def parse_eggnog_annotations(annotations_path):
 
     reader = csv.DictReader(lines, delimiter="\t")
     for row in reader:
-        protein_id = row.get(_COL_QUERY, "").strip()
-        if not protein_id or protein_id == "-":
+        locus_tag = row.get(_COL_QUERY, "").strip()
+        if not locus_tag or locus_tag == "-":
             continue
 
         cog_raw = row.get(_COL_COG_CATEGORY, "").strip()
@@ -250,10 +259,10 @@ def parse_eggnog_annotations(annotations_path):
 
         entries.append(
             {
-                "protein_id": protein_id,
+                "locus_tag": locus_tag,
                 "seed_ortholog": row.get(_COL_SEED_ORTHOLOG, "").strip(),
                 "evalue": row.get(_COL_EVALUE, "").strip(),
-                "description": row.get(_COL_DESCRIPTION, "").strip() or "-",
+                "eggnog_description": row.get(_COL_DESCRIPTION, "").strip() or "-",
                 "preferred_name": row.get(_COL_PREFERRED_NAME, "").strip(),
                 "cog_category": cog_category,
                 "ec_numbers": _split_rich_field(row.get(_COL_EC)),

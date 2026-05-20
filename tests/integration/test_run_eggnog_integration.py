@@ -18,9 +18,7 @@ pytestmark = pytest.mark.integration
 
 
 class TestRunEmapperOnFixture:
-    def test_emapper_runs_and_produces_annotations(
-        self, tmp_dir, t1ss_fixture_proteins, emapper_db
-    ):
+    def test_emapper_runs_and_produces_annotations(self, tmp_dir, t1ss_fixture_proteins, emapper_db):
         annotations_path = run_emapper(
             proteins_fasta=t1ss_fixture_proteins,
             db_path=emapper_db,
@@ -29,14 +27,10 @@ class TestRunEmapperOnFixture:
             threads=4,
         )
 
-        assert os.path.exists(annotations_path), (
-            "emapper did not produce the .annotations file"
-        )
+        assert os.path.exists(annotations_path), "emapper did not produce the .annotations file"
         assert os.path.getsize(annotations_path) > 0, "emapper annotations is empty"
 
-    def test_parsed_entries_have_valid_shape(
-        self, tmp_dir, t1ss_fixture_proteins, emapper_db
-    ):
+    def test_parsed_entries_have_valid_shape(self, tmp_dir, t1ss_fixture_proteins, emapper_db):
         """At least a handful of the ~170-180 CDS on the fixture should match
         an eggNOG orthologous group; we don't pin an exact count because it
         depends on which DB subset is installed."""
@@ -52,17 +46,15 @@ class TestRunEmapperOnFixture:
         # Minimal fixture (9 proteins) typically yields 3-6 OG annotations;
         # full fixture (179 proteins) yields 100+. >2 is the lower bound that
         # validates emapper actually annotated something.
-        assert len(entries) > 2, (
-            f"Expected >2 eggNOG annotations, got {len(entries)}"
-        )
+        assert len(entries) > 2, f"Expected >2 eggNOG annotations, got {len(entries)}"
 
         required = {
-            "protein_id",
+            "locus_tag",
             "seed_ortholog",
             "evalue",
-            "description",
+            "eggnog_description",
             "preferred_name",
         }
         for e in entries:
             assert required <= set(e.keys())
-            assert e["protein_id"], "Every entry must have a non-empty protein_id"
+            assert e["locus_tag"], "Every entry must have a non-empty locus_tag"

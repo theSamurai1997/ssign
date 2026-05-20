@@ -94,10 +94,10 @@ class TestParseEggnogAnnotations:
             f.write(_EGGNOG_FIXTURE)
 
         entries = parse_eggnog_annotations(path)
-        e1 = next(e for e in entries if e["protein_id"] == "GENE_00001")
+        e1 = next(e for e in entries if e["locus_tag"] == "GENE_00001")
         assert e1["seed_ortholog"] == "83333.eco0001"
         assert e1["evalue"] == "1e-180"
-        assert e1["description"] == "DNA-directed RNA polymerase subunit beta"
+        assert e1["eggnog_description"] == "DNA-directed RNA polymerase subunit beta"
         assert e1["preferred_name"] == "rpoB"
 
     def test_dash_description_preserved_as_dash(self, tmp_dir):
@@ -108,9 +108,9 @@ class TestParseEggnogAnnotations:
             f.write(_EGGNOG_FIXTURE)
 
         entries = parse_eggnog_annotations(path)
-        e3 = next(e for e in entries if e["protein_id"] == "GENE_00003")
+        e3 = next(e for e in entries if e["locus_tag"] == "GENE_00003")
         # GENE_00003 has a real description in the fixture
-        assert e3["description"] == "Uncharacterized conserved protein"
+        assert e3["eggnog_description"] == "Uncharacterized conserved protein"
         # But its Preferred_name is "-" — should be kept as empty string or "-"
         assert e3["preferred_name"] == "-"
 
@@ -127,7 +127,7 @@ class TestParseEggnogAnnotations:
             )
 
         entries = parse_eggnog_annotations(path)
-        assert entries[0]["description"] == "-"
+        assert entries[0]["eggnog_description"] == "-"
 
     def test_empty_annotations_returns_empty_list(self, tmp_dir):
         """A valid emapper output with zero annotated queries returns []."""
@@ -153,10 +153,10 @@ class TestParseEggnogAnnotations:
 
         entries = parse_eggnog_annotations(path)
         required = {
-            "protein_id",
+            "locus_tag",
             "seed_ortholog",
             "evalue",
-            "description",
+            "eggnog_description",
             "preferred_name",
             "cog_category",
             "ec_numbers",
@@ -176,7 +176,7 @@ class TestRichFieldsSurfaced:
             f.write(_EGGNOG_FIXTURE)
 
         entries = parse_eggnog_annotations(path)
-        e1 = next(e for e in entries if e["protein_id"] == "GENE_00001")
+        e1 = next(e for e in entries if e["locus_tag"] == "GENE_00001")
         assert e1["cog_category"] == "M"
         assert e1["ec_numbers"] == ["2.7.7.6"]
         assert e1["kegg_ko"] == ["ko:K03040"]
@@ -190,7 +190,7 @@ class TestRichFieldsSurfaced:
             f.write(_EGGNOG_FIXTURE)
 
         entries = parse_eggnog_annotations(path)
-        e3 = next(e for e in entries if e["protein_id"] == "GENE_00003")
+        e3 = next(e for e in entries if e["locus_tag"] == "GENE_00003")
         assert e3["cog_category"] == "L"
         assert e3["ec_numbers"] == []
         assert e3["kegg_ko"] == []
