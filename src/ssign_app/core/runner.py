@@ -40,6 +40,32 @@ BIN_DIR = _PACKAGE_SCRIPTS if _PACKAGE_SCRIPTS.exists() else _DEV_BIN
 DTU_SEMAPHORE_TIMEOUT_S = 14400
 
 
+def _detect_dtu_mode(binary: str, configured_path: str, display_name: str) -> str:
+    """Pick local vs remote for a DTU-licensed tool.
+
+    Tries (in order): explicit ``configured_path/binary`` (CLI flag or the
+    matching ``SSIGN_*_PATH`` env var already filled in by __post_init__'s
+    env loop), then ``binary`` on PATH. Falls back to remote with a warning
+    so an offline-only user doesn't silently get network-submitted jobs.
+    """
+    if configured_path:
+        candidate = os.path.join(configured_path, binary)
+        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return "local"
+    if shutil.which(binary):
+        return "local"
+    logger.warning(
+        "No local %s binary found (%r not on PATH and no configured path holds it). "
+        "Falling back to the DTU webserver — pass --%s-mode local once you've "
+        "installed it locally, or --%s-mode remote to silence this warning.",
+        display_name,
+        binary,
+        display_name.lower(),
+        display_name.lower(),
+    )
+    return "remote"
+
+
 def _read_tier_marker() -> Optional[str]:
     """Return the tier ``fetch_databases.sh`` recorded, or None.
 
@@ -112,11 +138,14 @@ class PipelineConfig:
     # the tier-default lookup for that one tool.
     tier: Optional[str] = None
 
-    # Phase 3: Tool paths (DTU licensed). ssign is offline-first: local installs
-    # are the canonical path; remote submits to the DTU webserver as a fallback.
-    deeplocpro_mode: str = "local"  # "local" or "remote"
+    # Phase 3: Tool paths (DTU licensed). ssign is offline-first: local
+    # installs are the canonical path; remote submits to the DTU webserver
+    # as a fallback. mode=None means "auto-detect" — __post_init__ picks
+    # local if a binary is configured/on PATH, remote (with a warning)
+    # otherwise. Explicit "local" / "remote" force the choice regardless.
+    deeplocpro_mode: Optional[str] = None  # "local" / "remote" / None=auto
     deeplocpro_path: str = ""
-    signalp_mode: str = "local"
+    signalp_mode: Optional[str] = None
     signalp_path: str = ""
     skip_deeplocpro: Optional[bool] = None
     skip_signalp: Optional[bool] = None
@@ -207,10 +236,11 @@ class PipelineConfig:
             if getattr(self, field_name) is None:
                 setattr(self, field_name, not enabled_default)
 
-        # Env-var fallbacks for database / weight paths. Empty config field
-        # means "use the env var if set" — documented in the matching CLI
-        # --*-db / --*-dir help text and docs/how-to/install.md. Explicit
-        # non-empty paths from the CLI always win.
+        # Env-var fallbacks for database / weight / install paths. Empty
+        # config field means "use the env var if set" — documented in the
+        # matching CLI --*-db / --*-dir / --*-path help text and
+        # docs/how-to/install.md. Explicit non-empty paths from the CLI
+        # always win.
         #
         # Env-var names match upstream conventions where one exists
         # (BAKTA_DB, EGGNOG_DATA_DIR) and the SSIGN_-prefixed names
@@ -224,11 +254,22 @@ class PipelineConfig:
             ("eggnog_db", "EGGNOG_DATA_DIR"),
             ("plmblast_db", "SSIGN_ECOD70_DB"),
             ("plm_effector_weights_dir", "SSIGN_PLM_EFFECTOR_WEIGHTS"),
+            ("signalp_path", "SSIGN_SIGNALP_PATH"),
+            ("deeplocpro_path", "SSIGN_DEEPLOCPRO_PATH"),
         ):
             if not getattr(self, attr) and os.environ.get(env):
                 value = os.environ[env]
                 setattr(self, attr, value)
                 logger.info("Using %s from env var %s: %s", attr, env, value)
+
+        # Auto-detect DTU-tool mode when the user didn't pin it. Defaults
+        # to local if a binary is discoverable (configured path or PATH);
+        # falls back to remote with a warning otherwise so an offline-only
+        # install doesn't silently start network-submitting jobs.
+        if self.signalp_mode is None:
+            self.signalp_mode = _detect_dtu_mode("signalp6", self.signalp_path, "SignalP")
+        if self.deeplocpro_mode is None:
+            self.deeplocpro_mode = _detect_dtu_mode("deeplocpro", self.deeplocpro_path, "DeepLocPro")
 
 
 @dataclass

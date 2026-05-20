@@ -404,16 +404,26 @@ $PYBIN/signalp6 --version
 
 ### Wire ssign to the local install
 
+If `signalp6` is on PATH (true after `mamba activate signalp6`), ssign
+auto-detects local mode — no flags needed:
+
 ```bash
-ssign run input.gbff --outdir results \
-    --signalp-mode local \
-    --signalp-path ~/.conda/envs/signalp6/bin
+ssign run input.gbff --outdir results
 ```
 
-Pass the directory containing the `signalp6` console script (typically
-`<env>/bin`) via `--signalp-path`, or set it in the GUI's local-install
-field. ssign invokes SignalP with `--organism other --mode fast --format txt`
+If the binary lives outside PATH, point ssign at the install dir via the
+env var (preferred, set once per shell) or the CLI flag:
+
+```bash
+export SSIGN_SIGNALP_PATH=~/.conda/envs/signalp6/bin    # or:
+ssign run input.gbff --outdir results --signalp-path ~/.conda/envs/signalp6/bin
+```
+
+ssign invokes SignalP with `--organism other --mode fast --format txt`
 (Gram-negatives use the `other` group in v6; v5's `gram-` was removed).
+Pass `--signalp-mode remote` to force the DTU webserver even when a
+local install is available; `--signalp-mode local` forces local and
+errors out if no binary is found.
 
 ---
 
@@ -466,14 +476,21 @@ download, license click-through, etc.), follow whatever the README at
 
 ### Wire ssign to the local install
 
+If `deeplocpro` is on PATH, ssign auto-detects local mode:
+
 ```bash
-ssign run input.gbff --outdir results \
-    --deeplocpro-mode local \
-    --deeplocpro-path ~/.conda/envs/deeplocpro/bin
+ssign run input.gbff --outdir results
 ```
 
-`--deeplocpro-path` takes the directory containing the `deeplocpro`
-console script.
+Otherwise point at the install dir via env var or flag:
+
+```bash
+export SSIGN_DEEPLOCPRO_PATH=~/.conda/envs/deeplocpro/bin    # or:
+ssign run input.gbff --outdir results --deeplocpro-path ~/.conda/envs/deeplocpro/bin
+```
+
+`--deeplocpro-mode local` / `remote` force the choice when you don't
+want auto-detection.
 
 ---
 

@@ -49,8 +49,11 @@ class TestPipelineConfig:
         assert c.conf_threshold == 0.8
         assert c.proximity_window == 3
         assert c.required_fraction_correct == 0.8
-        assert c.deeplocpro_mode == "local"
-        assert c.signalp_mode == "local"
+        # signalp_mode / deeplocpro_mode are auto-detected at __post_init__:
+        # in a clean dev env neither binary is on PATH, so both fall back to
+        # "remote" with a logger warning.
+        assert c.deeplocpro_mode in ("local", "remote")
+        assert c.signalp_mode in ("local", "remote")
 
     def test_excluded_systems_default(self):
         c = PipelineConfig()
@@ -123,6 +126,52 @@ class TestPipelineConfig:
         c = PipelineConfig()
         assert isinstance(c.cpu_per_genome, int)
         assert c.cpu_per_genome >= 1
+
+
+class TestDTUModeAutoDetect:
+    """signalp_mode / deeplocpro_mode resolve from None → local / remote."""
+
+    def test_explicit_local_passes_through(self):
+        c = PipelineConfig(signalp_mode="local")
+        assert c.signalp_mode == "local"
+
+    def test_explicit_remote_passes_through(self):
+        c = PipelineConfig(deeplocpro_mode="remote")
+        assert c.deeplocpro_mode == "remote"
+
+    def test_auto_falls_back_to_remote_when_no_binary(self, monkeypatch):
+        # Empty PATH guarantees shutil.which returns None.
+        monkeypatch.setenv("PATH", "")
+        c = PipelineConfig(signalp_path="", deeplocpro_path="")
+        assert c.signalp_mode == "remote"
+        assert c.deeplocpro_mode == "remote"
+
+    def test_auto_picks_local_when_path_holds_executable(self, monkeypatch, tmp_path):
+        # Drop a stub executable into tmp_path and pass that dir as the path.
+        stub = tmp_path / "signalp6"
+        stub.write_text("#!/bin/sh\n")
+        stub.chmod(0o755)
+        monkeypatch.setenv("PATH", "")  # ensure PATH lookup also fails
+        c = PipelineConfig(signalp_path=str(tmp_path))
+        assert c.signalp_mode == "local"
+
+    def test_auto_picks_local_when_binary_on_path(self, monkeypatch, tmp_path):
+        stub = tmp_path / "deeplocpro"
+        stub.write_text("#!/bin/sh\n")
+        stub.chmod(0o755)
+        monkeypatch.setenv("PATH", str(tmp_path))
+        c = PipelineConfig()
+        assert c.deeplocpro_mode == "local"
+
+    def test_signalp_path_env_var_fallback_drives_local(self, monkeypatch, tmp_path):
+        stub = tmp_path / "signalp6"
+        stub.write_text("#!/bin/sh\n")
+        stub.chmod(0o755)
+        monkeypatch.setenv("PATH", "")
+        monkeypatch.setenv("SSIGN_SIGNALP_PATH", str(tmp_path))
+        c = PipelineConfig()
+        assert c.signalp_mode == "local"
+        assert c.signalp_path == str(tmp_path)
 
 
 class TestPipelineConfigHHsuiteEnvFallback:

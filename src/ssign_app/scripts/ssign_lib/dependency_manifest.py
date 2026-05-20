@@ -198,16 +198,18 @@ EXTERNAL_BINARIES: tuple[ExternalBinary, ...] = (
     ExternalBinary(
         "SignalP 6 (local)",
         "signalp6",
-        "DTU portal — only required if --signalp-mode=local (default since 723a96f)",
+        "DTU portal — optional; ssign auto-detects local install (or falls back to the DTU webserver)",
         tier="base",
         optional=True,
+        install_dir_env="SSIGN_SIGNALP_PATH",
     ),
     ExternalBinary(
         "DeepLocPro (local)",
         "deeplocpro",
-        "DTU portal — only required if --deeplocpro-mode=local (default since 723a96f)",
+        "DTU portal — optional; ssign auto-detects local install (or falls back to the DTU webserver)",
         tier="base",
         optional=True,
+        install_dir_env="SSIGN_DEEPLOCPRO_PATH",
     ),
 )
 

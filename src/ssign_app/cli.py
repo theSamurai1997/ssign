@@ -177,30 +177,29 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
     g.add_argument(
         "--deeplocpro-mode",
         choices=["local", "remote"],
-        default="local",
-        help="DeepLocPro execution mode (default: local, canonical path, DTU "
-        "academic licence required); 'remote' is an opt-in fallback that "
-        "submits to the DTU webserver — no licence needed, but depends on DTU "
-        "keeping the service running.",
+        default=None,
+        help="DeepLocPro execution mode. Default: auto — local if 'deeplocpro' is "
+        "on PATH or at --deeplocpro-path / $SSIGN_DEEPLOCPRO_PATH, else falls "
+        "back to the DTU webserver with a warning. 'local' / 'remote' force "
+        "the choice.",
     )
     g.add_argument(
         "--deeplocpro-path",
         default="",
-        help="Path to local DeepLocPro install. Empty = expect 'deeplocpro' on PATH.",
+        help="Path to local DeepLocPro install. Empty falls back to $SSIGN_DEEPLOCPRO_PATH, then PATH.",
     )
     g.add_argument(
         "--signalp-mode",
         choices=["local", "remote"],
-        default="local",
-        help="SignalP execution mode (default: local, canonical path, DTU "
-        "academic licence required); 'remote' is an opt-in fallback that "
-        "submits to the DTU webserver — no licence needed, but depends on DTU "
-        "keeping the service running.",
+        default=None,
+        help="SignalP execution mode. Default: auto — local if 'signalp6' is "
+        "on PATH or at --signalp-path / $SSIGN_SIGNALP_PATH, else falls back "
+        "to the DTU webserver with a warning. 'local' / 'remote' force the choice.",
     )
     g.add_argument(
         "--signalp-path",
         default="",
-        help="Path to local SignalP 6 install. Empty = expect 'signalp6' on PATH.",
+        help="Path to local SignalP 6 install. Empty falls back to $SSIGN_SIGNALP_PATH, then PATH.",
     )
     g.add_argument(
         "--skip-deeplocpro",
