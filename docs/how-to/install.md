@@ -87,15 +87,16 @@ export PATH=~/.conda/envs/bakta/bin:$PATH    # if using a dedicated env
 
 If you'd rather keep Bakta in the ssign Python env (`pip install ssign[bakta]`)
 and only add the missing binaries, the minimum for **DB download** is
-AMRFinderPlus:
+AMRFinderPlus, plus for **running** Bakta on a genome you need
+tRNAscan-SE and aragorn (Bakta CLI calls them directly; without them
+you get `ERROR: tRNAscan-SE not found or not executable!`):
 
 ```bash
-mamba install -c bioconda ncbi-amrfinderplus -y
+mamba install -c bioconda ncbi-amrfinderplus trnascan-se aragorn -y
 ```
 
-For actually running Bakta on a genome you'll also want `diamond hmmer
-trnascan-se aragorn` from bioconda. Easier to just `mamba install bakta`
-upfront.
+Easier to just `mamba install bakta` upfront — it bundles all of
+DIAMOND, HMMER, tRNAscan-SE, aragorn, AMRFinderPlus, BLAST+.
 
 Then download the light database (~2 GB):
 
