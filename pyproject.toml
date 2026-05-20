@@ -108,6 +108,16 @@ extended = [
     "protobuf",
     "mkl",
     "mkl-service",
+    # pLM-BLAST embedding + search direct imports (verified against upstream
+    # source 2026-05-20). h5py in embedders/dataset.py; tqdm in every embedder
+    # module; fairscale FSDP in embedders/esm.py; numba + alntools in
+    # scripts/plmblast.py. Loose bounds — pLM-BLAST's own requirements.txt is
+    # over-pinned and clobbers ssign's stack if installed directly.
+    "h5py>=3.0",
+    "tqdm>=4.65",
+    "fairscale",
+    "numba>=0.57",
+    "alntools",
 ]
 full = [
     "deepsece",
@@ -123,6 +133,11 @@ full = [
     "protobuf",
     "mkl",
     "mkl-service",
+    "h5py>=3.0",
+    "tqdm>=4.65",
+    "fairscale",
+    "numba>=0.57",
+    "alntools",
 ]
 dev = [
     "pytest>=7.0",
