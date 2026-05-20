@@ -248,12 +248,22 @@ def run_plmblast(
             str(threads),
         ]
 
+        # scripts/plmblast.py does `import alntools` but alntools is a sibling
+        # directory at the pLM-BLAST repo root, not pip-installable. Python's
+        # subprocess only auto-adds the script's own directory to sys.path, so
+        # without this env override the import fails. Setting PYTHONPATH to
+        # the repo root lets the subprocess resolve alntools.
+        env = os.environ.copy()
+        plm_blast_root = os.path.dirname(os.path.dirname(os.path.abspath(script)))
+        existing_pp = env.get("PYTHONPATH", "")
+        env["PYTHONPATH"] = f"{plm_blast_root}{os.pathsep}{existing_pp}" if existing_pp else plm_blast_root
+
         logger.info(f"Running pLM-BLAST: {' '.join(cmd[:3])} <db> <query_emb> {out_csv} -cpc {cpc}")
         # FRAGILE: subprocess call requires pLM-BLAST's scripts/plmblast.py
         # on PATH, or set SSIGN_PLMBLAST_SCRIPT to its absolute path.
         # If this breaks: pip install git+https://github.com/labstructbioinf/pLM-BLAST.git
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=TOOL_TIMEOUT_S)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=TOOL_TIMEOUT_S, env=env)
         except FileNotFoundError as e:
             raise RuntimeError(
                 f"pLM-BLAST script not found: {e}\n"

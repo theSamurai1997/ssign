@@ -110,14 +110,20 @@ extended = [
     "mkl-service",
     # pLM-BLAST embedding + search direct imports (verified against upstream
     # source 2026-05-20). h5py in embedders/dataset.py; tqdm in every embedder
-    # module; fairscale FSDP in embedders/esm.py; numba + alntools in
-    # scripts/plmblast.py. Loose bounds — pLM-BLAST's own requirements.txt is
+    # module; fairscale FSDP in embedders/esm.py; numba in scripts/plmblast.py
+    # + alntools/numeric.py; sentencepiece is required by T5Tokenizer in
+    # embedders/prottrans.py; accelerate is needed by transformers' HF model
+    # loaders. alntools is NOT here — it's a sub-package of pLM-BLAST itself
+    # (lives at pLM-BLAST/alntools/), not on PyPI; run_plm_blast.py sets
+    # PYTHONPATH to the pLM-BLAST repo root so plmblast.py subprocess can
+    # import it. Loose bounds — pLM-BLAST's own requirements.txt is
     # over-pinned and clobbers ssign's stack if installed directly.
     "h5py>=3.0",
     "tqdm>=4.65",
     "fairscale",
     "numba>=0.57",
-    "alntools",
+    "sentencepiece",
+    "accelerate",
 ]
 full = [
     "deepsece",
@@ -137,7 +143,8 @@ full = [
     "tqdm>=4.65",
     "fairscale",
     "numba>=0.57",
-    "alntools",
+    "sentencepiece",
+    "accelerate",
 ]
 dev = [
     "pytest>=7.0",
