@@ -16,7 +16,6 @@ failure so ``ssign doctor && ssign run …`` works in scripts.
 from __future__ import annotations
 
 import argparse
-import glob
 import importlib
 import os
 import shutil
@@ -157,31 +156,27 @@ def resolve_db_root(data_root: str) -> str:
     return read_db_root_marker(data_root) or os.path.join(data_root, "databases")
 
 
-def _resolve_db_path(d: DatabasePath, db_root: str) -> str:
-    env_value = os.environ.get(d.env_var, "").strip()
-    if env_value:
-        return env_value
-    return os.path.join(db_root, d.default_subpath)
-
-
 def check_database(d: DatabasePath, db_root: str) -> CheckResult:
-    resolved = _resolve_db_path(d, db_root)
-    # ``sentinel_file`` is a glob pattern relative to the resolved dir, so we
-    # tolerate version-stamped inner dirs (e.g. Bakta's ``db-light/``, Pfam's
-    # ``PfamA_v38_2/``) without baking exact filenames into the manifest.
-    if glob.glob(os.path.join(resolved, d.sentinel_file)):
+    # Single source of truth: DatabasePath.resolve_path — same resolver
+    # the runner consumes in its __post_init__. Doctor adds the diagnostic
+    # "dir exists but sentinel missing" branch on top to help users
+    # distinguish "I haven't fetched it yet" from "I fetched it but it's
+    # broken / mis-layouted".
+    resolved = d.resolve_path(db_root)
+    if resolved:
         return CheckResult(name=d.name, ok=True, detail=resolved)
-    if os.path.isdir(resolved):
+    candidate_dir = os.path.join(db_root, d.default_subpath)
+    if os.path.isdir(candidate_dir):
         return CheckResult(
             name=d.name,
             ok=False,
-            detail=f"{resolved} exists but no {d.sentinel_file!r} matches inside",
+            detail=f"{candidate_dir} exists but no {d.sentinel_file!r} matches inside",
             fix=d.install_hint,
         )
     return CheckResult(
         name=d.name,
         ok=False,
-        detail=f"not found at {resolved} (env: ${d.env_var})",
+        detail=f"not found at {candidate_dir} (env: ${d.env_var})",
         fix=d.install_hint,
     )
 
