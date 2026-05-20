@@ -17,8 +17,10 @@ here in the same commit. The integration test will fail loudly otherwise.
 
 from __future__ import annotations
 
+import glob
+import os
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, Optional
 
 Tier = Literal["base", "extended", "full"]
 
@@ -64,12 +66,15 @@ class ExternalBinary:
 class DatabasePath:
     """An on-disk database directory.
 
-    Doctor resolves the path in this order: ``$SSIGN_<NAME>`` env var, then
-    the ``$TARGET`` recorded in ``~/.ssign/db_root`` by the install script,
-    then the default ``~/.ssign/databases/...``. ``sentinel_file`` is a
-    ``glob`` pattern (relative to the resolved dir) — using a pattern lets
-    one entry cover layouts with version-stamped inner directories like
-    Bakta's ``db-light/`` or HH-suite Pfam's ``PfamA_v38_2/``.
+    Path resolution (used by both doctor and runner so they always agree):
+
+    1. ``$<env_var>`` if set → return that string verbatim.
+    2. Otherwise glob ``<db_root>/<default_subpath>/<sentinel_file>`` and
+       return the dir containing the first match. This handles
+       version-stamped inner dirs (Bakta's ``db-light/``, IPS's
+       ``interproscan-5.77-108.0/``, Pfam's ``PfamA_v38_2/``) without
+       baking version numbers into the manifest.
+    3. If nothing matches, return None.
     """
 
     name: str
@@ -78,6 +83,17 @@ class DatabasePath:
     sentinel_file: str
     install_hint: str
     tier: Tier = "extended"
+
+    def resolve_path(self, db_root: str) -> Optional[str]:
+        """Return the path the tool should consume, or None if not present."""
+        env_value = os.environ.get(self.env_var, "").strip()
+        if env_value:
+            return env_value
+        candidate_dir = os.path.join(db_root, self.default_subpath)
+        matches = glob.glob(os.path.join(candidate_dir, self.sentinel_file))
+        if matches:
+            return os.path.dirname(matches[0])
+        return None
 
 
 @dataclass(frozen=True)
@@ -240,7 +256,7 @@ DATABASE_PATHS: tuple[DatabasePath, ...] = (
         "InterProScan DB",
         "SSIGN_INTERPROSCAN_PATH",
         "interproscan",
-        "interproscan.properties",
+        "interproscan-*/interproscan.properties",
         "bash scripts/fetch_databases.sh --tier extended",
         tier="extended",
     ),

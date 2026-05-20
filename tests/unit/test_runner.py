@@ -174,6 +174,59 @@ class TestDTUModeAutoDetect:
         assert c.signalp_path == str(tmp_path)
 
 
+class TestPipelineConfigMarkerFallback:
+    """When ~/.ssign/db_root is set, PipelineConfig auto-resolves DB paths.
+
+    Mirrors what doctor does — same DatabasePath.resolve_path source of
+    truth — so they never disagree about where Bakta / EggNOG / pLM-BLAST
+    live. Per-DB SSIGN_* env vars still override the marker.
+    """
+
+    def _stage_dbs(self, tmp_path, monkeypatch):
+        """Stage a fake fetch_databases.sh layout and point the marker at it."""
+        root = tmp_path / "dbs"
+        (root / "bakta" / "db-light").mkdir(parents=True)
+        (root / "hhsuite" / "pfam" / "PfamA_v38_2").mkdir(parents=True)
+        (root / "plm_blast" / "ECOD70").mkdir(parents=True)
+        (root / "plm_effector_weights").mkdir(parents=True)
+        (root / "bakta" / "db-light" / "version.json").touch()
+        (root / "hhsuite" / "pfam" / "PfamA_v38_2" / "PfamA_v38_2_a3m.ffdata").touch()
+        (root / "plm_blast" / "ECOD70" / "0.emb").touch()
+        home = tmp_path / "fake-home"
+        (home / ".ssign").mkdir(parents=True)
+        (home / ".ssign" / "db_root").write_text(str(root))
+        monkeypatch.setenv("HOME", str(home))
+        return root
+
+    def test_marker_resolves_bakta_to_inner_db_dir(self, tmp_path, monkeypatch):
+        root = self._stage_dbs(tmp_path, monkeypatch)
+        c = PipelineConfig(input_path="x.gbff")
+        assert c.bakta_db == str(root / "bakta" / "db-light")
+
+    def test_marker_resolves_pfam_to_versioned_subdir(self, tmp_path, monkeypatch):
+        root = self._stage_dbs(tmp_path, monkeypatch)
+        c = PipelineConfig(input_path="x.gbff")
+        assert c.hhsuite_pfam_db == str(root / "hhsuite" / "pfam" / "PfamA_v38_2")
+
+    def test_marker_resolves_ecod70(self, tmp_path, monkeypatch):
+        root = self._stage_dbs(tmp_path, monkeypatch)
+        c = PipelineConfig(input_path="x.gbff")
+        assert c.plmblast_db == str(root / "plm_blast" / "ECOD70")
+
+    def test_marker_resolves_plm_effector_weights(self, tmp_path, monkeypatch):
+        root = self._stage_dbs(tmp_path, monkeypatch)
+        c = PipelineConfig(input_path="x.gbff")
+        assert c.plm_effector_weights_dir == str(root / "plm_effector_weights")
+
+    def test_env_var_wins_over_marker(self, tmp_path, monkeypatch):
+        root = self._stage_dbs(tmp_path, monkeypatch)
+        monkeypatch.setenv("BAKTA_DB", "/explicit/override/path")
+        c = PipelineConfig(input_path="x.gbff")
+        assert c.bakta_db == "/explicit/override/path"
+        # Other DBs still resolve via marker
+        assert c.plmblast_db == str(root / "plm_blast" / "ECOD70")
+
+
 class TestPipelineConfigHHsuiteEnvFallback:
     """SSIGN_HHSUITE_* env vars fill in empty fields; explicit paths win.
 

@@ -24,6 +24,7 @@ from ssign_app.scripts.ssign_lib.constants import (
     HHSUITE_MIN_PROB,
     TIER_TOOL_DEFAULTS,
 )
+from ssign_app.scripts.ssign_lib.dependency_manifest import DATABASE_PATHS
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,28 @@ def _detect_dtu_mode(binary: str, configured_path: str, display_name: str) -> st
         display_name.lower(),
     )
     return "remote"
+
+
+def _resolve_db_root_for_runner() -> str:
+    """Mirror of doctor's db-root resolver.
+
+    Reads ``~/.ssign/db_root`` (written by ``scripts/fetch_databases.sh``)
+    when present, falls back to ``~/.ssign/databases`` otherwise.
+
+    Doctor has its own version because it takes ``data_root`` as a CLI flag;
+    the runner doesn't expose that knob, so this helper is fixed to the
+    standard home-dir location.
+    """
+    marker = os.path.expanduser("~/.ssign/db_root")
+    if os.path.isfile(marker):
+        try:
+            with open(marker, encoding="utf-8") as f:
+                recorded = f.read().strip()
+            if recorded and os.path.isdir(recorded):
+                return recorded
+        except OSError:
+            pass
+    return os.path.expanduser("~/.ssign/databases")
 
 
 def _read_tier_marker() -> Optional[str]:
@@ -261,6 +284,40 @@ class PipelineConfig:
                 value = os.environ[env]
                 setattr(self, attr, value)
                 logger.info("Using %s from env var %s: %s", attr, env, value)
+
+        # Marker-driven fallback for any DB / weights path still empty.
+        # Uses the same DatabasePath.resolve_path that doctor consumes, so
+        # the runner and doctor agree on where each DB lives — no more
+        # "doctor green but runner can't find Bakta" gaps. The user only
+        # needs ~/.ssign/db_root (written by fetch_databases.sh, or set
+        # manually) plus optional per-DB env-var overrides.
+        db_root = _resolve_db_root_for_runner()
+        for attr, manifest_env_var in (
+            ("bakta_db", "SSIGN_BAKTA_DB"),
+            ("hhsuite_pfam_db", "SSIGN_HHSUITE_PFAM"),
+            ("hhsuite_pdb70_db", "SSIGN_HHSUITE_PDB70"),
+            ("hhsuite_uniclust_db", "SSIGN_HHSUITE_UNICLUST"),
+            ("interproscan_db", "SSIGN_INTERPROSCAN_PATH"),
+            ("eggnog_db", "SSIGN_EGGNOG_DB"),
+            ("plmblast_db", "SSIGN_ECOD70_DB"),
+        ):
+            if getattr(self, attr):
+                continue
+            entry = next((d for d in DATABASE_PATHS if d.env_var == manifest_env_var), None)
+            if entry is None:
+                continue
+            resolved = entry.resolve_path(db_root)
+            if resolved:
+                setattr(self, attr, resolved)
+                logger.info("Resolved %s from ~/.ssign/db_root: %s", attr, resolved)
+        # PLM-Effector weights live under db_root too (ModelWeights entry
+        # with under_db_root=True). One-off because it's not in
+        # DATABASE_PATHS.
+        if not self.plm_effector_weights_dir:
+            candidate = os.path.join(db_root, "plm_effector_weights")
+            if os.path.isdir(candidate):
+                self.plm_effector_weights_dir = candidate
+                logger.info("Resolved plm_effector_weights_dir from ~/.ssign/db_root: %s", candidate)
 
         # Auto-detect DTU-tool mode when the user didn't pin it. Defaults
         # to local if a binary is discoverable (configured path or PATH);
