@@ -147,6 +147,17 @@ bash scripts/fetch_databases.sh --tier base       # or: extended / full
 
 See [`data/README.md`](data/README.md) for per-tier contents.
 
+Then confirm everything is in place:
+
+```bash
+ssign doctor --tier extended      # match the tier you installed
+```
+
+`ssign doctor` reports any missing Python package, external binary,
+database, or model weight with the exact fix command. It reads
+`~/.ssign/db_root` (written by `fetch_databases.sh`) automatically, so
+the common case needs no `SSIGN_*` env vars set.
+
 ### pip vs Docker
 
 - **pip** installs into your Python environment; depends on local Python,

@@ -66,9 +66,10 @@ class DatabasePath:
 
     Doctor resolves the path in this order: ``$SSIGN_<NAME>`` env var, then
     the ``$TARGET`` recorded in ``~/.ssign/db_root`` by the install script,
-    then the default ``~/.ssign/databases/...``. ``sentinel_file`` is one
-    specific file inside the directory whose presence confirms the DB is
-    set up, not just that an empty directory exists.
+    then the default ``~/.ssign/databases/...``. ``sentinel_file`` is a
+    ``glob`` pattern (relative to the resolved dir) — using a pattern lets
+    one entry cover layouts with version-stamped inner directories like
+    Bakta's ``db-light/`` or HH-suite Pfam's ``PfamA_v38_2/``.
     """
 
     name: str
@@ -221,7 +222,7 @@ DATABASE_PATHS: tuple[DatabasePath, ...] = (
         "Bakta DB",
         "SSIGN_BAKTA_DB",
         "bakta",
-        "version.json",
+        "db*/version.json",
         "bash scripts/fetch_databases.sh --tier base",
         tier="extended",
     ),
@@ -245,7 +246,7 @@ DATABASE_PATHS: tuple[DatabasePath, ...] = (
         "HH-suite Pfam",
         "SSIGN_HHSUITE_PFAM",
         "hhsuite/pfam",
-        "pfam_a3m.ffdata",
+        "*/*_a3m.ffdata",
         "bash scripts/fetch_databases.sh --tier extended",
         tier="extended",
     ),
@@ -253,7 +254,7 @@ DATABASE_PATHS: tuple[DatabasePath, ...] = (
         "HH-suite PDB70",
         "SSIGN_HHSUITE_PDB70",
         "hhsuite/pdb70",
-        "pdb70_a3m.ffdata",
+        "*_a3m.ffdata",
         "bash scripts/fetch_databases.sh --tier extended",
         tier="extended",
     ),
@@ -261,15 +262,15 @@ DATABASE_PATHS: tuple[DatabasePath, ...] = (
         "HH-suite UniRef30",
         "SSIGN_HHSUITE_UNICLUST",
         "hhsuite/uniref30",
-        "UniRef30_2023_02_a3m.ffdata",
+        "*_a3m.ffdata",
         "bash scripts/fetch_databases.sh --tier full",
         tier="full",
     ),
     DatabasePath(
         "pLM-BLAST ECOD70",
         "SSIGN_ECOD70_DB",
-        "plm_blast",
-        "ECOD70.csv",
+        "plm_blast/ECOD70",
+        "*.emb",
         "bash scripts/fetch_databases.sh --tier extended",
         tier="extended",
     ),

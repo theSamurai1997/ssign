@@ -16,6 +16,7 @@ failure so ``ssign doctor && ssign run …`` works in scripts.
 from __future__ import annotations
 
 import argparse
+import glob
 import importlib
 import os
 import shutil
@@ -165,14 +166,16 @@ def _resolve_db_path(d: DatabasePath, db_root: str) -> str:
 
 def check_database(d: DatabasePath, db_root: str) -> CheckResult:
     resolved = _resolve_db_path(d, db_root)
-    sentinel = os.path.join(resolved, d.sentinel_file)
-    if os.path.isfile(sentinel):
+    # ``sentinel_file`` is a glob pattern relative to the resolved dir, so we
+    # tolerate version-stamped inner dirs (e.g. Bakta's ``db-light/``, Pfam's
+    # ``PfamA_v38_2/``) without baking exact filenames into the manifest.
+    if glob.glob(os.path.join(resolved, d.sentinel_file)):
         return CheckResult(name=d.name, ok=True, detail=resolved)
     if os.path.isdir(resolved):
         return CheckResult(
             name=d.name,
             ok=False,
-            detail=f"{resolved} exists but sentinel {d.sentinel_file!r} is missing",
+            detail=f"{resolved} exists but no {d.sentinel_file!r} matches inside",
             fix=d.install_hint,
         )
     return CheckResult(

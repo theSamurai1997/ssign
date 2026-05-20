@@ -23,6 +23,24 @@ bash scripts/fetch_databases.sh --tier base       # or: extended / full
 
 If a tier doesn't fit your storage budget, pick individual tools below.
 
+## Verify the install
+
+After installing the tools and fetching databases, run:
+
+```bash
+ssign doctor --tier extended      # or: base / full to match what you installed
+```
+
+`ssign doctor` checks every dependency ssign needs and reports what's
+missing with the exact fix command for each: Python packages, external
+binaries on PATH (Bakta, EggNOG-mapper, HH-suite, BLAST+, InterProScan),
+on-disk databases (read from `~/.ssign/db_root` written by
+`fetch_databases.sh`, or `SSIGN_*` env vars if you set them), and model
+weights. Exits non-zero on failure so you can chain
+`ssign doctor && ssign run …` in scripts.
+
+If `ssign doctor` is green, the pipeline can run.
+
 For environment variables (mirror URLs, database paths, dev-only flags), see
 [`reference/env_vars.md`](../reference/env_vars.md).
 
