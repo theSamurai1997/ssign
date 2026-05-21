@@ -46,6 +46,13 @@ def _hmm_path(filename: str) -> str:
     return str(files("ssign_app.data.t5aSS") / filename)
 
 
+def _decode(val: bytes | str | None) -> str:
+    """pyhmmer returns hit.name as bytes in <=0.10 and str in >=0.11."""
+    if isinstance(val, bytes):
+        return val.decode()
+    return str(val) if val is not None else ""
+
+
 def scan_bundled_pfams(proteins_fasta: str) -> dict[str, dict[str, tuple[int, int]]]:
     """Run pyhmmer for each bundled HMM. Returns {locus_tag: {pfam: (env_from, env_to)}}.
 
@@ -71,7 +78,7 @@ def scan_bundled_pfams(proteins_fasta: str) -> dict[str, dict[str, tuple[int, in
             hmm = next(iter(hf))
         top_hits = next(pyhmmer.hmmsearch(hmm, targets, bit_cutoffs="gathering"))
         for hit in top_hits:
-            name = hit.name.decode()
+            name = _decode(hit.name)
             if not hit.domains:
                 continue
             best = min(hit.domains, key=lambda d: d.i_evalue)

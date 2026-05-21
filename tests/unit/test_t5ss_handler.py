@@ -309,3 +309,31 @@ def test_invalid_dlp_prob_falls_back_to_zero(monkeypatch, tmp_dir):
         [bad_pred],
     )
     assert substrates[0]["dlp_extracellular_prob"] in ("0", "0.0")
+
+
+def test_scan_bundled_pfams_against_real_hmm(tmp_dir):
+    """Exercise the real pyhmmer scan path against the bundled HMMs.
+
+    Every other test in this module monkeypatches scan_bundled_pfams, so the
+    pyhmmer-API contract (hit.name as str vs bytes, locus_tag key types) is
+    untested without this case. Uses each HMM's own consensus sequence as the
+    query, which is guaranteed to score above the GA cutoff.
+    """
+    from pyhmmer.plan7 import HMMFile
+    from t5ss_handler import BUNDLED_HMMS, _hmm_path, scan_bundled_pfams
+
+    fasta_path = os.path.join(tmp_dir, "consensus.faa")
+    seqs = {}
+    for pfam_id, fname in BUNDLED_HMMS.items():
+        with HMMFile(_hmm_path(fname)) as hf:
+            hmm = next(iter(hf))
+        seqs[f"consensus_{pfam_id}"] = hmm.consensus.upper()
+    write_fasta(seqs, fasta_path)
+
+    hits = scan_bundled_pfams(fasta_path)
+
+    assert all(isinstance(k, str) for k in hits), "locus_tag keys must be str"
+    for pfam_id in BUNDLED_HMMS:
+        assert pfam_id in hits[f"consensus_{pfam_id}"]
+    barrel_start, barrel_end = hits["consensus_PF03797"]["PF03797"]
+    assert isinstance(barrel_start, int) and 0 < barrel_start <= barrel_end
