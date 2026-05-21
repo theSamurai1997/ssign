@@ -1388,6 +1388,8 @@ class PipelineRunner:
                 self.files.get("ss_components", ""),
                 "--predictions",
                 self.files.get("predictions", ""),
+                "--proteins",
+                self.files.get("proteins", self._wf(f"{self.config.sample_id}_proteins.faa")),
                 "--sample",
                 self.config.sample_id,
                 "--out-substrates",
