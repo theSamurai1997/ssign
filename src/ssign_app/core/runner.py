@@ -1633,6 +1633,13 @@ class PipelineRunner:
             )
 
         output = self._wf(f"{self.config.sample_id}_plm_blast.tsv")
+        # Pass the per-genome CPU budget through to plmblast.py's
+        # ProcessPoolExecutor (-workers). Without this the wrapper falls
+        # back to its `default=4` regardless of node size, so the search
+        # step only ever used 4 cores even on a 24-core HPC node.
+        # Verified 2026-05-21: 4-worker pLM-BLAST hit the 14400s timeout
+        # on a single E. coli K-12 substrate set; full cpu_per_genome
+        # should bring that to ~40-60 min.
         args = [
             "--substrates",
             self.files.get("substrates_filtered", ""),
@@ -1642,6 +1649,8 @@ class PipelineRunner:
             self.config.plmblast_db,
             "--out",
             output,
+            "--threads",
+            str(self.config.cpu_per_genome),
         ]
         rc, stdout, stderr = run_script("run_plm_blast.py", args, timeout=14400)
         if rc == 0:
