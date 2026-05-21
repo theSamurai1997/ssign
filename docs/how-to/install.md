@@ -525,10 +525,11 @@ ssign run input.gbff --outdir results
 
 That's it. `fetch_databases.sh` records the tier at `~/.ssign/tier`; ssign
 reads it and enables exactly the tools the extended bundle ships (EggNOG,
-HH-suite Pfam+PDB70, InterProScan, pLM-BLAST, PLM-Effector) while leaving
-BLASTp off because NR is only present at `--tier full`. The database paths
-come from `~/.ssign/db_root` (also written by `fetch_databases.sh`) — no
-per-DB env var exports needed for the common case.
+InterProScan, pLM-BLAST, PLM-Effector) while leaving BLASTp and HH-suite
+off — BLAST NR (~390 GB) and HH-suite UniRef30 are full-tier only.
+The database paths come from `~/.ssign/db_root` (also written by
+`fetch_databases.sh`) — no per-DB env var exports needed for the
+common case.
 
 If your databases live somewhere other than what's recorded in
 `~/.ssign/db_root`, set the env vars below to point at them:
@@ -536,12 +537,14 @@ If your databases live somewhere other than what's recorded in
 ```bash
 DBROOT=/path/to/your/databases
 export BAKTA_DB=$DBROOT/bakta/db-light
-export SSIGN_HHSUITE_PFAM=$DBROOT/hhsuite/pfam
-export SSIGN_HHSUITE_PDB70=$DBROOT/hhsuite/pdb70
 export SSIGN_INTERPROSCAN_PATH=$DBROOT/interproscan/interproscan-5.77-108.0
 export EGGNOG_DATA_DIR=$DBROOT/eggnog
 export SSIGN_ECOD70_DB=$DBROOT/plm_blast/ECOD70
 export SSIGN_PLM_EFFECTOR_WEIGHTS=$DBROOT/plm_effector_weights
+# Full-tier-only DBs — uncomment if you've fetched them:
+# export SSIGN_HHSUITE_PFAM=$DBROOT/hhsuite/pfam
+# export SSIGN_HHSUITE_PDB70=$DBROOT/hhsuite/pdb70
+# export SSIGN_HHSUITE_UNICLUST=$DBROOT/hhsuite/uniref30
 ```
 
 To deviate from the tier default for one tool (e.g. you have NR locally

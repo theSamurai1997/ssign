@@ -6,8 +6,9 @@
 #
 # Tier sizes (post-extraction):
 #   base       ~22 GB   NCBI taxdump + Bakta light + PLM-Effector weights
-#   extended   ~170 GB  + EggNOG + HH-suite (Pfam + PDB70) + InterProScan + ECOD70
-#   full       ~650 GB  + BLAST NR + Bakta full + HH-suite UniRef30
+#   extended   ~115 GB  + EggNOG + InterProScan + ECOD70
+#   full       ~700 GB  + BLAST NR + Bakta full + HH-suite (Pfam + PDB70 + UniRef30)
+# (sizes above are rough — see task #221 for the audit.)
 #
 # Default target: ~/.ssign/databases (override with --target /path).
 # Resumes interrupted downloads (wget -c). Skips items already extracted.
@@ -81,9 +82,9 @@ Usage:
   bash scripts/fetch_databases.sh --tier {base,extended,full} [--target DIR] [--dry-run]
 
 Tier sizes (post-extraction):
-  base       ~3 GB    NCBI taxdump + Bakta light
-  extended   ~150 GB  + EggNOG + HH-suite (Pfam + PDB70) + InterProScan + ECOD70
-  full       ~630 GB  + BLAST NR + Bakta full + HH-suite UniRef30
+  base       ~22 GB   NCBI taxdump + Bakta light + PLM-Effector weights
+  extended   ~115 GB  + EggNOG + InterProScan + ECOD70
+  full       ~700 GB  + BLAST NR + Bakta full + HH-suite (Pfam + PDB70 + UniRef30)
 
 Default target: ~/.ssign/databases (override with --target /path).
 Resumes interrupted downloads (wget -c). Skips items already extracted.
@@ -461,8 +462,6 @@ run_base() {
 run_extended() {
     run_base
     fetch_eggnog
-    fetch_hhsuite_pfam
-    fetch_hhsuite_pdb70
     fetch_interproscan
     fetch_ecod70
 }
