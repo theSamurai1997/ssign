@@ -95,26 +95,28 @@ class TestPipelineConfig:
         assert c.skip_protparam is False
 
     def test_skip_flags_extended_tier_enables_annotation_tools(self):
-        # At tier='extended', EggNOG / HH-suite / IPS / pLM-BLAST come on
-        # because the extended DB bundle ships them. BLAST NR is still
-        # off (it's full-tier only).
+        # At tier='extended', EggNOG / IPS / pLM-BLAST come on because
+        # the extended DB bundle ships them. HH-suite stays off — its
+        # hhblits step needs UniRef30 which is full-tier only.
+        # BLAST NR is also off (full-tier only).
         c = PipelineConfig(tier="extended")
         assert c.skip_eggnog is False
-        assert c.skip_hhsuite is False
         assert c.skip_interproscan is False
         assert c.skip_plmblast is False
+        assert c.skip_hhsuite is True
         assert c.skip_blastp is True
 
-    def test_skip_flags_full_tier_enables_blast(self):
+    def test_skip_flags_full_tier_enables_blast_and_hhsuite(self):
         c = PipelineConfig(tier="full")
         assert c.skip_blastp is False
+        assert c.skip_hhsuite is False
 
     def test_explicit_skip_overrides_tier_default(self):
         # CLI --skip-eggnog at extended-tier should still skip.
         c = PipelineConfig(tier="extended", skip_eggnog=True)
         assert c.skip_eggnog is True
-        # HH-suite still on (no override): tier default sticks.
-        assert c.skip_hhsuite is False
+        # EggNOG is the override; pLM-BLAST default-on sticks.
+        assert c.skip_plmblast is False
 
     def test_unknown_tier_raises(self):
         import pytest

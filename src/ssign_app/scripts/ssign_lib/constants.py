@@ -106,22 +106,31 @@ DSE_TO_MACSYFINDER = {
 # "extended". Per-tool overrides (--skip-X / --no-skip-X) still win when
 # the user is explicit.
 #
-# Mapping reflects "what does this tier ship?":
+# Mapping reflects "what does this tier ship that's also actually usable?":
 #   - base: Bakta light DB + DeepSecE/PLM-Effector weights → those tools
 #     default on. Annotation tools that need extended DBs (EggNOG ~50 GB,
-#     HH-suite ~30 GB, IPS ~24 GB, ECOD70 ~24 GB) default off.
-#   - extended: adds those four DBs, so EggNOG/HH-suite/IPS/pLM-BLAST
-#     default on.
-#   - full: adds BLAST NR (390 GB) + HH-suite UniRef30, so BLASTp turns
-#     on at the full tier.
+#     IPS ~24 GB, ECOD70 ~24 GB) default off.
+#   - extended: adds those three DBs → EggNOG/IPS/pLM-BLAST default on.
+#     Pfam + PDB70 also get fetched, but HH-suite stays default-off (see
+#     _EXTENDED_ADDS comment) until the wrapper degrades gracefully
+#     without UniRef30.
+#   - full: adds BLAST NR (390 GB) + HH-suite UniRef30 → BLASTp and
+#     HH-suite default on at the full tier.
 #
 # `run_bakta` is governed by --use-input-annotations + Bakta-DB-present
 # invariant separately; not in this table.
 # Each tool listed exactly once at the tier it first becomes available.
 # The full per-tier on/off map is built below.
 _BASE_ENABLED = frozenset({"deeplocpro", "signalp", "deepsece", "plm_effector", "protparam"})
-_EXTENDED_ADDS = frozenset({"interproscan", "hhsuite", "eggnog", "plmblast"})
-_FULL_ADDS = frozenset({"blastp"})
+# HH-suite is NOT in extended because its hhblits MSA step needs UniRef30
+# (~25 GB), which only ships with --tier full. The wrapper currently
+# aborts when UniRef30 is missing rather than degrading to hhsearch-only;
+# until that lands, default-on at extended would mislead users into
+# thinking HH-suite is available when it can't actually run. Pfam +
+# PDB70 still get fetched at extended for when the user wants to enable
+# HH-suite manually (--no-skip-hhsuite) on a node with UniRef30 present.
+_EXTENDED_ADDS = frozenset({"interproscan", "eggnog", "plmblast"})
+_FULL_ADDS = frozenset({"blastp", "hhsuite"})
 
 _TIER_ENABLED = {
     "base": _BASE_ENABLED,
