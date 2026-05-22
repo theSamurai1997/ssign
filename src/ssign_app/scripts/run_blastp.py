@@ -18,6 +18,7 @@ if _scripts_dir not in sys.path:
 from dedup_sequences import deduplicate_dict, expand_results_dict
 from ssign_lib.constants import TOOL_TIMEOUT_S
 from ssign_lib.fasta_io import read_fasta
+from ssign_lib.resources import effective_cpu_count
 from ssign_lib.substrates import load_substrate_ids
 
 # Terms to exclude from BLASTp hits
@@ -177,7 +178,7 @@ def main():
     parser.add_argument(
         "--threads",
         type=int,
-        default=os.cpu_count() or 4,
+        default=effective_cpu_count(),
         help="Threads for blastp -num_threads (default: all CPUs)",
     )
     parser.add_argument("--output", required=True)

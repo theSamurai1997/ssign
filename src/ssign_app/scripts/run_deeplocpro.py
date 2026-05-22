@@ -101,10 +101,23 @@ def run_local_deeplocpro(input_fasta, deeplocpro_path, output_dir, organism="gra
     else:
         logger.info("DeepLocPro: running on CPU (no GPU detected or forced via SSIGN_DEEPLOCPRO_FORCE_CPU)")
     logger.info(f"Running local DeepLocPro: {' '.join(cmd[:4])}...")
+    # DeepLocPro exposes no thread flag, so bound torch via env vars before
+    # spawn. effective_cpu_count() respects PBS/SLURM cpuset; without this
+    # OMP_NUM_THREADS defaults to host total (e.g. 128) and DLP spawns 128
+    # OMP threads inside a 4-CPU cgroup, slowing it ~10× via thrashing.
+    from ssign_lib.resources import effective_cpu_count as _effective_cpus
+
+    env = os.environ.copy()
+    # Direct assignment, not setdefault: if the user's shell exports
+    # OMP_NUM_THREADS=128 (cluster default), we'd otherwise still
+    # spawn 128 OMP threads on a 4-CPU cgroup. Whole point is to cap.
+    _cap = str(_effective_cpus())
+    env["OMP_NUM_THREADS"] = _cap
+    env["MKL_NUM_THREADS"] = _cap
     # FRAGILE: subprocess call requires DeepLocPro binary on PATH or at deeplocpro_path
     # If this breaks: install DeepLocPro locally or switch to --mode remote
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=TOOL_TIMEOUT_S)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=TOOL_TIMEOUT_S, env=env)
     except FileNotFoundError as e:
         raise RuntimeError(
             f"DeepLocPro binary not found: {e}\n"

@@ -30,6 +30,7 @@ if _scripts_dir not in sys.path:
     sys.path.insert(0, _scripts_dir)
 from ssign_lib.constants import TOOL_TIMEOUT_S
 from ssign_lib.fasta_io import read_fasta
+from ssign_lib.resources import effective_cpu_count
 
 # BLAST outfmt 6 column indices, mirroring the order in BLAST_OUTFMT below.
 BLAST_OUTFMT = "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qlen slen"
@@ -244,7 +245,12 @@ def main():
         "--min-qcov", type=float, default=70.0, help="Minimum query coverage %% for ortholog assignment (default: 70)"
     )
     parser.add_argument("--evalue", type=float, default=1e-5, help="E-value threshold for BLASTp (default: 1e-5)")
-    parser.add_argument("--threads", type=int, default=4, help="Threads for BLASTp -num_threads (default: 4)")
+    parser.add_argument(
+        "--threads",
+        type=int,
+        default=effective_cpu_count(),
+        help="Threads for BLASTp -num_threads (default: cgroup-allocated CPUs)",
+    )
     parser.add_argument("--output", required=True, help="Output CSV with ortholog group assignments")
     parser.add_argument("--output-groups", default="", help="Optional: output CSV with group-level statistics")
     args = parser.parse_args()

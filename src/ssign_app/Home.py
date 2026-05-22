@@ -1613,7 +1613,12 @@ with tab_run:
             genome_progress = []  # (progress_bar, status_text) per genome
             # Divide local CPU budget across concurrent genomes — without this,
             # macsyfinder -w {cpu_count} × N genomes oversubscribes cores.
-            _cpu_per_genome = max(1, (os.cpu_count() or 4) // max(1, n_genomes_to_run))
+            # effective_cpu_count honors PBS/SLURM cpuset (relevant if the
+            # Streamlit GUI is launched on an HPC node, e.g. the planned
+            # webserver), not just the laptop's host total.
+            from ssign_app.scripts.ssign_lib.resources import effective_cpu_count as _eff_cpus
+
+            _cpu_per_genome = max(1, _eff_cpus() // max(1, n_genomes_to_run))
 
             for file_idx, input_path in enumerate(input_paths):
                 if n_genomes_to_run > 1:

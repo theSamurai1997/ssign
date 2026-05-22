@@ -23,6 +23,7 @@ if _scripts_dir not in sys.path:
 from dedup_sequences import deduplicate_dict, expand_results_dict
 from ssign_lib.constants import TOOL_TIMEOUT_S
 from ssign_lib.fasta_io import read_fasta
+from ssign_lib.resources import effective_cpu_count
 from ssign_lib.substrates import load_substrate_ids
 
 # InterProScan TSV column indices (0-based, no header)
@@ -105,7 +106,7 @@ def run_local_interproscan(
     runs on 16+ core nodes.
     """
     if cpu is None:
-        cpu = max(1, (os.cpu_count() or 2))
+        cpu = max(1, effective_cpu_count())
     output_file = os.path.join(output_dir, "results.tsv")
     binary = _resolve_interproscan_binary(install_dir)
     cmd = [
@@ -240,7 +241,7 @@ def main():
     parser.add_argument(
         "--cpu",
         type=int,
-        default=os.cpu_count() or 4,
+        default=effective_cpu_count(),
         help=(
             "Worker count for InterProScan (-cpu N). Defaults to the host's "
             "os.cpu_count() so HPC nodes saturate. Drop to 1-2 on shared "

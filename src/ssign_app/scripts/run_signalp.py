@@ -38,6 +38,7 @@ from ssign_lib.constants import (  # noqa: E402
     TOOL_TIMEOUT_S,
 )
 from ssign_lib.fasta_io import count_sequences  # noqa: E402
+from ssign_lib.resources import effective_cpu_count as _effective_cpus  # noqa: E402
 from ssign_lib.retry import retry_with_backoff  # noqa: E402
 
 DTU_SUBMIT_URL = "https://services.healthtech.dtu.dk/cgi-bin/webface2.cgi"
@@ -79,9 +80,11 @@ def run_local_signalp(input_fasta, signalp_path, output_dir):
         "fast",
         # Cap threads — upstream default of 8 oversubscribes on small
         # machines (and on multi-genome runs where each PipelineRunner
-        # would spawn its own 8-thread pool).
+        # would spawn its own 8-thread pool). effective_cpu_count
+        # respects cgroup CPU pinning (PBS/SLURM), os.cpu_count() does
+        # not — see ssign_lib/resources.py.
         "--torch_num_threads",
-        str(min(4, os.cpu_count() or 1)),
+        str(min(4, _effective_cpus())),
     ]
 
     logger.info(f"Running local SignalP: {' '.join(cmd[:4])}...")

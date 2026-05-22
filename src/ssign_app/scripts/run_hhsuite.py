@@ -25,6 +25,7 @@ from ssign_lib.constants import (
     HHSUITE_MIN_PROB,
 )
 from ssign_lib.fasta_io import read_fasta
+from ssign_lib.resources import effective_cpu_count
 from ssign_lib.substrates import load_substrate_ids
 
 # Regex for HHR hit table lines — works for both PDB (desc ends with ;) and Pfam (multiple ;)
@@ -249,7 +250,7 @@ def main():
     parser.add_argument(
         "--max-workers",
         type=int,
-        default=max(1, (os.cpu_count() or 4) // 2),
+        default=max(1, effective_cpu_count() // 2),
         help="Concurrent hhblits/hhsearch processes (default: cpu_count // 2).",
     )
     parser.add_argument(
