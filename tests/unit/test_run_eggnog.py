@@ -7,9 +7,11 @@ the pure-Python parser that reads the tool's TSV output.
 
 import os
 
+import pytest
 from run_eggnog import (
     _build_emapper_cmd,
     _split_rich_field,
+    _stage_eggnog_db_to_local,
     load_substrate_ids,
     parse_eggnog_annotations,
     write_substrates_only_fasta,
@@ -90,6 +92,52 @@ _EGGNOG_FIXTURE = (
     "-\t-\t-\t-\n"
     "## 2 queries annotated\n"
 )
+
+
+class TestStageEggnogDb:
+    """Verify the local-DB staging fix for shared-FS hang on emapper mmap."""
+
+    def _make_db(self, src, files=("eggnog.db", "eggnog_proteins.dmnd"), nbytes=128):
+        for name in files:
+            with open(os.path.join(src, name), "wb") as f:
+                f.write(b"\0" * nbytes)
+
+    def test_copies_required_files(self, tmp_dir):
+        src, cache = os.path.join(tmp_dir, "src"), os.path.join(tmp_dir, "cache")
+        os.makedirs(src)
+        os.makedirs(cache)
+        self._make_db(src)
+        out = _stage_eggnog_db_to_local(src, cache)
+        assert out == os.path.join(cache, "eggnog")
+        assert os.path.getsize(os.path.join(out, "eggnog.db")) == 128
+        assert os.path.getsize(os.path.join(out, "eggnog_proteins.dmnd")) == 128
+
+    def test_idempotent_on_size_match(self, tmp_dir):
+        src, cache = os.path.join(tmp_dir, "src"), os.path.join(tmp_dir, "cache")
+        os.makedirs(src)
+        os.makedirs(cache)
+        self._make_db(src)
+        _stage_eggnog_db_to_local(src, cache)
+        mtime = os.path.getmtime(os.path.join(cache, "eggnog", "eggnog.db"))
+        _stage_eggnog_db_to_local(src, cache)  # second call must not re-copy
+        assert os.path.getmtime(os.path.join(cache, "eggnog", "eggnog.db")) == mtime
+
+    def test_raises_if_required_file_missing(self, tmp_dir):
+        src, cache = os.path.join(tmp_dir, "src"), os.path.join(tmp_dir, "cache")
+        os.makedirs(src)
+        os.makedirs(cache)
+        self._make_db(src, files=("eggnog.db",))  # missing eggnog_proteins.dmnd
+        with pytest.raises(FileNotFoundError, match="eggnog_proteins.dmnd"):
+            _stage_eggnog_db_to_local(src, cache)
+
+    def test_skips_missing_optional_files(self, tmp_dir):
+        src, cache = os.path.join(tmp_dir, "src"), os.path.join(tmp_dir, "cache")
+        os.makedirs(src)
+        os.makedirs(cache)
+        self._make_db(src)  # only the two required files
+        out = _stage_eggnog_db_to_local(src, cache)
+        # optionals shouldn't be there, but the call must succeed
+        assert not os.path.exists(os.path.join(out, "eggnog.taxa.db"))
 
 
 class TestParseEggnogAnnotations:

@@ -20,6 +20,7 @@ import argparse
 import csv
 import logging
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -131,6 +132,50 @@ def _autodetect_dbmem() -> bool:
     return _effective_ram_gb() >= _EGGNOG_DBMEM_MIN_GB
 
 
+# Eggnog DB files emapper actually reads at run time. Listed exhaustively
+# so we copy only what's needed (eggnog/ also holds optional HMM data and
+# per-taxon downloads we don't touch). Filenames stable across v2.1.x.
+# Files emapper requires at run time (raises if missing) vs nice-to-have.
+_EGGNOG_REQUIRED_FILES = ("eggnog.db", "eggnog_proteins.dmnd")
+_EGGNOG_OPTIONAL_FILES = ("eggnog.taxa.db", "eggnog.taxa.db.traverse.pkl")
+
+# Headroom above the on-disk DB footprint: ~50 GB of files + temp space.
+_EGGNOG_LOCAL_CACHE_MIN_FREE_GB = 60
+
+
+def _stage_eggnog_db_to_local(src_dir: str, cache_dir: str) -> str:
+    """Copy emapper runtime files from src_dir to cache_dir/eggnog/ and return the new path.
+
+    Network filesystems (gpfs, nfs, lustre) make random-access mmap on the
+    41 GB eggnog.db pathological — emapper hangs at near-zero CPU for hours
+    instead of running. Copying to node-local SSD (~2 min on CX3 gpfs read)
+    converts every subsequent lookup to a local page fault. Re-runs in the
+    same job reuse the existing copy. Writes are atomic (tmp + os.replace)
+    so a concurrent staging from another job can't corrupt the cache.
+    """
+    local_eggnog_dir = os.path.join(cache_dir, "eggnog")
+    os.makedirs(local_eggnog_dir, exist_ok=True)
+    for name in _EGGNOG_REQUIRED_FILES:
+        if not os.path.exists(os.path.join(src_dir, name)):
+            raise FileNotFoundError(
+                f"Required eggnog DB file not found in {src_dir}: {name}. "
+                f"Run download_eggnog_data.py --data_dir {src_dir} to populate it."
+            )
+    for name in _EGGNOG_REQUIRED_FILES + _EGGNOG_OPTIONAL_FILES:
+        src = os.path.join(src_dir, name)
+        if not os.path.exists(src):
+            continue
+        dst = os.path.join(local_eggnog_dir, name)
+        if os.path.exists(dst) and os.path.getsize(dst) == os.path.getsize(src):
+            logger.info(f"EggNOG DB already cached: {dst}")
+            continue
+        logger.info(f"Caching {name} ({os.path.getsize(src) / 2**30:.1f} GB) -> {local_eggnog_dir}")
+        tmp = f"{dst}.tmp.{os.getpid()}"
+        shutil.copy2(src, tmp)
+        os.replace(tmp, dst)  # atomic; safe against concurrent stagers
+    return local_eggnog_dir
+
+
 def _build_emapper_cmd(
     proteins_fasta,
     db_path,
@@ -193,6 +238,7 @@ def run_emapper(
     tax_scope="2",
     sensmode="sensitive",
     dbmem=None,
+    local_cache_dir=None,
 ):
     """Run emapper.py on a protein FASTA file.
 
@@ -203,19 +249,36 @@ def run_emapper(
 
     `sensmode` is the DIAMOND sensitivity preset. "sensitive" is ~10× the
     DIAMOND default; "more-sensitive" is another ~2× slower and rarely
-    rescues additional substrate-set orthologs. Use the larger presets
-    only when sensitivity matters more than wallclock.
+    rescues additional substrate-set orthologs.
 
     `dbmem=None` (default) auto-decides via `_autodetect_dbmem()` — on a
     32 GB host the load OOM-kills emapper mid-startup with no clean
     error, so the default fall back to on-disk SQLite there.
 
+    `local_cache_dir`, when set and large enough, copies the eggnog runtime
+    files to it before invoking emapper and points `--data_dir` there.
+    Required on shared filesystems (gpfs/nfs/lustre): random-access mmap on
+    the 41 GB SQLite hangs at near-zero CPU for hours otherwise. Pass the
+    PBS/SLURM job-local TMPDIR.
+
     Returns:
         str: path to the `.emapper.annotations` file written by emapper.
     """
+    effective_db_path = db_path
+    if local_cache_dir:
+        free_gb = shutil.disk_usage(local_cache_dir).free / 2**30
+        if free_gb >= _EGGNOG_LOCAL_CACHE_MIN_FREE_GB:
+            effective_db_path = _stage_eggnog_db_to_local(db_path, local_cache_dir)
+        else:
+            logger.warning(
+                f"Skipping local DB cache: {local_cache_dir} has only {free_gb:.1f} GB free "
+                f"(need {_EGGNOG_LOCAL_CACHE_MIN_FREE_GB}). Emapper will mmap from {db_path} — "
+                f"likely to hang on a shared filesystem."
+            )
+
     cmd = _build_emapper_cmd(
         proteins_fasta,
-        db_path,
+        effective_db_path,
         sample_id,
         output_dir,
         threads=threads,
@@ -383,6 +446,17 @@ def main():
         const=False,
         help="Force --dbmem off (use on-disk SQLite).",
     )
+    parser.add_argument(
+        "--local-cache-dir",
+        default=None,
+        help=(
+            "Copy the eggnog runtime DB (~50 GB) to this directory before "
+            "calling emapper. Required on shared filesystems (gpfs/nfs): "
+            "random-access mmap on the 41 GB SQLite stalls for tens of "
+            "minutes otherwise. Typical: PBS/SLURM job-local TMPDIR. "
+            "Skipped if directory has <60 GB free."
+        ),
+    )
     parser.add_argument("--out", required=True, help="Output annotations TSV (ssign format)")
     args = parser.parse_args()
 
@@ -412,6 +486,7 @@ def main():
             tax_scope=args.tax_scope,
             sensmode=args.sensmode,
             dbmem=args.dbmem,
+            local_cache_dir=args.local_cache_dir,
         )
         entries = parse_eggnog_annotations(annotations_path)
 

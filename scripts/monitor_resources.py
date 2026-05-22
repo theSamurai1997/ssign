@@ -51,6 +51,10 @@ except (ImportError, Exception) as _gpu_err:  # NVMLError lives on pynvml
         print(f"[monitor] GPU sampling disabled: {_gpu_err}", file=sys.stderr)
 
 STEP_RE = re.compile(r"Starting step (\d+)\s*/\s*(\d+)\s*:\s*(.+?)(?:\s*\(|$)")
+# Parallel-group start: "Starting parallel group: tool1, tool2, ..."
+PARALLEL_RE = re.compile(r"Starting parallel group:\s*(.+?)\s*$")
+# Per-tool finish inside a parallel group: "Finished (parallel): <name> -> ..."
+PARALLEL_DONE_RE = re.compile(r"Finished \(parallel\):\s*(.+?)\s*->")
 
 
 def gpu_sample() -> tuple[str, str]:
@@ -75,6 +79,22 @@ def tail_step(log_path: Path | None, state: dict) -> str:
         m = STEP_RE.search(line)
         if m:
             state["step"] = f"{m.group(1)}/{m.group(2)}:{m.group(3).strip()}"
+            state["parallel_active"] = set()
+            continue
+        mp = PARALLEL_RE.search(line)
+        if mp:
+            tools = [t.strip() for t in mp.group(1).split(",")]
+            state["parallel_active"] = set(tools)
+            state["step"] = "parallel:" + ",".join(sorted(state["parallel_active"]))
+            continue
+        md = PARALLEL_DONE_RE.search(line)
+        if md and state.get("parallel_active"):
+            state["parallel_active"].discard(md.group(1).strip())
+            state["step"] = (
+                "parallel:" + ",".join(sorted(state["parallel_active"]))
+                if state["parallel_active"]
+                else state.get("step", "")
+            )
     return state.get("step", "")
 
 

@@ -211,6 +211,12 @@ class PipelineConfig:
     # is ~2× that again and rarely rescues additional hits on the substrate
     # subset. See run_eggnog.run_emapper for the tradeoff.
     eggnog_sensmode: str = "sensitive"
+    # Directory to stage the ~50 GB eggnog DB to before invoking emapper.
+    # Mandatory on shared FS (gpfs/nfs/lustre): random-access mmap on the
+    # 41 GB SQLite stalls for tens of minutes otherwise. Empty string ("")
+    # resolves to PBS/SLURM $TMPDIR if set (local SSD on most HPCs).
+    # Pass "off" (literal) to disable staging.
+    eggnog_local_cache_dir: str = ""
 
     # Phase 3.2.d: PLM-Effector (prediction-tier, equal to DLP/DSE per
     # the cross-validate refactor in 3.2.b). Tier-driven default: on at
@@ -1670,6 +1676,12 @@ class PipelineRunner:
             args.append("--dbmem")
         elif self.config.eggnog_dbmem is False:
             args.append("--no-dbmem")
+        # Resolve local-cache-dir: "" => use $TMPDIR if set, "off" => skip.
+        cache_dir = self.config.eggnog_local_cache_dir
+        if cache_dir == "":
+            cache_dir = os.environ.get("TMPDIR", "")
+        if cache_dir and cache_dir != "off":
+            args.extend(["--local-cache-dir", cache_dir])
         rc, stdout, stderr = run_script("run_eggnog.py", args, timeout=14400)
         if rc == 0:
             self.files["eggnog"] = output
