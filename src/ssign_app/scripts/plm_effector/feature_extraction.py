@@ -39,7 +39,14 @@ _MODEL_REAL_SEQUENCE_LEN = {
 
 
 def _load_model_and_tokenizer(pretrained_type: str, weights_dir: str, device):
-    """Load a HuggingFace pretrained PLM from `weights_dir/transformers_pretrained/<subdir>/`."""
+    """Load a HuggingFace pretrained PLM from `weights_dir/transformers_pretrained/<subdir>/`.
+
+    `low_cpu_mem_usage=True` halves the CPU-RAM peak during load by streaming
+    weights into a meta-device-allocated model instead of reading the full
+    state_dict into a temp buffer first. Bit-identical to the default load
+    (no accuracy change). Requires `accelerate` (in ssign[extended]). Critical
+    for ProtT5 (~12 GB FP32) on memory-constrained nodes.
+    """
     from transformers import AutoModel, AutoTokenizer, T5EncoderModel, T5Tokenizer
 
     subdir = _MODEL_SUBDIRS[pretrained_type]
@@ -53,13 +60,13 @@ def _load_model_and_tokenizer(pretrained_type: str, weights_dir: str, device):
 
     if pretrained_type == "ProtBert":
         tokenizer = AutoTokenizer.from_pretrained(model_path, do_lower_case=False)
-        model = AutoModel.from_pretrained(model_path)
+        model = AutoModel.from_pretrained(model_path, low_cpu_mem_usage=True)
     elif pretrained_type == "ProtT5":
         tokenizer = T5Tokenizer.from_pretrained(model_path, do_lower_case=False)
-        model = T5EncoderModel.from_pretrained(model_path)
+        model = T5EncoderModel.from_pretrained(model_path, low_cpu_mem_usage=True)
     else:
         tokenizer = AutoTokenizer.from_pretrained(model_path)
-        model = AutoModel.from_pretrained(model_path)
+        model = AutoModel.from_pretrained(model_path, low_cpu_mem_usage=True)
 
     model = model.to(device)
     model.eval()
@@ -95,9 +102,7 @@ def extract_terminal_features(
                 )
                 tokenizer.padding_side = "left"
             else:
-                ids, sequences = read_fasta_for_prediction(
-                    proteins_fasta, model_type=pretrained_type
-                )
+                ids, sequences = read_fasta_for_prediction(proteins_fasta, model_type=pretrained_type)
                 tokenizer.padding_side = "right"
 
             embeddings, attention_masks = batch_extract_features(
