@@ -259,10 +259,35 @@ def main():
         default=2,
         help="Threads per hhblits/hhsearch process (default: 2).",
     )
+    parser.add_argument(
+        "--local-cache-dir",
+        default=None,
+        help=(
+            "Stage HH-suite ffindex DBs (uniclust ~25 GB, pfam ~3 GB, "
+            "pdb70 ~23 GB) to this directory before running. No-op when "
+            "the DB is on local filesystem; otherwise rsyncs from gpfs/"
+            "nfs/lustre. Pass PBS/SLURM job-local TMPDIR. hhblits/hhsearch "
+            "do many small random reads per query — fast on local SSD, "
+            "pathologically slow on shared FS without thread fan-out."
+        ),
+    )
     args = parser.parse_args()
 
     if not args.pfam_db and not args.pdb70_db:
         parser.error("At least one of --pfam-db or --pdb70-db must be provided")
+
+    # Stage each HH-suite DB to local SSD if the source is on a network
+    # filesystem. The arg values are ffindex *prefixes* (e.g. /rds/.../
+    # uniclust30/uniclust30_2018_08), and the prefix-glob helper rsyncs
+    # only the sibling files matching <prefix>* — not the whole parent
+    # dir, which would over-copy when DBs share a parent or stage an
+    # entire FS mount when the prefix sits at root.
+    if args.local_cache_dir:
+        from ssign_lib.resources import stage_prefix_files_to_local_ssd_if_remote
+
+        args.uniclust_db = stage_prefix_files_to_local_ssd_if_remote(args.uniclust_db, args.local_cache_dir)
+        args.pfam_db = stage_prefix_files_to_local_ssd_if_remote(args.pfam_db, args.local_cache_dir)
+        args.pdb70_db = stage_prefix_files_to_local_ssd_if_remote(args.pdb70_db, args.local_cache_dir)
 
     substrate_ids = load_substrate_ids(args.substrates)
     all_seqs = read_fasta(args.proteins)

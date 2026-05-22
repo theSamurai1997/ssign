@@ -249,7 +249,24 @@ def main():
         ),
     )
     parser.add_argument("--output", required=True)
+    parser.add_argument(
+        "--local-cache-dir",
+        default=None,
+        help=(
+            "Stage the InterProScan install directory (~24 GB) to this "
+            "directory before running. No-op when on local filesystem; "
+            "otherwise rsyncs from gpfs/nfs/lustre. Pass PBS/SLURM job-"
+            "local TMPDIR. Mixed effect — HMMER members are mostly "
+            "sequential, but ProSiteProfiles + CDD do random reads."
+        ),
+    )
     args = parser.parse_args()
+
+    # Stage InterProScan install dir to local SSD if on network FS.
+    if args.local_cache_dir and args.db:
+        from ssign_lib.resources import stage_directory_tree_to_local_ssd_if_remote
+
+        args.db = stage_directory_tree_to_local_ssd_if_remote(args.db, args.local_cache_dir)
 
     substrate_ids = load_substrate_ids(args.substrates)
     all_seqs = read_fasta(args.proteins)

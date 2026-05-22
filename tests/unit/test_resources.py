@@ -17,6 +17,7 @@ from ssign_lib.resources import (
     effective_cpu_count,
     effective_ram_gb,
     is_remote_filesystem,
+    stage_prefix_files_to_local_ssd_if_remote,
     stage_to_local_ssd_if_remote,
 )
 
@@ -194,3 +195,66 @@ class TestStageToLocalSsdIfRemote:
         # 1 PB free required — definitely won't have it locally.
         out = stage_to_local_ssd_if_remote(src, cache, required=("eggnog.db",), min_free_gb=1_000_000.0)
         assert out == src  # falls back to remote path
+
+
+class TestStagePrefixFiles:
+    """stage_prefix_files_to_local_ssd_if_remote: ffindex DBs (HH-suite)."""
+
+    def _write(self, path, nbytes=64):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "wb") as f:
+            f.write(b"\0" * nbytes)
+
+    def test_skips_when_local(self, tmp_dir, monkeypatch):
+        prefix = os.path.join(tmp_dir, "uniclust", "uniclust30_2018_08")
+        cache = os.path.join(tmp_dir, "cache")
+        os.makedirs(cache)
+        for suf in ("_a3m.ffdata", "_a3m.ffindex"):
+            self._write(prefix + suf)
+        monkeypatch.setattr("ssign_lib.resources.is_remote_filesystem", lambda p: False)
+        assert stage_prefix_files_to_local_ssd_if_remote(prefix, cache) == prefix
+
+    def test_copies_only_matching_files(self, tmp_dir, monkeypatch):
+        # Two DBs sharing the same parent dir. Only the prefix's files should copy.
+        parent = os.path.join(tmp_dir, "hhdb")
+        cache = os.path.join(tmp_dir, "cache")
+        os.makedirs(cache)
+        prefix_a = os.path.join(parent, "uniclust30_2018_08")
+        prefix_b = os.path.join(parent, "pfamA_32.0")
+        for suf in ("_a3m.ffdata", "_a3m.ffindex", "_hhm.ffdata", "_hhm.ffindex"):
+            self._write(prefix_a + suf)
+            self._write(prefix_b + suf)
+        monkeypatch.setattr("ssign_lib.resources.is_remote_filesystem", lambda p: True)
+
+        new_a = stage_prefix_files_to_local_ssd_if_remote(prefix_a, cache, min_free_gb=0.0)
+        # New prefix points to cache; uniclust files staged, pfam files NOT.
+        assert os.path.dirname(new_a).startswith(cache)
+        assert os.path.exists(new_a + "_a3m.ffdata")
+        assert not os.path.exists(os.path.join(os.path.dirname(new_a), "pfamA_32.0_a3m.ffdata"))
+
+    def test_empty_prefix_returns_unchanged(self, tmp_dir):
+        # Optional pfam/pdb70 args default to "" — must be no-op.
+        assert stage_prefix_files_to_local_ssd_if_remote("", "/tmp") == ""
+
+    def test_no_matching_files_returns_original(self, tmp_dir, monkeypatch, caplog):
+        cache = os.path.join(tmp_dir, "cache")
+        os.makedirs(cache)
+        monkeypatch.setattr("ssign_lib.resources.is_remote_filesystem", lambda p: True)
+        prefix = os.path.join(tmp_dir, "missing", "nonexistent_db")
+        # No files at prefix*; helper warns and returns the original.
+        assert stage_prefix_files_to_local_ssd_if_remote(prefix, cache) == prefix
+
+    def test_two_prefixes_dont_collide_in_cache(self, tmp_dir, monkeypatch):
+        # Each prefix gets its own target subdir under cache/db_prefixes/.
+        parent = os.path.join(tmp_dir, "hhdb")
+        cache = os.path.join(tmp_dir, "cache")
+        os.makedirs(cache)
+        prefix_a = os.path.join(parent, "uniclust30")
+        prefix_b = os.path.join(parent, "pfam")
+        for suf in ("_a3m.ffdata",):
+            self._write(prefix_a + suf)
+            self._write(prefix_b + suf)
+        monkeypatch.setattr("ssign_lib.resources.is_remote_filesystem", lambda p: True)
+        new_a = stage_prefix_files_to_local_ssd_if_remote(prefix_a, cache, min_free_gb=0.0)
+        new_b = stage_prefix_files_to_local_ssd_if_remote(prefix_b, cache, min_free_gb=0.0)
+        assert os.path.dirname(new_a) != os.path.dirname(new_b)

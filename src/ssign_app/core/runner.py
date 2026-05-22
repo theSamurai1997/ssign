@@ -1601,6 +1601,12 @@ class PipelineRunner:
                 "2",
             ]
         )
+        # Stage uniclust/pfam/pdb70 to local SSD on network filesystems.
+        # hhblits does many small random reads per query — fast on local
+        # SSD, pathologically slow on gpfs/nfs without thread fan-out.
+        cache = os.environ.get("TMPDIR", "")
+        if cache:
+            args.extend(["--local-cache-dir", cache])
 
         rc, stdout, stderr = run_script("run_hhsuite.py", args, timeout=14400)
         if rc == 0:
@@ -1627,6 +1633,10 @@ class PipelineRunner:
         if self.config.interproscan_db:
             args.extend(["--db", self.config.interproscan_db])
         args.extend(["--cpu", str(self._annotation_cpu_budget())])
+        # Stage IPS install tree to local SSD on network filesystems.
+        cache = os.environ.get("TMPDIR", "")
+        if cache:
+            args.extend(["--local-cache-dir", cache])
 
         rc, stdout, stderr = run_script("run_interproscan.py", args, timeout=7200)
         if rc == 0:

@@ -236,6 +236,62 @@ def stage_to_local_ssd_if_remote(
     return target_dir
 
 
+def stage_prefix_files_to_local_ssd_if_remote(
+    prefix: str,
+    cache_dir: str,
+    min_free_gb: float = 10.0,
+) -> str:
+    """Stage files matching `glob(prefix*)` to local SSD when source is remote.
+
+    Designed for ffindex / `<prefix>_<suffix>.ext` DBs (HH-suite uniclust,
+    pfam, pdb70) where the "DB" is a prefix that expands at runtime to
+    several sibling files in the same directory. Avoids the three traps
+    of staging the whole parent dir:
+      1. Sibling DBs sharing the same parent get copied unnecessarily.
+      2. Prefix at filesystem root (`os.path.dirname` → `/rds`) would
+         rsync an entire mount.
+      3. Multiple per-prefix calls each apply min_free_gb independently,
+         causing partial staging when the cache barely fits.
+
+    Returns the new prefix (cache_dir/<basename>/<prefix-basename>) when
+    cached, or the original prefix unchanged when src is local / not
+    cacheable. Caller treats the return value as opaque.
+    """
+    import glob
+
+    if not prefix or not is_remote_filesystem(prefix):
+        return prefix
+
+    matches = sorted(glob.glob(f"{prefix}*"))
+    if not matches:
+        logger.warning(f"Prefix-glob found no files at {prefix}*; skipping cache")
+        return prefix
+
+    import shutil
+
+    needed_gb = sum(os.path.getsize(p) for p in matches) / 2**30
+    free_gb = shutil.disk_usage(cache_dir).free / 2**30
+    if free_gb < max(min_free_gb, needed_gb * 1.1):
+        logger.warning(
+            f"Skipping prefix-cache for {prefix}: need ~{needed_gb:.1f} GB, have {free_gb:.1f} GB free in {cache_dir}."
+        )
+        return prefix
+
+    # cache_dir/db_prefixes/<basename>/ keeps multiple prefixes from
+    # colliding (each gets its own subdir keyed by the prefix basename).
+    target_dir = os.path.join(cache_dir, "db_prefixes", os.path.basename(prefix))
+    os.makedirs(target_dir, exist_ok=True)
+    logger.info(f"Staging {len(matches)} files for prefix {prefix} ({needed_gb:.1f} GB) -> {target_dir}")
+    for src in matches:
+        dst = os.path.join(target_dir, os.path.basename(src))
+        if os.path.exists(dst) and os.path.getsize(dst) == os.path.getsize(src):
+            continue
+        tmp = f"{dst}.tmp.{os.getpid()}"
+        shutil.copy2(src, tmp)
+        os.replace(tmp, dst)
+    return os.path.join(target_dir, os.path.basename(prefix))
+
+
 def stage_directory_tree_to_local_ssd_if_remote(
     src_dir: str,
     cache_dir: str,
