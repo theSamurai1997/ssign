@@ -52,6 +52,20 @@ BANNER = r"""
 # ---------------------------------------------------------------------------
 
 
+def _default_cpu_per_genome() -> int:
+    """Default for --cpu-per-genome: cgroup-allocated count, never host total.
+
+    Lazy import so `ssign --help` doesn't pay the import cost when the user
+    isn't running the pipeline.
+    """
+    try:
+        from ssign_app.scripts.ssign_lib.resources import effective_cpu_count
+
+        return effective_cpu_count()
+    except Exception:
+        return os.cpu_count() or 4
+
+
 def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
     """Build the `ssign run` subcommand parser.
 
@@ -127,8 +141,8 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
     g.add_argument(
         "--cpu-per-genome",
         type=int,
-        default=os.cpu_count() or 4,
-        help="CPUs available to per-genome subtools (default: all).",
+        default=_default_cpu_per_genome(),
+        help="CPUs available to per-genome subtools (default: cgroup allocation, or all host CPUs).",
     )
 
     # ── Phase 3: Prediction thresholds ──────────────────────────────────
