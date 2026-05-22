@@ -97,39 +97,17 @@ def _write_empty_output(out_path):
 _EGGNOG_DBMEM_MIN_GB = 50
 
 
-def _effective_ram_gb() -> float:
-    """Min of host RAM, the SLURM allocation, and the cgroup memory limit.
-
-    `psutil.virtual_memory().total` reports the host's physical RAM, ignoring
-    cgroup limits. On a SLURM-allocated 32 GB job that lands on a 256 GB
-    node, psutil alone would say 256 GB and falsely greenlight `--dbmem`,
-    which OOM-kills with no clean error. Take the smallest of every limit
-    we can see.
-    """
-    candidates_gb = []
-    try:
-        import psutil
-
-        candidates_gb.append(psutil.virtual_memory().total / 2**30)
-    except Exception:
-        pass
-    slurm_mb = os.environ.get("SLURM_MEM_PER_NODE")
-    if slurm_mb and slurm_mb.isdigit():
-        candidates_gb.append(int(slurm_mb) / 1024)
-    for cgroup_path in ("/sys/fs/cgroup/memory.max", "/sys/fs/cgroup/memory/memory.limit_in_bytes"):
-        try:
-            with open(cgroup_path) as fh:
-                raw = fh.read().strip()
-            if raw.isdigit():
-                candidates_gb.append(int(raw) / 2**30)
-        except OSError:
-            pass
-    return min(candidates_gb) if candidates_gb else 0.0
-
-
 def _autodetect_dbmem() -> bool:
-    """True only when the host has headroom for emapper's in-RAM SQLite copy."""
-    return _effective_ram_gb() >= _EGGNOG_DBMEM_MIN_GB
+    """True only when the job has headroom for emapper's in-RAM SQLite copy.
+
+    Delegates to `ssign_lib.resources.effective_ram_gb` which respects PBS
+    `Resource_List.mem`, SLURM `SLURM_MEM_PER_NODE`, and cgroup limits — not
+    just host total. Critical on shared HPC nodes where psutil would
+    falsely greenlight --dbmem on a small job that lands on a big box.
+    """
+    from ssign_lib.resources import effective_ram_gb
+
+    return effective_ram_gb() >= _EGGNOG_DBMEM_MIN_GB
 
 
 # Eggnog DB files emapper actually reads at run time. Listed exhaustively

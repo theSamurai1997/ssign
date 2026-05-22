@@ -25,6 +25,7 @@ from ssign_app.scripts.ssign_lib.constants import (
     TIER_TOOL_DEFAULTS,
 )
 from ssign_app.scripts.ssign_lib.dependency_manifest import DATABASE_PATHS
+from ssign_app.scripts.ssign_lib.resources import effective_cpu_count
 
 logger = logging.getLogger(__name__)
 
@@ -127,9 +128,12 @@ class PipelineConfig:
     macsyfinder_db_type: str = "ordered_replicon"
 
     # CPU budget per genome for parallel sub-tools (e.g. macsyfinder -w).
-    # When N genomes run concurrently, set this to cpu_count // N to avoid
-    # oversubscribing cores. Defaults to all available cores.
-    cpu_per_genome: int = field(default_factory=lambda: os.cpu_count() or 4)
+    # When N genomes run concurrently, set this to cpu_per_genome // N to
+    # avoid oversubscribing cores. Defaults to the cgroup-allocated CPU
+    # count (not host total): os.cpu_count() reads /proc/cpuinfo and
+    # ignores PBS/SLURM CPU pinning, so on a shared HPC node a 4-CPU job
+    # would otherwise tell tools to spawn 24+ threads thrashing on 4 cores.
+    cpu_per_genome: int = field(default_factory=effective_cpu_count)
 
     # Phase 3: Prediction
     conf_threshold: float = 0.8
