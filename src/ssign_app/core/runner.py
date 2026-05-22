@@ -945,24 +945,28 @@ class PipelineRunner:
             bakta_gene_info_path = (
                 self._wf(f"{self.config.sample_id}_bakta_gene_info.tsv") if reannotate_gbff else gene_info_path
             )
-            rc, stdout, stderr = run_script(
-                "run_bakta.py",
-                [
-                    "--input",
-                    bakta_input,
-                    "--db",
-                    self.config.bakta_db,
-                    "--sample",
-                    self.config.sample_id,
-                    "--threads",
-                    str(self.config.bakta_threads),
-                    "--out-proteins",
-                    proteins_path,
-                    "--out-gene-info",
-                    bakta_gene_info_path,
-                ],
-                timeout=14400,
-            )
+            bakta_args = [
+                "--input",
+                bakta_input,
+                "--db",
+                self.config.bakta_db,
+                "--sample",
+                self.config.sample_id,
+                "--threads",
+                str(self.config.bakta_threads),
+                "--out-proteins",
+                proteins_path,
+                "--out-gene-info",
+                bakta_gene_info_path,
+            ]
+            # Stage Bakta DB to local SSD if it lives on a network filesystem.
+            # Bakta does many small reads against ~30 GB of indexes; on gpfs
+            # with --threads 4 the per-read latency stacks linearly (4 min
+            # → 27 min regression observed). Same pattern as EggNOG.
+            cache = os.environ.get("TMPDIR", "")
+            if cache:
+                bakta_args.extend(["--local-cache-dir", cache])
+            rc, stdout, stderr = run_script("run_bakta.py", bakta_args, timeout=14400)
             if rc != 0:
                 return StepResult("extract_proteins", False, stderr[:500])
 

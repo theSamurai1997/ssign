@@ -73,12 +73,24 @@ _DBXREF_PREFIX_TO_OUTPUT_KEY = {
 _DBXREF_OUTPUT_KEYS = tuple(_DBXREF_PREFIX_TO_OUTPUT_KEY.values())
 
 
-def run_bakta(contigs_fasta, db_path, sample_id, output_dir, threads=4):
+def run_bakta(contigs_fasta, db_path, sample_id, output_dir, threads=4, local_cache_dir=None):
     """Run Bakta on a genome FASTA file.
+
+    `local_cache_dir`, when set and the DB is on a remote filesystem
+    (gpfs/nfs/lustre), rsyncs the full Bakta DB tree to that directory
+    once and points `--db` there. Bakta's INFERNAL / HMMER / BLAST stages
+    do many small random reads against ~30 GB of indexes; on network
+    storage with only --threads 4, per-read latency stacks linearly and
+    pushes wallclock from ~4 min to ~30 min. Local SSD reads are ~1000×
+    faster and eliminate this whole class of slowdown. No-op on local FS.
 
     Returns:
         tuple: (proteins_faa_path, tsv_path)
     """
+    if local_cache_dir:
+        from ssign_lib.resources import stage_directory_tree_to_local_ssd_if_remote
+
+        db_path = stage_directory_tree_to_local_ssd_if_remote(db_path, local_cache_dir)
     cmd = [
         "bakta",
         "--db",
@@ -271,13 +283,29 @@ def main():
     parser.add_argument("--db", required=True, help="Path to Bakta database")
     parser.add_argument("--sample", required=True, help="Sample identifier")
     parser.add_argument("--threads", type=int, default=effective_cpu_count(), help="CPU threads")
+    parser.add_argument(
+        "--local-cache-dir",
+        default=None,
+        help=(
+            "Stage the Bakta DB tree (~30-80 GB) to this directory before running. "
+            "No-op when the DB is already on local filesystem; otherwise rsyncs from "
+            "gpfs/nfs/lustre to local SSD. Typical: PBS/SLURM job-local TMPDIR."
+        ),
+    )
     parser.add_argument("--out-proteins", required=True, help="Output proteins FASTA")
     parser.add_argument("--out-gene-info", required=True, help="Output gene_info.tsv")
     args = parser.parse_args()
 
     with tempfile.TemporaryDirectory() as tmpdir:
         # Run Bakta
-        bakta_faa, bakta_tsv = run_bakta(args.input, args.db, args.sample, tmpdir, args.threads)
+        bakta_faa, bakta_tsv = run_bakta(
+            args.input,
+            args.db,
+            args.sample,
+            tmpdir,
+            args.threads,
+            local_cache_dir=args.local_cache_dir,
+        )
 
         # Parse annotation table
         entries = parse_bakta_tsv(bakta_tsv)

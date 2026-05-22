@@ -16,6 +16,8 @@ from ssign_lib.resources import (
     _parse_size_to_gb,
     effective_cpu_count,
     effective_ram_gb,
+    is_remote_filesystem,
+    stage_to_local_ssd_if_remote,
 )
 
 
@@ -100,3 +102,95 @@ class TestEffectiveRamGb:
         # psutil=None makes the `import psutil` line raise TypeError, which the
         # bare except catches. Final result is 0.0.
         assert effective_ram_gb() == 0.0
+
+
+class TestIsRemoteFilesystem:
+    """is_remote_filesystem should detect networked FS via /proc/mounts."""
+
+    def _mock_mounts(self, monkeypatch, mounts_text):
+        from io import StringIO
+
+        def fake_open(path, *a, **kw):
+            if path == "/proc/mounts":
+                return StringIO(mounts_text)
+            raise OSError("no")
+
+        monkeypatch.setattr("builtins.open", fake_open)
+
+    def test_gpfs_path_is_remote(self, monkeypatch):
+        self._mock_mounts(monkeypatch, "rds /rds gpfs rw 0 0\n")
+        monkeypatch.setattr("os.path.realpath", lambda p: "/rds/general/user/x/db")
+        assert is_remote_filesystem("/rds/general/user/x/db") is True
+
+    def test_local_xfs_is_not_remote(self, monkeypatch):
+        self._mock_mounts(monkeypatch, "/dev/sda1 / xfs rw 0 0\n")
+        monkeypatch.setattr("os.path.realpath", lambda p: "/home/user/db")
+        assert is_remote_filesystem("/home/user/db") is False
+
+    def test_nested_mount_picks_longest_prefix(self, monkeypatch):
+        # /home is xfs but /home/user/scratch is mounted as gpfs underneath.
+        self._mock_mounts(monkeypatch, "/dev/sda1 /home xfs rw 0 0\nrds /home/user/scratch gpfs rw 0 0\n")
+        monkeypatch.setattr("os.path.realpath", lambda p: "/home/user/scratch/db")
+        assert is_remote_filesystem("/home/user/scratch/db") is True
+
+    def test_unreadable_mounts_returns_false(self, monkeypatch):
+        monkeypatch.setattr("builtins.open", lambda *a, **kw: (_ for _ in ()).throw(OSError("no")))
+        # No info → conservative: assume local, skip cache.
+        assert is_remote_filesystem("/any/path") is False
+
+
+class TestStageToLocalSsdIfRemote:
+    """stage_to_local_ssd_if_remote: copy only when src is networked."""
+
+    def _make_db(self, src, files, nbytes=128):
+        os.makedirs(src, exist_ok=True)
+        for name in files:
+            with open(os.path.join(src, name), "wb") as f:
+                f.write(b"\0" * nbytes)
+
+    def test_skips_copy_when_src_is_local(self, tmp_dir, monkeypatch):
+        src, cache = os.path.join(tmp_dir, "src"), os.path.join(tmp_dir, "cache")
+        self._make_db(src, ("eggnog.db",))
+        os.makedirs(cache)
+        monkeypatch.setattr("ssign_lib.resources.is_remote_filesystem", lambda p: False)
+        out = stage_to_local_ssd_if_remote(src, cache, required=("eggnog.db",))
+        assert out == src  # unchanged
+        assert not os.listdir(cache)  # nothing copied
+
+    def test_copies_when_src_is_remote(self, tmp_dir, monkeypatch):
+        src, cache = os.path.join(tmp_dir, "src"), os.path.join(tmp_dir, "cache")
+        self._make_db(src, ("eggnog.db", "extra.dmnd"))
+        os.makedirs(cache)
+        monkeypatch.setattr("ssign_lib.resources.is_remote_filesystem", lambda p: True)
+        out = stage_to_local_ssd_if_remote(
+            src,
+            cache,
+            required=("eggnog.db",),
+            optional=("extra.dmnd",),
+            min_free_gb=0.0,  # tmpfs in tests
+        )
+        assert out != src
+        assert os.path.exists(os.path.join(out, "eggnog.db"))
+        assert os.path.exists(os.path.join(out, "extra.dmnd"))
+
+    def test_raises_on_missing_required_file(self, tmp_dir, monkeypatch):
+        src, cache = os.path.join(tmp_dir, "src"), os.path.join(tmp_dir, "cache")
+        self._make_db(src, ("eggnog.db",))
+        os.makedirs(cache)
+        monkeypatch.setattr("ssign_lib.resources.is_remote_filesystem", lambda p: True)
+        with pytest.raises(FileNotFoundError, match="missing_required_file.fasta"):
+            stage_to_local_ssd_if_remote(
+                src,
+                cache,
+                required=("eggnog.db", "missing_required_file.fasta"),
+                min_free_gb=0.0,
+            )
+
+    def test_falls_back_when_cache_too_small(self, tmp_dir, monkeypatch, caplog):
+        src, cache = os.path.join(tmp_dir, "src"), os.path.join(tmp_dir, "cache")
+        self._make_db(src, ("eggnog.db",))
+        os.makedirs(cache)
+        monkeypatch.setattr("ssign_lib.resources.is_remote_filesystem", lambda p: True)
+        # 1 PB free required — definitely won't have it locally.
+        out = stage_to_local_ssd_if_remote(src, cache, required=("eggnog.db",), min_free_gb=1_000_000.0)
+        assert out == src  # falls back to remote path
