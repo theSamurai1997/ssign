@@ -564,18 +564,18 @@ class PipelineRunner:
         # Prediction tools (parallel group 1) — equal secretion predictors
         # per cross_validate 3.2.b. SignalP runs with them but is recorded
         # evidence-only in the cross-validation step.
+        #
+        # PLM-Effector is deliberately NOT in this group: it loads 3-4
+        # PLMs (~6 GB resident each), and on a memory-constrained
+        # allocation (e.g. 32 GB PBS job) the parallel group's shared
+        # memory ceiling kills its first model load while DLP/DSE/SignalP
+        # are still resident. Running it sequentially after this group
+        # finishes lets it reclaim the full per-job RAM budget.
         prediction_steps = []
         if not self.config.skip_deeplocpro:
             prediction_steps.append(("Predicting localization (DeepLocPro)", self._step_deeplocpro))
         if not self.config.skip_deepsece:
             prediction_steps.append(("Predicting secretion type (DeepSecE)", self._step_deepsece))
-        if not self.config.skip_plm_effector:
-            prediction_steps.append(
-                (
-                    "Predicting effectors (PLM-Effector, 5 types)",
-                    self._step_plm_effector,
-                )
-            )
         if not self.config.skip_signalp:
             prediction_steps.append(("Predicting signal peptides (SignalP)", self._step_signalp))
 
@@ -605,17 +605,26 @@ class PipelineRunner:
             ("Validating secretion systems", self._step_validate_systems),
             ("Extracting SS neighborhood", self._step_extract_neighborhood),
             prediction_steps,  # PARALLEL: deeplocpro + deepsece + signalp
-            ("Cross-validating predictions", self._step_cross_validate),
-            ("Running proximity analysis", self._step_proximity),
-            ("Handling T5SS autotransporters", self._step_t5ss),
-            ("Filtering systems", self._step_filtering),
-            annotation_steps,  # PARALLEL: blastp + hhsuite + interproscan + protparam
-            ("Integrating annotations", self._step_integrate),
-            ("Assigning ortholog groups", self._step_orthologs),
-            ("Running enrichment analysis", self._step_enrichment),
-            ("Generating report", self._step_report),
-            ("Generating figures", self._step_figures),
         ]
+        # PLM-Effector runs sequentially AFTER the prediction parallel group:
+        # it spawns subprocess-per-PLM internally (~6 GB peak), and on a
+        # 32 GB allocation it must not share the budget with DLP/DSE/SignalP.
+        if not self.config.skip_plm_effector:
+            stages.append(("Predicting effectors (PLM-Effector, 5 types)", self._step_plm_effector))
+        stages.extend(
+            [
+                ("Cross-validating predictions", self._step_cross_validate),
+                ("Running proximity analysis", self._step_proximity),
+                ("Handling T5SS autotransporters", self._step_t5ss),
+                ("Filtering systems", self._step_filtering),
+                annotation_steps,  # PARALLEL: blastp + hhsuite + interproscan + protparam
+                ("Integrating annotations", self._step_integrate),
+                ("Assigning ortholog groups", self._step_orthologs),
+                ("Running enrichment analysis", self._step_enrichment),
+                ("Generating report", self._step_report),
+                ("Generating figures", self._step_figures),
+            ]
+        )
 
         # Flatten for counting and core-step tracking
         all_steps = []
