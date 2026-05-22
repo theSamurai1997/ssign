@@ -190,10 +190,10 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
         default=0,
         help=(
             "Threads passed to Bakta (default: same as --cpu-per-genome, i.e. "
-            "the cgroup-allocated count). Override to oversubscribe (e.g. 32 on "
-            "a 4-CPU job) if Bakta is I/O-bound on a slow filesystem despite the "
-            "local-SSD cache. Risk: each extra thread uses ~10-20 MB of stack + "
-            "buffers — verify peak RAM stays under your allocation via resources.csv."
+            "the cgroup-allocated count). Bakta enforces its own ceiling at the "
+            "OS-visible CPU count and rejects values above it, so this knob is "
+            "really only useful to set a lower-than-default thread count on "
+            "shared machines."
         ),
     )
 
