@@ -184,7 +184,18 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
         help="Run Bakta on FASTA contigs input (default: True per plan A.6). GenBank input is governed by --use-input-annotations instead.",
     )
     g.add_argument("--bakta-db", default="", help="Path to Bakta database (required for Bakta runs).")
-    g.add_argument("--bakta-threads", type=int, default=4, help="Threads passed to Bakta (default: 4).")
+    g.add_argument(
+        "--bakta-threads",
+        type=int,
+        default=0,
+        help=(
+            "Threads passed to Bakta (default: same as --cpu-per-genome, i.e. "
+            "the cgroup-allocated count). Override to oversubscribe (e.g. 32 on "
+            "a 4-CPU job) if Bakta is I/O-bound on a slow filesystem despite the "
+            "local-SSD cache. Risk: each extra thread uses ~10-20 MB of stack + "
+            "buffers — verify peak RAM stays under your allocation via resources.csv."
+        ),
+    )
 
     # ── DTU prediction tools (DeepLocPro + SignalP) ─────────────────────
     g = p.add_argument_group("DTU prediction tools")
