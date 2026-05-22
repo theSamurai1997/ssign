@@ -1769,6 +1769,19 @@ class PipelineRunner:
                 "install tier fetches the weights automatically.",
             )
 
+        # Stage the ~19 GB PLM-Effector weights tree to local SSD once,
+        # before iterating types. Each (type, PLM) pair runs in a fresh
+        # subprocess (Fix 3, e5d4942) and re-loads its model weights; on
+        # gpfs that's ~88 GB of disk reads per genome (~3 min wasted).
+        # Local staging makes the same reads ~5-10× faster. No-op when
+        # weights are already on local FS.
+        weights_dir = self.config.plm_effector_weights_dir
+        cache = os.environ.get("TMPDIR", "")
+        if cache:
+            from ssign_app.scripts.ssign_lib.resources import stage_directory_tree_to_local_ssd_if_remote
+
+            weights_dir = stage_directory_tree_to_local_ssd_if_remote(weights_dir, cache)
+
         per_type_paths = []
         for eff_type in self.config.plm_effector_types:
             per_type_out = self._wf(f"{self.config.sample_id}_plm_effector_{eff_type}.tsv")
@@ -1776,7 +1789,7 @@ class PipelineRunner:
                 "--input",
                 self.files.get("proteins", ""),
                 "--weights-dir",
-                self.config.plm_effector_weights_dir,
+                weights_dir,
                 "--effector-type",
                 eff_type,
                 "--out",
