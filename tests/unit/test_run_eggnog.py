@@ -19,10 +19,9 @@ from run_eggnog import (
 class TestBuildEmapperCmd:
     """Verify the emapper.py argv assembly.
 
-    The hung-2.5h-on-CX3 incident traced back to a missing `--dbmem`
-    flag — without it, emapper mmaps the 39 GB eggnog.db SQLite file,
-    which is pathological on NFS-backed shared scratch. The default
-    must include --dbmem; users with the DB on local SSD can opt out.
+    `--dbmem` loads ~44 GB resident; gated on host RAM by default so 32 GB
+    nodes (e.g. Imperial CX3 GPU partition) don't OOM-kill emapper mid-load
+    with no clean error. Explicit True/False overrides the auto-detect.
     """
 
     def _common_args(self):
@@ -33,13 +32,28 @@ class TestBuildEmapperCmd:
             output_dir="/tmp/out",
         )
 
-    def test_dbmem_default_on(self):
+    def test_dbmem_forced_on(self):
+        cmd = _build_emapper_cmd(**self._common_args(), dbmem=True)
+        assert cmd.count("--dbmem") == 1
+
+    def test_dbmem_forced_off(self):
+        cmd = _build_emapper_cmd(**self._common_args(), dbmem=False)
+        assert "--dbmem" not in cmd
+
+    def test_dbmem_autodetect_low_ram(self, monkeypatch):
+        monkeypatch.setattr("run_eggnog._autodetect_dbmem", lambda: False)
+        cmd = _build_emapper_cmd(**self._common_args())  # dbmem=None
+        assert "--dbmem" not in cmd
+
+    def test_dbmem_autodetect_high_ram(self, monkeypatch):
+        monkeypatch.setattr("run_eggnog._autodetect_dbmem", lambda: True)
         cmd = _build_emapper_cmd(**self._common_args())
         assert cmd.count("--dbmem") == 1
 
-    def test_dbmem_can_be_disabled(self):
-        cmd = _build_emapper_cmd(**self._common_args(), dbmem=False)
-        assert "--dbmem" not in cmd
+    def test_sensmode_default_is_sensitive(self):
+        cmd = _build_emapper_cmd(**self._common_args())
+        i = cmd.index("--sensmode")
+        assert cmd[i + 1] == "sensitive"
 
     def test_required_flags_present(self):
         """Sanity: the existing fixed flags survive the refactor."""

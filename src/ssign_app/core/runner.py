@@ -150,7 +150,9 @@ class PipelineConfig:
     # GenBank is governed by use_input_annotations).
     run_bakta: bool = True
     bakta_db: str = ""  # Required for any Bakta run (FASTA or GenBank re-annotation)
-    bakta_threads: int = 4
+    # 0 => derive from cpu_per_genome in __post_init__. Bakta runs sequentially
+    # in input processing, so it can take the full per-genome budget.
+    bakta_threads: int = 0
 
     # --- Install tier (governs which optional tools default on) ------------
     # If unset (None), __post_init__ reads ~/.ssign/tier (written by
@@ -202,8 +204,13 @@ class PipelineConfig:
     # off at base (no DB shipped), on at extended/full.
     skip_eggnog: Optional[bool] = None
     eggnog_db: str = ""
-    # `--dbmem` defaults on. See run_eggnog._build_emapper_cmd for why.
-    eggnog_dbmem: bool = True
+    # None => let run_eggnog._autodetect_dbmem() decide based on host RAM
+    # (44 GB resident, so only safe on >=50 GB hosts). Override with True/False.
+    eggnog_dbmem: Optional[bool] = None
+    # DIAMOND sensitivity. "sensitive" is ~10× DIAMOND default; "more-sensitive"
+    # is ~2× that again and rarely rescues additional hits on the substrate
+    # subset. See run_eggnog.run_emapper for the tradeoff.
+    eggnog_sensmode: str = "sensitive"
 
     # Phase 3.2.d: PLM-Effector (prediction-tier, equal to DLP/DSE per
     # the cross-validate refactor in 3.2.b). Tier-driven default: on at
@@ -258,6 +265,10 @@ class PipelineConfig:
             field_name = f"skip_{tool}"
             if getattr(self, field_name) is None:
                 setattr(self, field_name, not enabled_default)
+
+        # bakta_threads=0 sentinel → take the full per-genome budget.
+        if self.bakta_threads == 0:
+            self.bakta_threads = self.cpu_per_genome
 
         # Step A — env-var verbatim. Trust whatever path the user (or HPC
         # session script) exported, even if the layout doesn't match
@@ -1446,6 +1457,27 @@ class PipelineRunner:
 
     # ── Phase 5: Annotation ──
 
+    def _annotation_cpu_budget(self) -> int:
+        """Per-tool CPU budget when annotation_steps run in parallel.
+
+        BLASTp, InterProScan, HH-suite, and EggNOG all saturate CPU during
+        their DIAMOND/hmmsearch/Java phases. When they fire concurrently in
+        the parallel annotation_steps group (runner.py L591), naively giving
+        each one `cpu_per_genome` produces N× oversubscription. Divide the
+        budget by the count of CPU-heavy annotators currently enabled.
+        pLM-BLAST and ProtParam aren't counted: the former is GPU-bound for
+        its long phase, the latter is microseconds of pure-Python work.
+        """
+        n_heavy = sum(
+            [
+                not self.config.skip_hhsuite,
+                not self.config.skip_blastp,
+                not self.config.skip_interproscan,
+                not self.config.skip_eggnog,
+            ]
+        )
+        return max(1, self.config.cpu_per_genome // max(1, n_heavy))
+
     def _check_substrates_exist(self, step_name):
         """Check that upstream substrate files exist. Returns error StepResult or None."""
         sf = self.files.get("substrates_filtered", "")
@@ -1488,6 +1520,7 @@ class PipelineRunner:
         ]
         if self.config.blastp_exclude_taxid:
             args.extend(["--exclude-taxid", self.config.blastp_exclude_taxid])
+        args.extend(["--threads", str(self._annotation_cpu_budget())])
 
         rc, stdout, stderr = run_script("run_blastp.py", args, timeout=7200)
         if rc == 0:
@@ -1533,6 +1566,19 @@ class PipelineRunner:
             args.extend(["--pdb70-db", self.config.hhsuite_pdb70_db])
         args.extend(["--min-prob", str(self.config.hhsuite_min_prob)])
 
+        # Two-layer parallelism: workers × cpu_per_job. hhblits/hhsearch scale
+        # sub-linearly past 2-4 threads per process, so spend the budget on
+        # workers and pin cpu_per_job=2.
+        budget = self._annotation_cpu_budget()
+        args.extend(
+            [
+                "--max-workers",
+                str(max(1, budget // 2)),
+                "--cpu-per-job",
+                "2",
+            ]
+        )
+
         rc, stdout, stderr = run_script("run_hhsuite.py", args, timeout=14400)
         if rc == 0:
             self.files["hhsuite"] = output
@@ -1557,6 +1603,7 @@ class PipelineRunner:
         ]
         if self.config.interproscan_db:
             args.extend(["--db", self.config.interproscan_db])
+        args.extend(["--cpu", str(self._annotation_cpu_budget())])
 
         rc, stdout, stderr = run_script("run_interproscan.py", args, timeout=7200)
         if rc == 0:
@@ -1613,8 +1660,15 @@ class PipelineRunner:
             self.config.sample_id,
             "--out",
             output,
+            "--threads",
+            str(self._annotation_cpu_budget()),
+            "--sensmode",
+            self.config.eggnog_sensmode,
         ]
-        if not self.config.eggnog_dbmem:
+        # None => let the wrapper auto-decide based on host RAM.
+        if self.config.eggnog_dbmem is True:
+            args.append("--dbmem")
+        elif self.config.eggnog_dbmem is False:
             args.append("--no-dbmem")
         rc, stdout, stderr = run_script("run_eggnog.py", args, timeout=14400)
         if rc == 0:
@@ -1815,6 +1869,9 @@ class PipelineRunner:
                 output,
                 "--output-groups",
                 output_groups,
+                # Sequential step, gets the full per-genome budget.
+                "--threads",
+                str(self.config.cpu_per_genome),
             ],
             timeout=3600,
         )

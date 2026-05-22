@@ -89,6 +89,48 @@ def _write_empty_output(out_path):
         writer.writeheader()
 
 
+# --dbmem loads ~44 GB resident; gate it on total RAM. Picked 50 GB so a
+# 64 GB CPU node (Imperial CX3 high-mem) keeps the speedup but a 32 GB GPU
+# node falls back to on-disk SQLite. <50 substrates pays only seconds extra
+# on-disk vs in-RAM (the lookups are point queries, not table scans).
+_EGGNOG_DBMEM_MIN_GB = 50
+
+
+def _effective_ram_gb() -> float:
+    """Min of host RAM, the SLURM allocation, and the cgroup memory limit.
+
+    `psutil.virtual_memory().total` reports the host's physical RAM, ignoring
+    cgroup limits. On a SLURM-allocated 32 GB job that lands on a 256 GB
+    node, psutil alone would say 256 GB and falsely greenlight `--dbmem`,
+    which OOM-kills with no clean error. Take the smallest of every limit
+    we can see.
+    """
+    candidates_gb = []
+    try:
+        import psutil
+
+        candidates_gb.append(psutil.virtual_memory().total / 2**30)
+    except Exception:
+        pass
+    slurm_mb = os.environ.get("SLURM_MEM_PER_NODE")
+    if slurm_mb and slurm_mb.isdigit():
+        candidates_gb.append(int(slurm_mb) / 1024)
+    for cgroup_path in ("/sys/fs/cgroup/memory.max", "/sys/fs/cgroup/memory/memory.limit_in_bytes"):
+        try:
+            with open(cgroup_path) as fh:
+                raw = fh.read().strip()
+            if raw.isdigit():
+                candidates_gb.append(int(raw) / 2**30)
+        except OSError:
+            pass
+    return min(candidates_gb) if candidates_gb else 0.0
+
+
+def _autodetect_dbmem() -> bool:
+    """True only when the host has headroom for emapper's in-RAM SQLite copy."""
+    return _effective_ram_gb() >= _EGGNOG_DBMEM_MIN_GB
+
+
 def _build_emapper_cmd(
     proteins_fasta,
     db_path,
@@ -96,10 +138,16 @@ def _build_emapper_cmd(
     output_dir,
     threads=4,
     tax_scope="2",
-    sensmode="more-sensitive",
-    dbmem=True,
+    sensmode="sensitive",
+    dbmem=None,
 ):
-    """Build the emapper.py argv list. Exposed for unit testing."""
+    """Build the emapper.py argv list. Exposed for unit testing.
+
+    `dbmem=None` auto-detects via host RAM (`_autodetect_dbmem`); pass
+    True/False to force.
+    """
+    if dbmem is None:
+        dbmem = _autodetect_dbmem()
     cmd = [
         "emapper.py",
         "-i",
@@ -143,25 +191,24 @@ def run_emapper(
     output_dir,
     threads=4,
     tax_scope="2",
-    sensmode="more-sensitive",
-    dbmem=True,
+    sensmode="sensitive",
+    dbmem=None,
 ):
     """Run emapper.py on a protein FASTA file.
 
     `tax_scope` restricts which orthologous groups are reported (post-
     filter on DIAMOND seed-ortholog hits) — ssign is gram-negative-
     bacteria-only, so NCBI taxid "2" (Bacteria) keeps eukaryotic OGs
-    out of the output. Numeric taxids are version-stable; named scopes
-    like "bacteria" only resolve if they match an eggnog tax-tree node
-    label and have shifted across emapper releases.
+    out of the output.
 
-    `sensmode` selects the DIAMOND sensitivity preset; "more-sensitive"
-    is ~3× slower than DIAMOND default but recovers more remote
-    orthologs (acceptable for the ~30 substrate proteins ssign typically
-    annotates).
+    `sensmode` is the DIAMOND sensitivity preset. "sensitive" is ~10× the
+    DIAMOND default; "more-sensitive" is another ~2× slower and rarely
+    rescues additional substrate-set orthologs. Use the larger presets
+    only when sensitivity matters more than wallclock.
 
-    `dbmem` (default True) passes `--dbmem`. See `_build_emapper_cmd`
-    for the rationale.
+    `dbmem=None` (default) auto-decides via `_autodetect_dbmem()` — on a
+    32 GB host the load OOM-kills emapper mid-startup with no clean
+    error, so the default fall back to on-disk SQLite there.
 
     Returns:
         str: path to the `.emapper.annotations` file written by emapper.
@@ -309,7 +356,7 @@ def main():
     )
     parser.add_argument(
         "--sensmode",
-        default="more-sensitive",
+        default="sensitive",
         choices=[
             "default",
             "fast",
@@ -319,13 +366,22 @@ def main():
             "very-sensitive",
             "ultra-sensitive",
         ],
-        help="DIAMOND sensitivity preset (default: more-sensitive).",
+        help="DIAMOND sensitivity preset (default: sensitive).",
+    )
+    parser.add_argument(
+        "--dbmem",
+        dest="dbmem",
+        action="store_const",
+        const=True,
+        default=None,
+        help="Force --dbmem on (~44 GB RAM). Default auto-detects via host RAM.",
     )
     parser.add_argument(
         "--no-dbmem",
         dest="dbmem",
-        action="store_false",
-        help="Disable --dbmem (see _build_emapper_cmd for why it's on by default).",
+        action="store_const",
+        const=False,
+        help="Force --dbmem off (use on-disk SQLite).",
     )
     parser.add_argument("--out", required=True, help="Output annotations TSV (ssign format)")
     args = parser.parse_args()
