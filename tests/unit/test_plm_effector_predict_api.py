@@ -5,7 +5,7 @@
 This file fills in the rest:
 
 - `_resolve_device`: torch.device coercion + CUDA-availability gate.
-- `predict`: argument validation paths (effector_type / missing input /
+- `predict`: argument validation paths (effector_types / missing input /
   missing weights). The orchestration body (extract_all_features →
   run_ensemble → write) requires GPU + 15 GB of weights and is
   exercised by `tests/integration/test_run_plm_effector_integration.py`.
@@ -31,14 +31,6 @@ needs_torch = pytest.mark.skipif(
     importlib.util.find_spec("torch") is None,
     reason="torch not installed (covered by tests/integration/)",
 )
-
-# ---------------------------------------------------------------------------
-# _resolve_device
-# ---------------------------------------------------------------------------
-# Mock torch lazily — we only need a stand-in `device` constructor and
-# `cuda.is_available`. The real torch is fine to import (it's in the dev
-# extras), but constructing torch.device + flipping CUDA availability
-# without an actual GPU needs monkeypatching.
 
 
 @needs_torch
@@ -82,25 +74,33 @@ class TestResolveDevice:
         assert result.type == "cuda"
 
 
-# ---------------------------------------------------------------------------
-# predict() — argument validation only (orchestration is integration-tested)
-# ---------------------------------------------------------------------------
-
-
 class TestPredictValidation:
     def test_invalid_effector_type_raises_value_error(self, tmp_dir):
-        # Create real input + weights paths so we hit the effector_type check
         input_fasta = os.path.join(tmp_dir, "in.faa")
         with open(input_fasta, "w") as f:
             f.write(">P1\nMKT\n")
         weights = os.path.join(tmp_dir, "weights")
         os.makedirs(weights)
-        with pytest.raises(ValueError, match="effector_type must be one of"):
+        with pytest.raises(ValueError, match="unrecognised effector_types"):
             predict(
                 proteins_fasta=input_fasta,
                 weights_dir=weights,
-                effector_type="T9SE",
-                out_path=os.path.join(tmp_dir, "out.tsv"),
+                effector_types=["T9SE"],
+                out_dir=os.path.join(tmp_dir, "out"),
+            )
+
+    def test_empty_effector_types_raises(self, tmp_dir):
+        input_fasta = os.path.join(tmp_dir, "in.faa")
+        with open(input_fasta, "w") as f:
+            f.write(">P1\nMKT\n")
+        weights = os.path.join(tmp_dir, "weights")
+        os.makedirs(weights)
+        with pytest.raises(ValueError, match="effector_types is empty"):
+            predict(
+                proteins_fasta=input_fasta,
+                weights_dir=weights,
+                effector_types=[],
+                out_dir=os.path.join(tmp_dir, "out"),
             )
 
     def test_missing_input_raises_file_not_found(self, tmp_dir):
@@ -110,8 +110,8 @@ class TestPredictValidation:
             predict(
                 proteins_fasta=os.path.join(tmp_dir, "does_not_exist.faa"),
                 weights_dir=weights,
-                effector_type="T1SE",
-                out_path=os.path.join(tmp_dir, "out.tsv"),
+                effector_types=["T1SE"],
+                out_dir=os.path.join(tmp_dir, "out"),
             )
 
     def test_missing_weights_dir_raises_file_not_found(self, tmp_dir):
@@ -122,16 +122,17 @@ class TestPredictValidation:
             predict(
                 proteins_fasta=input_fasta,
                 weights_dir=os.path.join(tmp_dir, "no_weights"),
-                effector_type="T1SE",
-                out_path=os.path.join(tmp_dir, "out.tsv"),
+                effector_types=["T1SE"],
+                out_dir=os.path.join(tmp_dir, "out"),
             )
 
     @needs_torch
     @pytest.mark.parametrize("effector_type", _VALID_EFFECTOR_TYPES)
     def test_every_canonical_effector_type_accepted(self, tmp_dir, effector_type, monkeypatch):
-        """All five canonical effector types must pass validation. We mock the
-        downstream extract → ensemble pipeline and verify only that validation
-        let the call through to write_predictions_tsv."""
+        """All five canonical effector types must pass validation when
+        requested singly. We mock the downstream extract → ensemble
+        pipeline and verify validation lets the call through to
+        write_predictions_tsv with the correct effector_type tag."""
         import numpy as np
         import plm_effector.predict_api as predict_api
 
@@ -141,21 +142,27 @@ class TestPredictValidation:
         weights = os.path.join(tmp_dir, "weights")
         os.makedirs(weights)
 
-        # extract_all_features now returns chunk-path lists; iter_chunk_features
-        # yields per-chunk features dicts. Stub both so predict() can drive
-        # the chunk loop without a real PLM.
-        plms = ["esm1", "esm2_t33", "ProtBert", "ProtT5"] if effector_type == "T4SE" else ["esm1", "esm2_t33", "ProtT5"]
+        # Stub feature_extraction and ensemble so predict() doesn't need a real PLM.
+        plms = ["esm1", "esm2_t33", "ProtT5", "ProtBert"] if effector_type == "T4SE" else ["esm1", "esm2_t33", "ProtT5"]
 
         def fake_iter_chunks(chunk_paths, **_kw):
             n_chunks = len(next(iter(chunk_paths.values())))
             for _ in range(n_chunks):
                 yield {pt: {"features": "irrelevant"} for pt in chunk_paths}
 
+        def fake_pretrained_types_for(effector_types):
+            if isinstance(effector_types, str):
+                effector_types = [effector_types]
+            out = ["esm1", "esm2_t33", "ProtT5"]
+            if "T4SE" in effector_types:
+                out.append("ProtBert")
+            return out
+
         fake_extract = SimpleNamespace(
             extract_all_features=lambda **_kw: {pt: ["/fake/chunk0.npz"] for pt in plms},
             iter_chunk_features=fake_iter_chunks,
+            pretrained_types_for=fake_pretrained_types_for,
         )
-        # T4SE has 8 base models, others have 6
         n_base = 8 if effector_type == "T4SE" else 6
         fake_ensemble = SimpleNamespace(
             run_ensemble=lambda **_kw: (
@@ -165,34 +172,104 @@ class TestPredictValidation:
                 np.array([True]),
             ),
         )
-        monkeypatch.setitem(
-            sys.modules,
-            "plm_effector.feature_extraction",
-            fake_extract,
-        )
-        monkeypatch.setitem(
-            sys.modules,
-            "plm_effector.ensemble",
-            fake_ensemble,
-        )
-        # _resolve_device pulls torch — keep it deterministic
+        monkeypatch.setitem(sys.modules, "plm_effector.feature_extraction", fake_extract)
+        monkeypatch.setitem(sys.modules, "plm_effector.ensemble", fake_ensemble)
         import torch
 
         monkeypatch.setattr(predict_api, "_resolve_device", lambda _d: torch.device("cpu"))
-        # os.remove fires inside predict() to free chunk files — stub it
-        # since our fake chunk paths don't exist on disk.
         monkeypatch.setattr(predict_api.os, "remove", lambda _p: None)
 
-        out = os.path.join(tmp_dir, "out.tsv")
-        n_positive = predict(
+        out_dir = os.path.join(tmp_dir, "out")
+        summary = predict(
             proteins_fasta=input_fasta,
             weights_dir=weights,
-            effector_type=effector_type,
-            out_path=out,
+            effector_types=[effector_type],
+            out_dir=out_dir,
             device="cpu",
         )
+        assert effector_type in summary
+        n_positive, out_path = summary[effector_type]
         assert n_positive == 1
-        # Output written with the expected effector_type tag in the last column
-        with open(out) as f:
+        with open(out_path) as f:
             lines = f.readlines()
         assert lines[1].rstrip("\n").split("\t")[-1] == effector_type
+
+
+@needs_torch
+class TestPredictMultiType:
+    """Verify multi-type predict extracts features once and runs ensemble
+    per type, producing one TSV per requested effector type."""
+
+    def test_multi_type_extracts_features_once(self, tmp_dir, monkeypatch):
+        import numpy as np
+        import plm_effector.predict_api as predict_api
+
+        input_fasta = os.path.join(tmp_dir, "in.faa")
+        with open(input_fasta, "w") as f:
+            f.write(">P1\nMKT\n")
+        weights = os.path.join(tmp_dir, "weights")
+        os.makedirs(weights)
+
+        extract_calls = []
+        ensemble_calls = []
+
+        def fake_extract_all_features(**kw):
+            extract_calls.append(kw["pretrained_types"])
+            return {pt: ["/fake/chunk0.npz"] for pt in kw["pretrained_types"]}
+
+        def fake_iter_chunks(chunk_paths, **_kw):
+            n_chunks = len(next(iter(chunk_paths.values())))
+            for _ in range(n_chunks):
+                yield {pt: {"features": "irrelevant"} for pt in chunk_paths}
+
+        def fake_pretrained_types_for(effector_types):
+            out = ["esm1", "esm2_t33", "ProtT5"]
+            if "T4SE" in effector_types:
+                out.append("ProtBert")
+            return out
+
+        def fake_run_ensemble(**kw):
+            ensemble_calls.append(kw["effector_type"])
+            n_base = 8 if kw["effector_type"] == "T4SE" else 6
+            return (
+                np.array([">P1"]),
+                np.zeros((1, n_base)),
+                np.array([0.5]),
+                np.array([True]),
+            )
+
+        fake_extract = SimpleNamespace(
+            extract_all_features=fake_extract_all_features,
+            iter_chunk_features=fake_iter_chunks,
+            pretrained_types_for=fake_pretrained_types_for,
+        )
+        fake_ensemble = SimpleNamespace(run_ensemble=fake_run_ensemble)
+        monkeypatch.setitem(sys.modules, "plm_effector.feature_extraction", fake_extract)
+        monkeypatch.setitem(sys.modules, "plm_effector.ensemble", fake_ensemble)
+        import torch
+
+        monkeypatch.setattr(predict_api, "_resolve_device", lambda _d: torch.device("cpu"))
+        monkeypatch.setattr(predict_api.os, "remove", lambda _p: None)
+
+        out_dir = os.path.join(tmp_dir, "out")
+        summary = predict(
+            proteins_fasta=input_fasta,
+            weights_dir=weights,
+            effector_types=["T1SE", "T2SE", "T3SE", "T4SE", "T6SE"],
+            out_dir=out_dir,
+            device="cpu",
+        )
+
+        # The key savings claim: features extracted ONCE across all types.
+        assert len(extract_calls) == 1
+        assert extract_calls[0] == ["esm1", "esm2_t33", "ProtT5", "ProtBert"]
+
+        # One ensemble run per type (one chunk × 5 types).
+        assert ensemble_calls == ["T1SE", "T2SE", "T3SE", "T4SE", "T6SE"]
+
+        # One TSV per type.
+        assert set(summary) == {"T1SE", "T2SE", "T3SE", "T4SE", "T6SE"}
+        for eff_type, (n_positive, out_path) in summary.items():
+            assert n_positive == 1
+            assert os.path.exists(out_path)
+            assert os.path.basename(out_path) == f"{eff_type}.tsv"

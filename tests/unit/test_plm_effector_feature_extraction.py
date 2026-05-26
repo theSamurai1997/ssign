@@ -16,7 +16,7 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
-from plm_effector.feature_extraction import (
+from plm_effector.feature_extraction import (  # noqa: F401  (pretrained_types_for used by class body)
     _chunk_path,
     _discover_chunk_paths,
     _extract_one_plm_in_subprocess,
@@ -24,6 +24,7 @@ from plm_effector.feature_extraction import (
     _save_features_npz,
     extract_all_features,
     extract_terminal_features,
+    pretrained_types_for,
 )
 
 
@@ -94,6 +95,24 @@ class TestChunkPaths:
         assert len(_discover_chunk_paths(tmp_dir, "esm2_t33")) == 1
 
 
+class TestPretrainedTypesFor:
+    """pretrained_types_for unions PLM requirements across effector types."""
+
+    def test_single_non_t4se_excludes_protbert(self):
+        assert pretrained_types_for("T1SE") == ["esm1", "esm2_t33", "ProtT5"]
+
+    def test_t4se_adds_protbert(self):
+        assert pretrained_types_for("T4SE") == ["esm1", "esm2_t33", "ProtT5", "ProtBert"]
+
+    def test_union_adds_protbert_when_any_type_needs_it(self):
+        plms = pretrained_types_for(["T1SE", "T2SE", "T3SE", "T4SE", "T6SE"])
+        assert plms == ["esm1", "esm2_t33", "ProtT5", "ProtBert"]
+
+    def test_union_omits_protbert_without_t4se(self):
+        plms = pretrained_types_for(["T1SE", "T2SE", "T3SE", "T6SE"])
+        assert plms == ["esm1", "esm2_t33", "ProtT5"]
+
+
 class TestExtractAllFeaturesIsolation:
     """Drive extract_all_features with the subprocess spawner mocked out
     so we can assert (a) one subprocess per PLM, (b) chunk paths are
@@ -119,14 +138,13 @@ class TestExtractAllFeaturesIsolation:
         )
         chunk_paths = extract_all_features(
             proteins_fasta=os.path.join(tmp_dir, "proteins.faa"),
-            effector_type="T1SE",
+            pretrained_types=["esm1", "esm2_t33", "ProtT5"],
             weights_dir="/fake",
             device=torch.device("cpu"),
             feature_cache_dir=tmp_dir,
             batch_size=5,
             chunk_size=8,
         )
-        # T1SE → esm1 + esm2_t33 + ProtT5 (no ProtBert).
         assert spawned == ["esm1", "esm2_t33", "ProtT5"]
         assert set(chunk_paths) == {"esm1", "esm2_t33", "ProtT5"}
         for pt, paths in chunk_paths.items():
@@ -134,7 +152,7 @@ class TestExtractAllFeaturesIsolation:
             for p in paths:
                 assert os.path.exists(p)
 
-    def test_t4se_includes_protbert(self, tmp_dir, monkeypatch):
+    def test_extracts_protbert_when_requested(self, tmp_dir, monkeypatch):
         spawned = []
 
         def fake_spawn(*, proteins_fasta, pretrained_type, weights_dir, device, batch_size, chunk_size, out_dir):
@@ -148,14 +166,14 @@ class TestExtractAllFeaturesIsolation:
         )
         extract_all_features(
             proteins_fasta="x.faa",
-            effector_type="T4SE",
+            pretrained_types=["esm1", "esm2_t33", "ProtT5", "ProtBert"],
             weights_dir="/fake",
             device=torch.device("cpu"),
             feature_cache_dir=tmp_dir,
             batch_size=5,
             chunk_size=8,
         )
-        assert spawned == ["esm1", "esm2_t33", "ProtBert", "ProtT5"]
+        assert spawned == ["esm1", "esm2_t33", "ProtT5", "ProtBert"]
 
     def test_in_process_path_skips_subprocess(self, tmp_dir, monkeypatch):
         called = mock.Mock()
@@ -172,7 +190,7 @@ class TestExtractAllFeaturesIsolation:
         )
         chunk_paths = extract_all_features(
             proteins_fasta="x.faa",
-            effector_type="T1SE",
+            pretrained_types=["esm1", "esm2_t33", "ProtT5"],
             weights_dir="/fake",
             device=torch.device("cpu"),
             feature_cache_dir=tmp_dir,

@@ -343,9 +343,26 @@ def _extract_one_plm_in_subprocess(
     return chunk_paths
 
 
+def pretrained_types_for(effector_types) -> list[str]:
+    """Return the deduplicated set of PLMs needed to run a set of effector types.
+
+    T1SE, T2SE, T3SE, T6SE all need esm1 + esm2_t33 + ProtT5. T4SE
+    additionally needs ProtBert. Accepts a single type string or an
+    iterable of types — returns PLMs in deterministic extraction order
+    (cheaper-to-load first so a failure surfaces fast).
+    """
+    if isinstance(effector_types, str):
+        effector_types = [effector_types]
+    types = set(effector_types)
+    plms = ["esm1", "esm2_t33", "ProtT5"]
+    if "T4SE" in types:
+        plms.append("ProtBert")
+    return plms
+
+
 def extract_all_features(
     proteins_fasta: str,
-    effector_type: str,
+    pretrained_types: list,
     weights_dir: str,
     device,
     feature_cache_dir: str,
@@ -353,7 +370,7 @@ def extract_all_features(
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     isolate_plms: bool = True,
 ) -> dict:
-    """Run feature extraction for every PLM that `effector_type` needs.
+    """Run feature extraction for an explicit set of PLMs.
 
     With `isolate_plms=True` (default), each PLM runs in a fresh Python
     subprocess so VRAM and host RAM are fully reclaimed between models.
@@ -362,6 +379,10 @@ def extract_all_features(
     once (~22 GB → ~1.3 GB per chunk for ESM-1b @ FP32).
 
     Args:
+        pretrained_types: which PLMs to extract. Use `pretrained_types_for`
+            to derive from a set of effector types — extracting the union
+            once and reusing it across types saves the bulk of wallclock
+            on multi-type runs.
         feature_cache_dir: where to write per-chunk `<plm>_chunkNNNN.npz`
             files. Caller owns this directory; predict_api uses a tempdir.
 
@@ -370,11 +391,6 @@ def extract_all_features(
         produce the same number of chunks (proteins are split identically),
         and the chunk_idx ordering aligns across PLMs.
     """
-    if effector_type == "T4SE":
-        pretrained_types = ["esm1", "esm2_t33", "ProtBert", "ProtT5"]
-    else:
-        pretrained_types = ["esm1", "esm2_t33", "ProtT5"]
-
     chunk_paths: dict = {}
     for pretrained_type in pretrained_types:
         if isolate_plms:

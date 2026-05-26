@@ -203,10 +203,10 @@ class TestCliWrapper:
                 os.path.join(tmp_dir, "does_not_exist.faa"),
                 "--weights-dir",
                 weights,
-                "--effector-type",
+                "--effector-types",
                 "T1SE",
-                "--out",
-                os.path.join(tmp_dir, "preds.tsv"),
+                "--out-dir",
+                os.path.join(tmp_dir, "out"),
             ],
         )
         assert rc == 2
@@ -221,10 +221,10 @@ class TestCliWrapper:
                 input_fasta,
                 "--weights-dir",
                 os.path.join(tmp_dir, "no_weights"),
-                "--effector-type",
+                "--effector-types",
                 "T1SE",
-                "--out",
-                os.path.join(tmp_dir, "preds.tsv"),
+                "--out-dir",
+                os.path.join(tmp_dir, "out"),
             ],
         )
         assert rc == 2
@@ -240,10 +240,10 @@ class TestCliWrapper:
                     self._make_input(tmp_dir),
                     "--weights-dir",
                     self._make_weights_dir(tmp_dir),
-                    "--effector-type",
+                    "--effector-types",
                     "T9SE",  # not in valid choices
-                    "--out",
-                    os.path.join(tmp_dir, "preds.tsv"),
+                    "--out-dir",
+                    os.path.join(tmp_dir, "out"),
                 ],
             )
         assert exc_info.value.code == 2
@@ -260,10 +260,10 @@ class TestCliWrapper:
                 self._make_input(tmp_dir),
                 "--weights-dir",
                 self._make_weights_dir(tmp_dir),
-                "--effector-type",
+                "--effector-types",
                 "T1SE",
-                "--out",
-                os.path.join(tmp_dir, "preds.tsv"),
+                "--out-dir",
+                os.path.join(tmp_dir, "out"),
             ],
             predict_impl=boom,
         )
@@ -281,10 +281,10 @@ class TestCliWrapper:
                 self._make_input(tmp_dir),
                 "--weights-dir",
                 self._make_weights_dir(tmp_dir),
-                "--effector-type",
+                "--effector-types",
                 "T1SE",
-                "--out",
-                os.path.join(tmp_dir, "preds.tsv"),
+                "--out-dir",
+                os.path.join(tmp_dir, "out"),
             ],
             predict_impl=missing_weight,
         )
@@ -295,7 +295,7 @@ class TestCliWrapper:
 
         def fake_predict(**kwargs):
             captured.update(kwargs)
-            return 3  # n_positive
+            return {eff: (3, os.path.join(kwargs["out_dir"], f"{eff}.tsv")) for eff in kwargs["effector_types"]}
 
         rc = self._run(
             monkeypatch,
@@ -305,10 +305,11 @@ class TestCliWrapper:
                 self._make_input(tmp_dir),
                 "--weights-dir",
                 self._make_weights_dir(tmp_dir),
-                "--effector-type",
+                "--effector-types",
                 "T2SE",
-                "--out",
-                os.path.join(tmp_dir, "preds.tsv"),
+                "T4SE",
+                "--out-dir",
+                os.path.join(tmp_dir, "out"),
                 "--device",
                 "cpu",
                 "--batch-size",
@@ -318,17 +319,17 @@ class TestCliWrapper:
         )
         assert rc == 0
         # Verify the wrapper passed the CLI args through to predict()
-        assert captured["effector_type"] == "T2SE"
+        assert captured["effector_types"] == ["T2SE", "T4SE"]
         assert captured["device"] == "cpu"
         assert captured["batch_size"] == 2
 
-    def test_output_parent_dir_auto_created(self, tmp_dir, monkeypatch):
-        """If --out points to a non-existent subdir, the wrapper creates it."""
+    def test_output_dir_auto_created(self, tmp_dir, monkeypatch):
+        """The wrapper creates --out-dir if it doesn't exist."""
 
-        def fake_predict(**_kwargs):
-            return 0
+        def fake_predict(**kwargs):
+            return {kwargs["effector_types"][0]: (0, "/dev/null")}
 
-        nested_out = os.path.join(tmp_dir, "nested", "subdir", "preds.tsv")
+        nested_out_dir = os.path.join(tmp_dir, "nested", "subdir")
         rc = self._run(
             monkeypatch,
             [
@@ -337,12 +338,12 @@ class TestCliWrapper:
                 self._make_input(tmp_dir),
                 "--weights-dir",
                 self._make_weights_dir(tmp_dir),
-                "--effector-type",
+                "--effector-types",
                 "T1SE",
-                "--out",
-                nested_out,
+                "--out-dir",
+                nested_out_dir,
             ],
             predict_impl=fake_predict,
         )
         assert rc == 0
-        assert os.path.isdir(os.path.dirname(nested_out))
+        assert os.path.isdir(nested_out_dir)

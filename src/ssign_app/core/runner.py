@@ -1755,11 +1755,12 @@ class PipelineRunner:
         return StepResult("plm_blast", False, stderr[:500])
 
     def _step_plm_effector(self) -> StepResult:
-        """Run PLM-Effector once per SS type, then merge into a single TSV.
+        """Run PLM-Effector across all requested SS types in one subprocess,
+        then merge the per-type TSVs into a single combined TSV.
 
         The merged TSV has one row per protein with `passes_threshold=1`
-        iff the ensemble flagged it for at least one SS type. That shape
-        is what cross_validate_predictions expects (see 3.2.b).
+        iff the ensemble flagged it for at least one SS type — shape that
+        cross_validate_predictions expects.
         """
         if not self.config.plm_effector_weights_dir:
             return StepResult(
@@ -1770,12 +1771,10 @@ class PipelineRunner:
                 "install tier fetches the weights automatically.",
             )
 
-        # Stage the ~19 GB PLM-Effector weights tree to local SSD once,
-        # before iterating types. Each (type, PLM) pair runs in a fresh
-        # subprocess (Fix 3, e5d4942) and re-loads its model weights; on
-        # gpfs that's ~88 GB of disk reads per genome (~3 min wasted).
-        # Local staging makes the same reads ~5-10× faster. No-op when
-        # weights are already on local FS.
+        # Stage the ~19 GB PLM-Effector weights tree to local SSD once.
+        # Each PLM subprocess re-reads ~4-12 GB of model weights; on gpfs
+        # that's pathologically slow. Local staging makes reads 5-10×
+        # faster. No-op when weights are already on local FS.
         weights_dir = self.config.plm_effector_weights_dir
         cache = os.environ.get("TMPDIR", "")
         if cache:
@@ -1783,30 +1782,29 @@ class PipelineRunner:
 
             weights_dir = stage_directory_tree_to_local_ssd_if_remote(weights_dir, cache)
 
-        per_type_paths = []
-        for eff_type in self.config.plm_effector_types:
-            per_type_out = self._wf(f"{self.config.sample_id}_plm_effector_{eff_type}.tsv")
-            args = [
-                "--input",
-                self.files.get("proteins", ""),
-                "--weights-dir",
-                weights_dir,
-                "--effector-type",
-                eff_type,
-                "--out",
-                per_type_out,
-                "--chunk-size",
-                str(self.config.plm_chunk_size),
-            ]
-            rc, stdout, stderr = run_script("run_plm_effector.py", args, timeout=14400)
-            if rc != 0:
-                return StepResult(
-                    "plm_effector",
-                    False,
-                    f"PLM-Effector failed on {eff_type}: {stderr[:400]}",
-                )
-            per_type_paths.append(per_type_out)
+        out_dir = self._wf(f"{self.config.sample_id}_plm_effector")
+        os.makedirs(out_dir, exist_ok=True)
+        args = [
+            "--input",
+            self.files.get("proteins", ""),
+            "--weights-dir",
+            weights_dir,
+            "--effector-types",
+            *self.config.plm_effector_types,
+            "--out-dir",
+            out_dir,
+            "--chunk-size",
+            str(self.config.plm_chunk_size),
+        ]
+        rc, stdout, stderr = run_script("run_plm_effector.py", args, timeout=14400)
+        if rc != 0:
+            return StepResult(
+                "plm_effector",
+                False,
+                f"PLM-Effector failed: {stderr[:400]}",
+            )
 
+        per_type_paths = [os.path.join(out_dir, f"{eff_type}.tsv") for eff_type in self.config.plm_effector_types]
         merged = self._wf(f"{self.config.sample_id}_plm_effector_merged.tsv")
         rc, stdout, stderr = run_script(
             "merge_plm_effector_outputs.py",
