@@ -5,12 +5,19 @@ into a single `predict()` call. Writes results as a TSV matching the
 upstream output format plus an explicit `passes_threshold` column so
 downstream ssign code does not need to know each effector type's
 threshold.
+
+Memory: features are extracted as per-chunk .npz files (default 256
+proteins/chunk). The ensemble runs once per chunk, predictions are
+accumulated, then concatenated and written as a single TSV — so peak
+RAM is bounded by one chunk's features plus one chunk's predictions
+regardless of input size.
 """
 
 from __future__ import annotations
 
 import logging
 import os
+import tempfile
 
 import numpy as np
 
@@ -50,6 +57,7 @@ def predict(
     out_path: str,
     device=None,
     batch_size: int = 5,
+    chunk_size: int = 256,
 ) -> int:
     """Run PLM-Effector on a protein FASTA and write predictions to TSV.
 
@@ -64,14 +72,15 @@ def predict(
         device: None (auto-pick cuda), "cuda", "cpu", or a torch.device.
             CPU works but is very slow.
         batch_size: PLM forward-pass batch size. Drop to 1-2 if VRAM-constrained.
+        chunk_size: proteins per feature-extraction chunk. Default 256 keeps
+            peak host RAM ~10-17 GB per PLM (FP32). Lower for tighter
+            allocations; higher only helps when RAM is abundant.
 
     Returns:
         The number of proteins flagged as positive (passing threshold).
     """
     if effector_type not in _VALID_EFFECTOR_TYPES:
-        raise ValueError(
-            f"effector_type must be one of {_VALID_EFFECTOR_TYPES}; got {effector_type!r}"
-        )
+        raise ValueError(f"effector_type must be one of {_VALID_EFFECTOR_TYPES}; got {effector_type!r}")
     if not os.path.exists(proteins_fasta):
         raise FileNotFoundError(f"Input FASTA not found: {proteins_fasta}")
     if not os.path.isdir(weights_dir):
@@ -82,35 +91,58 @@ def predict(
         )
 
     from .ensemble import run_ensemble
-    from .feature_extraction import extract_all_features
+    from .feature_extraction import extract_all_features, iter_chunk_features
 
     torch_device = _resolve_device(device)
     logger.info(
-        "PLM-Effector: extracting features for %s on %s (batch_size=%d)",
+        "PLM-Effector: extracting features for %s on %s (batch_size=%d, chunk_size=%d)",
         effector_type,
         torch_device,
         batch_size,
-    )
-    features = extract_all_features(
-        proteins_fasta=proteins_fasta,
-        effector_type=effector_type,
-        weights_dir=weights_dir,
-        device=torch_device,
-        batch_size=batch_size,
+        chunk_size,
     )
 
-    logger.info("PLM-Effector: running ensemble for %s", effector_type)
-    seq_ids, stacked, final_probs, passes = run_ensemble(
-        features=features,
-        weights_dir=weights_dir,
-        effector_type=effector_type,
-        device=torch_device,
-    )
+    with tempfile.TemporaryDirectory(prefix="plm_features_") as feature_dir:
+        chunk_paths = extract_all_features(
+            proteins_fasta=proteins_fasta,
+            effector_type=effector_type,
+            weights_dir=weights_dir,
+            device=torch_device,
+            feature_cache_dir=feature_dir,
+            batch_size=batch_size,
+            chunk_size=chunk_size,
+        )
+        n_chunks = len(next(iter(chunk_paths.values())))
+        logger.info(
+            "PLM-Effector: running ensemble for %s across %d chunk(s)",
+            effector_type,
+            n_chunks,
+        )
+
+        seq_id_parts: list[np.ndarray] = []
+        stacked_parts: list[np.ndarray] = []
+        prob_parts: list[np.ndarray] = []
+        pass_parts: list[np.ndarray] = []
+
+        for chunk_features in iter_chunk_features(chunk_paths):
+            ids, stacked, final_probs, passes = run_ensemble(
+                features=chunk_features,
+                weights_dir=weights_dir,
+                effector_type=effector_type,
+                device=torch_device,
+            )
+            seq_id_parts.append(ids)
+            stacked_parts.append(stacked)
+            prob_parts.append(final_probs)
+            pass_parts.append(passes)
+
+    seq_ids = np.concatenate(seq_id_parts)
+    stacked = np.concatenate(stacked_parts, axis=0)
+    final_probs = np.concatenate(prob_parts)
+    passes = np.concatenate(pass_parts)
 
     n_base = stacked.shape[1]
-    write_predictions_tsv(
-        out_path, seq_ids, stacked, final_probs, passes, effector_type, n_base
-    )
+    write_predictions_tsv(out_path, seq_ids, stacked, final_probs, passes, effector_type, n_base)
 
     n_positive = int(passes.sum())
     logger.info(
@@ -138,9 +170,7 @@ def write_predictions_tsv(
     output shape is predictable regardless of positive-hit count.
     """
     headers = (
-        ["seq_id"]
-        + [f"model{i + 1}" for i in range(n_base_models)]
-        + ["stacking", "passes_threshold", "effector_type"]
+        ["seq_id"] + [f"model{i + 1}" for i in range(n_base_models)] + ["stacking", "passes_threshold", "effector_type"]
     )
     with open(out_path, "w") as f:
         f.write("\t".join(headers) + "\n")

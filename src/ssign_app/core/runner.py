@@ -230,6 +230,7 @@ class PipelineConfig:
     skip_plm_effector: Optional[bool] = None
     plm_effector_weights_dir: str = ""
     plm_effector_types: list = field(default_factory=lambda: ["T1SE", "T2SE", "T3SE", "T4SE", "T6SE"])
+    plm_chunk_size: int = 256
 
     skip_protparam: Optional[bool] = None
 
@@ -1794,6 +1795,8 @@ class PipelineRunner:
                 eff_type,
                 "--out",
                 per_type_out,
+                "--chunk-size",
+                str(self.config.plm_chunk_size),
             ]
             rc, stdout, stderr = run_script("run_plm_effector.py", args, timeout=14400)
             if rc != 0:

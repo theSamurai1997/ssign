@@ -356,6 +356,16 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
         default=["T1SE", "T2SE", "T3SE", "T4SE", "T6SE"],
         help="Secretion-system types to predict (default: T1SE T2SE T3SE T4SE T6SE).",
     )
+    g.add_argument(
+        "--plm-chunk-size",
+        type=int,
+        default=256,
+        help=(
+            "Proteins per PLM-Effector feature-extraction chunk (default: 256). "
+            "Lower this if PLM-Effector OOM-kills on a large genome; raises only "
+            "help when host RAM is abundant."
+        ),
+    )
 
     g = p.add_argument_group("misc annotation")
     g.add_argument(
@@ -469,6 +479,7 @@ def _config_from_args(args: argparse.Namespace) -> "PipelineConfig":
         "skip_plm_effector": args.skip_plm_effector,
         "plm_effector_weights_dir": args.plm_effector_weights_dir,
         "plm_effector_types": list(args.plm_effector_types),
+        "plm_chunk_size": args.plm_chunk_size,
         "skip_protparam": args.skip_protparam,
         "filter_dse_type_mismatch": args.filter_dse_type_mismatch,
         "deepsece_min_prob": args.deepsece_min_prob,

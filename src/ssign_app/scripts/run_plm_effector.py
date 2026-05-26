@@ -60,9 +60,7 @@ def main() -> int:
         choices=_VALID_EFFECTOR_TYPES,
         help="Secretion system effector type to predict",
     )
-    parser.add_argument(
-        "--out", required=True, help="Output predictions TSV (ssign format)"
-    )
+    parser.add_argument("--out", required=True, help="Output predictions TSV (ssign format)")
     parser.add_argument(
         "--device",
         default="cuda",
@@ -74,6 +72,15 @@ def main() -> int:
         type=int,
         default=5,
         help="PLM forward-pass batch size (drop to 1-2 if VRAM-constrained)",
+    )
+    parser.add_argument(
+        "--chunk-size",
+        type=int,
+        default=256,
+        help=(
+            "Proteins per feature-extraction chunk (default: 256). "
+            "Lower if peak host RAM is exceeded; raises only help with abundant RAM."
+        ),
     )
     args = parser.parse_args()
 
@@ -118,6 +125,7 @@ def main() -> int:
             out_path=args.out,
             device=args.device,
             batch_size=args.batch_size,
+            chunk_size=args.chunk_size,
         )
     except RuntimeError as e:
         print(f"ERROR: PLM-Effector prediction failed: {e}", file=sys.stderr)

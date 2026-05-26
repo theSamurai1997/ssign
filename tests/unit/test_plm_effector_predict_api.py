@@ -141,9 +141,19 @@ class TestPredictValidation:
         weights = os.path.join(tmp_dir, "weights")
         os.makedirs(weights)
 
-        # Stub the lazy imports inside predict()
+        # extract_all_features now returns chunk-path lists; iter_chunk_features
+        # yields per-chunk features dicts. Stub both so predict() can drive
+        # the chunk loop without a real PLM.
+        plms = ["esm1", "esm2_t33", "ProtBert", "ProtT5"] if effector_type == "T4SE" else ["esm1", "esm2_t33", "ProtT5"]
+
+        def fake_iter_chunks(chunk_paths, **_kw):
+            n_chunks = len(next(iter(chunk_paths.values())))
+            for _ in range(n_chunks):
+                yield {pt: {"features": "irrelevant"} for pt in chunk_paths}
+
         fake_extract = SimpleNamespace(
-            extract_all_features=lambda **_kw: {"features": "irrelevant"},
+            extract_all_features=lambda **_kw: {pt: ["/fake/chunk0.npz"] for pt in plms},
+            iter_chunk_features=fake_iter_chunks,
         )
         # T4SE has 8 base models, others have 6
         n_base = 8 if effector_type == "T4SE" else 6
@@ -169,6 +179,9 @@ class TestPredictValidation:
         import torch
 
         monkeypatch.setattr(predict_api, "_resolve_device", lambda _d: torch.device("cpu"))
+        # os.remove fires inside predict() to free chunk files — stub it
+        # since our fake chunk paths don't exist on disk.
+        monkeypatch.setattr(predict_api.os, "remove", lambda _p: None)
 
         out = os.path.join(tmp_dir, "out.tsv")
         n_positive = predict(
