@@ -287,11 +287,11 @@ class TestAutoBatchSizeFromVram:
         self._patch_torch(monkeypatch, available=False)
         assert auto_batch_size_from_vram() == 4
 
-    def test_48gb_a40_picks_batch_32(self, monkeypatch):
+    def test_48gb_a40_picks_batch_64(self, monkeypatch):
         from ssign_lib.resources import auto_batch_size_from_vram
 
         self._patch_torch(monkeypatch, available=True, total_bytes=48 * 1024**3)
-        assert auto_batch_size_from_vram() == 32
+        assert auto_batch_size_from_vram() == 64
 
     def test_24gb_4090_picks_batch_16(self, monkeypatch):
         from ssign_lib.resources import auto_batch_size_from_vram
@@ -311,7 +311,7 @@ class TestAutoBatchSizeFromVram:
         self._patch_torch(monkeypatch, available=True, total_bytes=8 * 1024**3)
         assert auto_batch_size_from_vram() == 4
 
-    def test_real_a40_reports_44gib_still_picks_batch_32(self, monkeypatch):
+    def test_real_a40_reports_44gib_still_picks_batch_64(self, monkeypatch):
         # An A40 advertises 48 GB but torch.cuda.get_device_properties
         # reports ~44.4 GiB (firmware reserve + GB->GiB drop). Real-world
         # threshold has to sit below that or the A40 falls to tier-2.
@@ -319,7 +319,7 @@ class TestAutoBatchSizeFromVram:
 
         a40_real_bytes = int(44.4 * 1024**3)
         self._patch_torch(monkeypatch, available=True, total_bytes=a40_real_bytes)
-        assert auto_batch_size_from_vram() == 32
+        assert auto_batch_size_from_vram() == 64
 
     def test_real_rtx_4090_reports_22gib_still_picks_batch_16(self, monkeypatch):
         # Same firmware-reserve gap on the 24 GB consumer card (~22 GiB).

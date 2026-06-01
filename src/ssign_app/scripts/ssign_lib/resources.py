@@ -38,8 +38,11 @@ _AUTO_BATCH_TIERS = (
     # the marketing-GB capacity because torch reports total - firmware
     # reserve in GiB (1024^3): A40's "48 GB" comes back as ~44.4 GiB,
     # RTX 4090's "24 GB" as ~22 GiB, RTX 3090's "12 GB" as ~11 GiB.
-    (40, 32),  # A40 / L40S / A100 (40/80 GB) / H100 (80 GB)
-    (20, 16),  # RTX 4090 / A5000 (24 GB)
+    # Top tier sized from measured A40 peak: 15 GB at batch=16 (12 GB ProtT5
+    # weights + 3 GB activations). Extrapolating linearly, batch=64 lands
+    # near 12 + 12 = 24 GB, half of A40's 44 GiB usable.
+    (40, 64),  # A40 / L40S / A100 (40/80 GB) / H100 (80 GB)
+    (20, 16),  # RTX 4090 / A5000 (24 GB nominal, ~22 GiB reported)
     (10, 8),  # RTX 3090 / RTX 4080 (12-16 GB)
     (0, 4),  # smaller GPUs (8 GB and under) and CPU fallback
 )
