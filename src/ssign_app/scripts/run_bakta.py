@@ -35,6 +35,7 @@ if _scripts_dir not in sys.path:
 from ssign_lib.constants import TOOL_TIMEOUT_S  # noqa: E402
 from ssign_lib.fasta_io import write_fasta  # noqa: E402  # used in extract_proteins_for_substrates
 from ssign_lib.resources import effective_cpu_count  # noqa: E402
+from ssign_lib.subprocess_diag import dump_failure_log  # noqa: E402
 
 # Bakta TSV column names (tab-separated, with header)
 # Sequence Id | Type | Start | Stop | Strand | Locus Tag | Gene | Product | DbXrefs
@@ -135,8 +136,7 @@ def run_bakta(contigs_fasta, db_path, sample_id, output_dir, threads=4, local_ca
         ) from e
 
     if result.returncode != 0:
-        logger.error(f"Bakta failed:\n{result.stderr[:1000]}")
-        raise RuntimeError(f"Bakta exit code {result.returncode}")
+        raise dump_failure_log("Bakta", result, cmd, output_dir)
 
     proteins_faa = os.path.join(output_dir, f"{sample_id}.faa")
     tsv_path = os.path.join(output_dir, f"{sample_id}.tsv")

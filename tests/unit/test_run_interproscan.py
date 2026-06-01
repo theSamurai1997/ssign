@@ -257,3 +257,81 @@ class TestDefaultApplications:
 
     def test_no_duplicates(self):
         assert len(DEFAULT_IPS_APPLICATIONS) == len(set(DEFAULT_IPS_APPLICATIONS))
+
+
+# ---------------------------------------------------------------------------
+# Failure-path diagnostics — non-zero exit must surface stdout/stderr to disk
+# ---------------------------------------------------------------------------
+
+
+class TestRunLocalInterproscanFailureSurface:
+    """On non-zero exit, the wrapper writes a sidecar log capturing stdout
+    AND stderr (CX3 K-12 run b2060a9 saw empty stderr with a real error
+    hiding in stdout) and references the log path in the raised error."""
+
+    def _stub_run(self, returncode, stdout, stderr):
+
+        class _Result:
+            pass
+
+        r = _Result()
+        r.returncode = returncode
+        r.stdout = stdout
+        r.stderr = stderr
+
+        def fake_run(*args, **kwargs):
+            return r
+
+        return fake_run
+
+    def test_failure_writes_log_with_both_streams(self, tmp_path, monkeypatch):
+        import subprocess
+
+        from run_interproscan import run_local_interproscan
+
+        monkeypatch.setattr(
+            "run_interproscan._resolve_interproscan_binary",
+            lambda d: "/fake/interproscan.sh",
+        )
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            self._stub_run(1, "java stack trace here", ""),
+        )
+
+        with pytest.raises(RuntimeError, match="interproscan_failure.log"):
+            run_local_interproscan(
+                query_fasta=str(tmp_path / "in.faa"),
+                install_dir="/fake",
+                output_dir=str(tmp_path),
+            )
+
+        log_path = tmp_path / "interproscan_failure.log"
+        assert log_path.is_file()
+        body = log_path.read_text()
+        assert "exit code: 1" in body
+        assert "java stack trace here" in body  # stdout preserved
+        assert "(empty)" in body  # stderr placeholder
+
+    def test_failure_log_path_in_runtime_error(self, tmp_path, monkeypatch):
+        import subprocess
+
+        from run_interproscan import run_local_interproscan
+
+        monkeypatch.setattr(
+            "run_interproscan._resolve_interproscan_binary",
+            lambda d: "/fake/interproscan.sh",
+        )
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            self._stub_run(2, "", "missing Java"),
+        )
+
+        with pytest.raises(RuntimeError) as exc:
+            run_local_interproscan(
+                query_fasta=str(tmp_path / "in.faa"),
+                install_dir="/fake",
+                output_dir=str(tmp_path),
+            )
+        assert str(tmp_path / "interproscan_failure.log") in str(exc.value)

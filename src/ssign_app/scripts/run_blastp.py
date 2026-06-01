@@ -19,6 +19,7 @@ from dedup_sequences import deduplicate_dict, expand_results_dict
 from ssign_lib.constants import TOOL_TIMEOUT_S
 from ssign_lib.fasta_io import read_fasta
 from ssign_lib.resources import effective_cpu_count
+from ssign_lib.subprocess_diag import dump_failure_log
 from ssign_lib.substrates import load_substrate_ids
 
 # Terms to exclude from BLASTp hits
@@ -45,7 +46,7 @@ _COL_QLEN = 13
 _BLAST_MIN_FIELDS = 15  # all 15 outfmt fields must be present
 
 
-def run_local_blastp(query_fasta, db_path, evalue, exclude_taxid, num_threads=4):
+def run_local_blastp(query_fasta, db_path, evalue, exclude_taxid, num_threads=4, failure_log_dir=""):
     """Run local BLAST+ blastp and return parsed hits."""
     cmd = [
         "blastp",
@@ -94,8 +95,11 @@ def run_local_blastp(query_fasta, db_path, evalue, exclude_taxid, num_threads=4)
         ) from e
 
     if result.returncode != 0:
-        logger.error(f"BLASTp failed: {result.stderr[:500]}")
-        raise RuntimeError(f"BLASTp exit code {result.returncode}")
+        # query_fasta is typically a tempfile that disappears before the
+        # user sees the RuntimeError; prefer the caller-supplied dir
+        # (their args.output's dirname) which persists.
+        log_dir = failure_log_dir or os.path.dirname(query_fasta) or "."
+        raise dump_failure_log("BLASTp", result, cmd, log_dir)
 
     return parse_blast_tabular(result.stdout)
 
@@ -198,7 +202,14 @@ def main():
         tmp_path = tmp.name
 
     try:
-        hits = run_local_blastp(tmp_path, args.db, args.evalue, args.exclude_taxid, args.threads)
+        hits = run_local_blastp(
+            tmp_path,
+            args.db,
+            args.evalue,
+            args.exclude_taxid,
+            args.threads,
+            failure_log_dir=os.path.dirname(os.path.abspath(args.output)),
+        )
     finally:
         os.unlink(tmp_path)
 

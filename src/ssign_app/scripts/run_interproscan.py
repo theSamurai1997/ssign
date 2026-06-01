@@ -24,6 +24,7 @@ from dedup_sequences import deduplicate_dict, expand_results_dict
 from ssign_lib.constants import TOOL_TIMEOUT_S
 from ssign_lib.fasta_io import read_fasta
 from ssign_lib.resources import effective_cpu_count
+from ssign_lib.subprocess_diag import dump_failure_log
 from ssign_lib.substrates import load_substrate_ids
 
 # InterProScan TSV column indices (0-based, no header)
@@ -150,8 +151,7 @@ def run_local_interproscan(
         ) from e
 
     if result.returncode != 0:
-        logger.error(f"InterProScan failed: {result.stderr[:500]}")
-        raise RuntimeError(f"InterProScan exit code {result.returncode}")
+        raise dump_failure_log("InterProScan", result, cmd, output_dir)
 
     return output_file
 

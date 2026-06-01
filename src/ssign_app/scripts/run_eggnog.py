@@ -33,6 +33,7 @@ if _scripts_dir not in sys.path:
     sys.path.insert(0, _scripts_dir)
 from ssign_lib.constants import TOOL_TIMEOUT_S  # noqa: E402
 from ssign_lib.resources import effective_cpu_count  # noqa: E402
+from ssign_lib.subprocess_diag import dump_failure_log  # noqa: E402
 from ssign_lib.substrates import (  # noqa: E402
     load_substrate_ids,
     write_substrates_only_fasta,
@@ -290,8 +291,7 @@ def run_emapper(
         ) from e
 
     if result.returncode != 0:
-        logger.error(f"EggNOG-mapper failed:\n{result.stderr[:1000]}")
-        raise RuntimeError(f"EggNOG-mapper exit code {result.returncode}")
+        raise dump_failure_log("EggNOG-mapper", result, cmd, output_dir)
 
     annotations_path = os.path.join(output_dir, f"{sample_id}.emapper.annotations")
     if not os.path.exists(annotations_path):

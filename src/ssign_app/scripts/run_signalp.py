@@ -40,6 +40,7 @@ from ssign_lib.constants import (  # noqa: E402
 from ssign_lib.fasta_io import count_sequences  # noqa: E402
 from ssign_lib.resources import effective_cpu_count as _effective_cpus  # noqa: E402
 from ssign_lib.retry import retry_with_backoff  # noqa: E402
+from ssign_lib.subprocess_diag import dump_failure_log  # noqa: E402
 
 DTU_SUBMIT_URL = "https://services.healthtech.dtu.dk/cgi-bin/webface2.cgi"
 DTU_RESULTS_BASE = "https://services.healthtech.dtu.dk/services/SignalP-6.0/tmp"
@@ -111,8 +112,7 @@ def run_local_signalp(input_fasta, signalp_path, output_dir):
         ) from e
 
     if result.returncode != 0:
-        logger.error(f"SignalP failed: {result.stderr[:500]}")
-        raise RuntimeError(f"SignalP exit code {result.returncode}")
+        raise dump_failure_log("SignalP", result, cmd, output_dir)
 
     return find_output_file(output_dir)
 

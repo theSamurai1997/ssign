@@ -37,6 +37,7 @@ if _scripts_dir not in sys.path:
     sys.path.insert(0, _scripts_dir)
 from ssign_lib.constants import TOOL_TIMEOUT_S  # noqa: E402
 from ssign_lib.resources import effective_cpu_count  # noqa: E402
+from ssign_lib.subprocess_diag import dump_failure_log  # noqa: E402
 from ssign_lib.substrates import (  # noqa: E402
     load_substrate_ids,
     write_substrates_only_fasta,
@@ -131,6 +132,7 @@ def _embed_query_fasta(
     proteins_fasta: str,
     out_base: str,
     embedder: str = "pt",
+    failure_log_dir: str = "",
 ) -> None:
     """Run pLM-BLAST's embeddings.py to embed a FASTA, producing a
     single pooled `<base>.pt` file plus a sibling `<base>.csv` index.
@@ -202,8 +204,11 @@ def _embed_query_fasta(
             f"pLM-BLAST embedding timed out after 4 hours: {e}\n  How to fix:\n    - Reduce query size\n{gpu_hint}"
         ) from e
     if result.returncode != 0:
-        logger.error(f"pLM-BLAST embedding failed:\n{result.stderr[:1000]}")
-        raise RuntimeError(f"pLM-BLAST embedding exit code {result.returncode}: {result.stderr[:300]}")
+        # out_base lives in a TemporaryDirectory the parent will nuke
+        # before the user sees the RuntimeError; prefer the persistent
+        # dir threaded in from main().
+        log_dir = failure_log_dir or os.path.dirname(out_base) or "."
+        raise dump_failure_log("pLM-BLAST embedding", result, cmd, log_dir)
 
     # Rename the index file (see docstring NB).
     src_csv = f"{pt_path}.csv"
@@ -221,6 +226,7 @@ def run_plmblast(
     out_csv: str,
     cpc: int = 70,
     threads: int = 4,
+    failure_log_dir: str = "",
 ) -> str:
     """Run pLM-BLAST against ECOD70 and return the CSV output path.
 
@@ -233,7 +239,12 @@ def run_plmblast(
 
     with tempfile.TemporaryDirectory() as tmpdir:
         query_emb_base = os.path.join(tmpdir, "query")
-        _embed_query_fasta(embed_script, proteins_fasta, query_emb_base)
+        _embed_query_fasta(
+            embed_script,
+            proteins_fasta,
+            query_emb_base,
+            failure_log_dir=failure_log_dir,
+        )
 
         # plmblast.py uses single-dash long flags (`-cpc`, `-workers`)
         # per its argparse setup in alntools/parser.py.
@@ -285,8 +296,10 @@ def run_plmblast(
             ) from e
 
         if result.returncode != 0:
-            logger.error(f"pLM-BLAST failed:\n{result.stderr[:1000]}")
-            raise RuntimeError(f"pLM-BLAST exit code {result.returncode}")
+            # out_csv is inside the tmpdir contextmanager we're still in;
+            # the caller's failure_log_dir (args.out's parent) survives.
+            log_dir = failure_log_dir or os.path.dirname(out_csv) or "."
+            raise dump_failure_log("pLM-BLAST", result, cmd, log_dir)
 
         if not os.path.exists(out_csv):
             raise FileNotFoundError(f"pLM-BLAST output not found: {out_csv}")
@@ -401,6 +414,7 @@ def main() -> int:
                 out_csv=raw_csv,
                 cpc=args.cpc,
                 threads=args.threads,
+                failure_log_dir=os.path.dirname(os.path.abspath(args.out)),
             )
         except RuntimeError as e:
             print(f"ERROR: {e}", file=sys.stderr)

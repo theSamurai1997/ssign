@@ -39,6 +39,7 @@ from ssign_lib.constants import (  # noqa: E402
 )
 from ssign_lib.fasta_io import count_sequences  # noqa: E402  # used in run_local + remote paths
 from ssign_lib.retry import retry_with_backoff  # noqa: E402
+from ssign_lib.subprocess_diag import dump_failure_log  # noqa: E402
 
 # ── Local mode ──
 
@@ -137,8 +138,7 @@ def run_local_deeplocpro(input_fasta, deeplocpro_path, output_dir, organism="gra
         ) from e
 
     if result.returncode != 0:
-        logger.error(f"DeepLocPro failed: {result.stderr[:500]}")
-        raise RuntimeError(f"DeepLocPro exit code {result.returncode}")
+        raise dump_failure_log("DeepLocPro", result, cmd, output_dir)
 
     return find_output_file(output_dir)
 
