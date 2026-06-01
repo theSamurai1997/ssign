@@ -141,12 +141,46 @@ class TestDTUModeAutoDetect:
         c = PipelineConfig(deeplocpro_mode="remote")
         assert c.deeplocpro_mode == "remote"
 
-    def test_auto_falls_back_to_remote_when_no_binary(self, monkeypatch):
-        # Empty PATH guarantees shutil.which returns None.
+    def test_auto_falls_back_to_remote_when_no_binary(self, monkeypatch, tmp_path):
+        # Empty PATH guarantees shutil.which returns None; HOME redirected so
+        # the conda-env scan can't accidentally pick up the dev machine's envs.
         monkeypatch.setenv("PATH", "")
+        monkeypatch.setenv("HOME", str(tmp_path))
         c = PipelineConfig(signalp_path="", deeplocpro_path="")
         assert c.signalp_mode == "remote"
         assert c.deeplocpro_mode == "remote"
+
+    def test_auto_picks_local_when_conda_env_holds_binary(self, monkeypatch, tmp_path):
+        # Stage ~/.conda/envs/signalp6/bin/signalp6 under a fake HOME.
+        bin_dir = tmp_path / ".conda" / "envs" / "signalp6" / "bin"
+        bin_dir.mkdir(parents=True)
+        stub = bin_dir / "signalp6"
+        stub.write_text("#!/bin/sh\n")
+        stub.chmod(0o755)
+        monkeypatch.setenv("PATH", "")
+        monkeypatch.setenv("HOME", str(tmp_path))
+        c = PipelineConfig(signalp_path="", deeplocpro_path="")
+        assert c.signalp_mode == "local"
+        assert c.signalp_path == str(bin_dir)
+        # The other tool isn't in any conda env → still remote.
+        assert c.deeplocpro_mode == "remote"
+
+    def test_configured_path_wins_over_conda_env(self, monkeypatch, tmp_path):
+        # Put a stub in a conda env AND in a user-configured dir; the
+        # configured dir should be the one that ends up on signalp_path.
+        conda_bin = tmp_path / ".conda" / "envs" / "signalp6" / "bin"
+        conda_bin.mkdir(parents=True)
+        (conda_bin / "signalp6").write_text("#!/bin/sh\n")
+        (conda_bin / "signalp6").chmod(0o755)
+        configured = tmp_path / "custom"
+        configured.mkdir()
+        (configured / "signalp6").write_text("#!/bin/sh\n")
+        (configured / "signalp6").chmod(0o755)
+        monkeypatch.setenv("PATH", "")
+        monkeypatch.setenv("HOME", str(tmp_path))
+        c = PipelineConfig(signalp_path=str(configured))
+        assert c.signalp_mode == "local"
+        assert c.signalp_path == str(configured)
 
     def test_auto_picks_local_when_path_holds_executable(self, monkeypatch, tmp_path):
         # Drop a stub executable into tmp_path and pass that dir as the path.

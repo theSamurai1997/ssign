@@ -41,31 +41,84 @@ BIN_DIR = _PACKAGE_SCRIPTS if _PACKAGE_SCRIPTS.exists() else _DEV_BIN
 # stalled DTU job can't deadlock parallel-genome runs forever.
 DTU_SEMAPHORE_TIMEOUT_S = 14400
 
+# conda/mamba env roots scanned as a last-ditch binary lookup when PATH and
+# configured paths both miss. Covers the conventional install locations; a
+# user with a custom CONDA_ENVS_PATH still gets PATH-based discovery once
+# they activate. Order matters only for log messages.
+_CONDA_ENV_ROOTS = (
+    "~/.conda/envs",
+    "~/miniconda3/envs",
+    "~/anaconda3/envs",
+    "~/miniforge3/envs",
+    "~/mambaforge/envs",
+)
 
-def _detect_dtu_mode(binary: str, configured_path: str, display_name: str) -> str:
+
+def _find_in_conda_envs(binary: str) -> Optional[str]:
+    """Return the bin/ directory of a conda env holding ``binary``, or None.
+
+    Scans the conventional env roots (see ``_CONDA_ENV_ROOTS``). Returns
+    the directory rather than the full path so callers can hand it to
+    ``signalp_path`` / ``deeplocpro_path`` unchanged — those fields already
+    expect a directory, and the wrapper scripts append the binary name.
+    """
+    for root in _CONDA_ENV_ROOTS:
+        envs_dir = os.path.expanduser(root)
+        if not os.path.isdir(envs_dir):
+            continue
+        try:
+            env_names = os.listdir(envs_dir)
+        except OSError:
+            continue
+        for env_name in sorted(env_names):
+            bin_dir = os.path.join(envs_dir, env_name, "bin")
+            candidate = os.path.join(bin_dir, binary)
+            if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+                return bin_dir
+    return None
+
+
+def _detect_dtu_mode(binary: str, configured_path: str, display_name: str) -> tuple[str, Optional[str]]:
     """Pick local vs remote for a DTU-licensed tool.
 
     Tries (in order): explicit ``configured_path/binary`` (CLI flag or the
     matching ``SSIGN_*_PATH`` env var already filled in by __post_init__'s
-    env loop), then ``binary`` on PATH. Falls back to remote with a warning
-    so an offline-only user doesn't silently get network-submitted jobs.
+    env loop), ``binary`` on PATH, then a scan of conventional conda env
+    roots. Falls back to remote with a warning so an offline-only user
+    doesn't silently get network-submitted jobs.
+
+    Returns ``(mode, discovered_dir)``. ``discovered_dir`` is non-None only
+    when the conda-env scan was the thing that succeeded, so the caller can
+    persist it into the matching ``*_path`` config field; in every other
+    case it's ``None``.
     """
     if configured_path:
         candidate = os.path.join(configured_path, binary)
         if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
-            return "local"
+            return "local", None
     if shutil.which(binary):
-        return "local"
+        return "local", None
+    conda_dir = _find_in_conda_envs(binary)
+    if conda_dir:
+        logger.info(
+            "Auto-discovered %s in conda env: %s",
+            display_name,
+            os.path.join(conda_dir, binary),
+        )
+        return "local", conda_dir
+    roots_for_msg = " or ".join(_CONDA_ENV_ROOTS)
     logger.warning(
-        "No local %s binary found (%r not on PATH and no configured path holds it). "
+        "No local %s binary found (%r not on PATH, no configured path holds it, "
+        "and no conda env under %s has it). "
         "Falling back to the DTU webserver — pass --%s-mode local once you've "
         "installed it locally, or --%s-mode remote to silence this warning.",
         display_name,
         binary,
+        roots_for_msg,
         display_name.lower(),
         display_name.lower(),
     )
-    return "remote"
+    return "remote", None
 
 
 def _resolve_db_root_for_runner() -> str:
@@ -352,9 +405,13 @@ class PipelineConfig:
         # falls back to remote with a warning otherwise so an offline-only
         # install doesn't silently start network-submitting jobs.
         if self.signalp_mode is None:
-            self.signalp_mode = _detect_dtu_mode("signalp6", self.signalp_path, "SignalP")
+            self.signalp_mode, discovered = _detect_dtu_mode("signalp6", self.signalp_path, "SignalP")
+            if discovered and not self.signalp_path:
+                self.signalp_path = discovered
         if self.deeplocpro_mode is None:
-            self.deeplocpro_mode = _detect_dtu_mode("deeplocpro", self.deeplocpro_path, "DeepLocPro")
+            self.deeplocpro_mode, discovered = _detect_dtu_mode("deeplocpro", self.deeplocpro_path, "DeepLocPro")
+            if discovered and not self.deeplocpro_path:
+                self.deeplocpro_path = discovered
 
 
 @dataclass
