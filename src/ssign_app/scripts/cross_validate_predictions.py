@@ -124,8 +124,10 @@ def _load_ss_component_info(path: str) -> dict:
 
 
 def _dlp_flag(
-    dlp_row: dict, conf_threshold: float,
-    ss_type: str = "", gene_name: str = "",
+    dlp_row: dict,
+    conf_threshold: float,
+    ss_type: str = "",
+    gene_name: str = "",
 ) -> tuple:
     """(is_secreted_by_dlp, extracellular_prob).
 
@@ -197,9 +199,14 @@ FIELDNAMES = [
     "dse_ss_type",
     "dse_max_prob",
     "dse_T3SS_flagged",
-    # PLM-Effector
+    # PLM-Effector. `plm_effector_type` carries the comma-separated list of
+    # SS-effector types that flagged the protein (e.g. "T2SE" or "T2SE,T4SE")
+    # -- it's the `flagging_types` field from merge_plm_effector_outputs,
+    # not a single type. `plm_effector_max_prob` is the highest stacking
+    # probability across the flagging types.
     "plm_effector_secreted",
     "plm_effector_type",
+    "plm_effector_max_prob",
     # SignalP (evidence-only in 3.2.b)
     "signalp_prediction",
     "signalp_probability",
@@ -235,12 +242,7 @@ def cross_validate(
     touching the filesystem.
     """
     ss_component_info = ss_component_info or {}
-    all_loci = sorted(
-        set(dlp_data.keys())
-        | set(dse_data.keys())
-        | set(plm_e_data.keys())
-        | set(sp_data.keys())
-    )
+    all_loci = sorted(set(dlp_data.keys()) | set(dse_data.keys()) | set(plm_e_data.keys()) | set(sp_data.keys()))
 
     for locus in all_loci:
         dlp = dlp_data.get(locus, {})
@@ -269,9 +271,7 @@ def cross_validate(
             "sample_id": sample_id,
             "predicted_localization": dlp.get("predicted_localization", ""),
             "dlp_extracellular_prob": ext_prob,
-            "dlp_max_localization": dlp.get(
-                "max_localization", dlp.get("predicted_localization", "")
-            ),
+            "dlp_max_localization": dlp.get("max_localization", dlp.get("predicted_localization", "")),
             "dlp_max_probability": dlp.get("max_probability", ext_prob),
             "periplasmic_prob": dlp.get("periplasmic_prob", ""),
             "outer_membrane_prob": dlp.get("outer_membrane_prob", ""),
@@ -280,7 +280,13 @@ def cross_validate(
             "dse_max_prob": dse_max,
             "dse_T3SS_flagged": t3ss_flagged,
             "plm_effector_secreted": plm_e_secreted,
-            "plm_effector_type": plm_e.get("effector_type", ""),
+            # `flagging_types` is what merge_plm_effector_outputs writes:
+            # comma-separated SS-effector types ("T2SE" / "T2SE,T4SE"). We
+            # fall back to `effector_type` so older fixtures (and the
+            # unit-test stub _plm_e_row) that still write that key keep
+            # working.
+            "plm_effector_type": plm_e.get("flagging_types", plm_e.get("effector_type", "")),
+            "plm_effector_max_prob": _float_or_zero(plm_e.get("max_stacking", 0.0)),
             "signalp_prediction": sp_pred,
             "signalp_probability": sp_prob,
             "signalp_cs_position": sp.get("signalp_cs_position", ""),
@@ -361,8 +367,7 @@ def main():
 
     if n_flagged_t3ss:
         logger.warning(
-            f"Flagged {n_flagged_t3ss} DeepSecE T3SS predictions "
-            f"(no MacSyFinder T3SS found in {args.sample})"
+            f"Flagged {n_flagged_t3ss} DeepSecE T3SS predictions (no MacSyFinder T3SS found in {args.sample})"
         )
     logger.info(f"Cross-validated {n_rows} proteins for {args.sample}")
 

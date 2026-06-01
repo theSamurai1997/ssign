@@ -98,6 +98,19 @@ DSE_TO_MACSYFINDER = {
     "T6SS": ["T6SSi", "T6SS"],
 }
 
+# --- PLM-Effector type to MacSyFinder SS type mapping ---
+# PLM-Effector reports per-effector-type predictions (T1SE = T1-secreted-
+# effector, etc.); the gate at proximity time needs to map those back to
+# MacSyFinder SS-system names to verify the system actually exists in the
+# genome (same cross-genome leakage class of bug DSE_TO_MACSYFINDER fixes).
+PLME_TO_MACSYFINDER = {
+    "T1SE": ["T1SS"],
+    "T2SE": ["T2SS"],
+    "T3SE": ["T3SS"],
+    "T4SE": ["pT4SSt", "T4SS"],
+    "T6SE": ["T6SSi", "T6SS"],
+}
+
 
 # --- Install-tier defaults ---
 # Which optional tools default on at each install tier. The user's tier
