@@ -34,11 +34,14 @@ _CGROUP_UNLIMITED_BYTES = 2**63 - 4096
 # Used by auto_batch_size_from_vram below; callers can pass --batch-size N
 # to override entirely.
 _AUTO_BATCH_TIERS = (
-    # (min_vram_gb_inclusive, batch_size)
-    (48, 32),  # A40 / L40S / A100-80GB
-    (24, 16),  # RTX 4090, A100-40GB
-    (12, 8),  # RTX 3090, RTX 4080
-    (0, 4),  # smaller GPUs (8-12 GB) and CPU fallback
+    # (min_vram_gib_inclusive, batch_size). Thresholds sit 2-4 GiB below
+    # the marketing-GB capacity because torch reports total - firmware
+    # reserve in GiB (1024^3): A40's "48 GB" comes back as ~44.4 GiB,
+    # RTX 4090's "24 GB" as ~22 GiB, RTX 3090's "12 GB" as ~11 GiB.
+    (40, 32),  # A40 / L40S / A100 (40/80 GB) / H100 (80 GB)
+    (20, 16),  # RTX 4090 / A5000 (24 GB)
+    (10, 8),  # RTX 3090 / RTX 4080 (12-16 GB)
+    (0, 4),  # smaller GPUs (8 GB and under) and CPU fallback
 )
 
 
