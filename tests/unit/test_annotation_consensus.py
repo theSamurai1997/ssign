@@ -95,13 +95,32 @@ class TestClassifyDescription:
 
 
 class TestComputeConsensusEmpty:
-    def test_empty_input_returns_none_tier(self):
+    def test_empty_input_returns_no_hits_tier(self):
+        # Sentinel is "no_hits", NOT the string "None" -- pandas.read_csv
+        # converts "None" to NaN by default, which made the column appear
+        # blank in the master CSV. See test_no_hits_survives_csv_roundtrip.
         result = compute_consensus({})
-        assert result["confidence_tier"] == "None"
+        assert result["confidence_tier"] == "no_hits"
         assert result["n_tools_agreeing"] == 0
         assert result["n_tools_with_hits"] == 0
         assert result["broad_annotation"] == ""
         assert result["concordance_ratio"] == 0.0
+
+    def test_no_hits_tier_survives_csv_roundtrip(self, tmp_path):
+        # Regression test for the K-12 b2060a9 run where confidence_tier
+        # showed up blank in the master CSV: integrate_annotations.py wrote
+        # "None" (the previous sentinel), then runner._build_master_csv
+        # re-read the file via pd.read_csv which silently coerced "None"
+        # to NaN, which serialised back as empty.
+        import pandas as pd
+
+        result = compute_consensus({})
+        df = pd.DataFrame([result])
+        out = tmp_path / "consensus.csv"
+        df.to_csv(out, index=False)
+        roundtrip = pd.read_csv(out)
+        assert roundtrip["confidence_tier"].iloc[0] == "no_hits"
+        assert not pd.isna(roundtrip["confidence_tier"].iloc[0])
 
 
 class TestComputeConsensusSingleTool:

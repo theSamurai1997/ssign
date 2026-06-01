@@ -27,6 +27,51 @@ logger = logging.getLogger(__name__)
 _CGROUP_UNLIMITED_BYTES = 2**63 - 4096
 
 
+# PLM-Effector batch sizes per VRAM tier. The breakpoints come from
+# measuring peak activation memory for ProtT5 (the largest of the four
+# PLMs) at max_length=512 plus tokenizer/model weight overhead, leaving
+# ~20% headroom on top to survive Bakta and EggNOG running alongside.
+# Used by auto_batch_size_from_vram below; callers can pass --batch-size N
+# to override entirely.
+_AUTO_BATCH_TIERS = (
+    # (min_vram_gb_inclusive, batch_size)
+    (48, 32),  # A40 / L40S / A100-80GB
+    (24, 16),  # RTX 4090, A100-40GB
+    (12, 8),  # RTX 3090, RTX 4080
+    (0, 4),  # smaller GPUs (8-12 GB) and CPU fallback
+)
+
+
+def auto_batch_size_from_vram(default_when_no_gpu: int = 4) -> int:
+    """Pick a PLM-E batch size from the active CUDA device's total VRAM.
+
+    Returns the smallest tier table entry's batch size when no CUDA
+    device is visible or torch isn't importable; callers can override
+    via an explicit ``--batch-size N``.
+    """
+    try:
+        import torch
+    except ImportError:
+        return default_when_no_gpu
+    if not torch.cuda.is_available():
+        return default_when_no_gpu
+    try:
+        total_bytes = torch.cuda.get_device_properties(0).total_memory
+    except Exception as e:
+        logger.warning("Could not read GPU memory for auto-batch sizing: %s", e)
+        return default_when_no_gpu
+    total_gb = total_bytes / (1024**3)
+    for min_gb, batch in _AUTO_BATCH_TIERS:
+        if total_gb >= min_gb:
+            logger.info(
+                "PLM-E auto-batch: detected %.1f GB VRAM, choosing batch_size=%d",
+                total_gb,
+                batch,
+            )
+            return batch
+    return default_when_no_gpu
+
+
 def effective_cpu_count() -> int:
     """Number of CPUs the current process is allowed to schedule on.
 

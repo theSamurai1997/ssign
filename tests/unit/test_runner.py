@@ -729,3 +729,84 @@ def test_hhsuite_min_prob_default_matches_constants():
     from ssign_app.scripts.ssign_lib.constants import HHSUITE_MIN_PROB
 
     assert PipelineConfig().hhsuite_min_prob == HHSUITE_MIN_PROB
+
+
+class TestBuildRawCsv:
+    """Raw CSV must carry every per-tool intermediate column, not just
+    duplicate the substrate-filtered master CSV (CX3 K-12 run b2060a9
+    surfaced this -- raw and non-raw were ~identical 38-column files)."""
+
+    def _make_runner(self, tmp_path, files):
+        cfg = PipelineConfig(sample_id="test")
+        r = PipelineRunner(cfg)
+        r.files = files
+        return r
+
+    def test_raw_csv_left_joins_every_per_tool_intermediate(self, tmp_path):
+        import pandas as pd
+
+        # Base: 4 proteins from gene_info
+        gi = tmp_path / "gene_info.tsv"
+        gi.write_text("locus_tag\tgbff_annotation\nP1\tprotein 1\nP2\tprotein 2\nP3\tprotein 3\nP4\tprotein 4\n")
+
+        # Per-tool intermediates with non-overlapping per-tool columns
+        pred = tmp_path / "predictions.tsv"
+        pred.write_text("locus_tag\tdlp_extracellular_prob\tplm_effector_secreted\nP1\t0.95\tTrue\nP2\t0.10\tFalse\n")
+        blastp = tmp_path / "blastp.csv"
+        blastp.write_text("locus_tag,blastp_hit_description\nP1,hemolysin family\n")
+        ips = tmp_path / "ips.tsv"
+        ips.write_text("locus_tag\tinterpro_descriptions\nP3\tPF03797 autotransporter\n")
+
+        r = self._make_runner(
+            tmp_path,
+            {
+                "gene_info": str(gi),
+                "predictions": str(pred),
+                "blastp": str(blastp),
+                "interproscan": str(ips),
+            },
+        )
+
+        out = tmp_path / "raw.csv"
+        r._build_raw_csv(out)
+
+        df = pd.read_csv(out)
+        # Every protein from gene_info is present
+        assert sorted(df["locus_tag"].tolist()) == ["P1", "P2", "P3", "P4"]
+        # Per-tool columns are preserved
+        for col in (
+            "gbff_annotation",
+            "dlp_extracellular_prob",
+            "plm_effector_secreted",
+            "blastp_hit_description",
+            "interpro_descriptions",
+        ):
+            assert col in df.columns, f"raw CSV missing {col}"
+        # And carry per-protein data through
+        row_p1 = df[df["locus_tag"] == "P1"].iloc[0]
+        assert row_p1["blastp_hit_description"] == "hemolysin family"
+        assert row_p1["dlp_extracellular_prob"] == 0.95
+        # Tool didn't cover P4 -- column is NaN, not dropped
+        row_p4 = df[df["locus_tag"] == "P4"].iloc[0]
+        assert pd.isna(row_p4["blastp_hit_description"])
+
+    def test_raw_csv_disambiguates_overlapping_columns(self, tmp_path):
+        # If two intermediates both define a column with the same name
+        # (e.g. both have "product"), we must keep both rather than have
+        # the second silently overwrite the first via pandas merge.
+        import pandas as pd
+
+        gi = tmp_path / "gene_info.tsv"
+        gi.write_text("locus_tag\tproduct\nP1\tgi_product_value\n")
+        blastp = tmp_path / "blastp.csv"
+        blastp.write_text("locus_tag,product\nP1,blastp_product_value\n")
+
+        r = self._make_runner(tmp_path, {"gene_info": str(gi), "blastp": str(blastp)})
+        out = tmp_path / "raw.csv"
+        r._build_raw_csv(out)
+        df = pd.read_csv(out)
+        # Base keeps its name; collision is prefix-labelled.
+        assert "product" in df.columns
+        assert "blastp__product" in df.columns
+        assert df.iloc[0]["product"] == "gi_product_value"
+        assert df.iloc[0]["blastp__product"] == "blastp_product_value"

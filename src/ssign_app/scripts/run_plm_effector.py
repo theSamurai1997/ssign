@@ -79,9 +79,23 @@ def main() -> int:
     )
     parser.add_argument(
         "--batch-size",
-        type=int,
-        default=5,
-        help="PLM forward-pass batch size (drop to 1-2 if VRAM-constrained)",
+        default="auto",
+        help=(
+            "PLM forward-pass batch size. 'auto' (default) reads available VRAM "
+            "and picks 4 / 8 / 16 / 32 from the tier table in ssign_lib.resources. "
+            "Pass an explicit integer to override."
+        ),
+    )
+    parser.add_argument(
+        "--dtype",
+        default="bf16",
+        choices=["bf16", "fp16", "fp32"],
+        help=(
+            "Autocast dtype for the PLM forward pass. bf16 (default) uses "
+            "tensor-core paths on A40 / A100 / L40S for ~2x speedup over fp32 "
+            "while keeping fp32's exponent range. fp16 is slightly faster on "
+            "older GPUs but can shift softmax outputs. fp32 disables autocast."
+        ),
     )
     parser.add_argument(
         "--chunk-size",
@@ -127,6 +141,21 @@ def main() -> int:
 
     os.makedirs(args.out_dir, exist_ok=True)
 
+    # Resolve --batch-size auto -> integer via VRAM tier table.
+    if str(args.batch_size).strip().lower() == "auto":
+        from ssign_app.scripts.ssign_lib.resources import auto_batch_size_from_vram
+
+        batch_size = auto_batch_size_from_vram()
+    else:
+        try:
+            batch_size = int(args.batch_size)
+        except ValueError:
+            print(
+                f"ERROR: --batch-size must be 'auto' or an integer, got {args.batch_size!r}",
+                file=sys.stderr,
+            )
+            return 2
+
     try:
         summary = predict(
             proteins_fasta=args.input,
@@ -134,8 +163,9 @@ def main() -> int:
             effector_types=args.effector_types,
             out_dir=args.out_dir,
             device=args.device,
-            batch_size=args.batch_size,
+            batch_size=batch_size,
             chunk_size=args.chunk_size,
+            dtype=args.dtype,
         )
     except RuntimeError as e:
         print(f"ERROR: PLM-Effector prediction failed: {e}", file=sys.stderr)

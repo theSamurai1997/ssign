@@ -122,7 +122,17 @@ class TestExtractAllFeaturesIsolation:
     def test_isolated_path_spawns_one_subprocess_per_plm(self, tmp_dir, monkeypatch):
         spawned = []
 
-        def fake_spawn(*, proteins_fasta, pretrained_type, weights_dir, device, batch_size, chunk_size, out_dir):
+        def fake_spawn(
+            *,
+            proteins_fasta,
+            pretrained_type,
+            weights_dir,
+            device,
+            batch_size,
+            chunk_size,
+            out_dir,
+            dtype="bf16",
+        ):
             spawned.append(pretrained_type)
             # Simulate the subprocess writing two chunks
             for chunk_idx in range(2):
@@ -155,7 +165,17 @@ class TestExtractAllFeaturesIsolation:
     def test_extracts_protbert_when_requested(self, tmp_dir, monkeypatch):
         spawned = []
 
-        def fake_spawn(*, proteins_fasta, pretrained_type, weights_dir, device, batch_size, chunk_size, out_dir):
+        def fake_spawn(
+            *,
+            proteins_fasta,
+            pretrained_type,
+            weights_dir,
+            device,
+            batch_size,
+            chunk_size,
+            out_dir,
+            dtype="bf16",
+        ):
             spawned.append(pretrained_type)
             _save_features_npz(_chunk_path(out_dir, pretrained_type, 0), _make_features())
             return _discover_chunk_paths(out_dir, pretrained_type)
@@ -179,7 +199,9 @@ class TestExtractAllFeaturesIsolation:
         called = mock.Mock()
         monkeypatch.setattr("plm_effector.feature_extraction._extract_one_plm_in_subprocess", called)
 
-        def fake_iter(*, proteins_fasta, pretrained_type, weights_dir, device, batch_size, chunk_size):
+        def fake_iter(
+            *, proteins_fasta, pretrained_type, weights_dir, device, batch_size, chunk_size, autocast_dtype=None
+        ):
             # Two synthetic chunks per PLM
             yield _make_features(seed=0)
             yield _make_features(seed=1)

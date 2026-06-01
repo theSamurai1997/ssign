@@ -2496,33 +2496,81 @@ class PipelineRunner:
                 df_systems_other.to_csv(f, index=False)
 
     def _build_raw_csv(self, output_path: Path):
-        """Build raw CSV with ALL data from ALL tools — no filtering, no column pruning."""
+        """Build raw CSV with ALL data from ALL tools — every protein, every
+        per-tool intermediate column, no filtering, no column pruning.
+
+        Distinct from the master ``_results.csv`` (which is the
+        substrate-filtered consolidated view): the raw file is a debug /
+        post-mortem dump where every column from every tool intermediate
+        is left-joined onto the gene_info base, keyed by locus_tag.
+
+        Joined sources (each contributes its full per-tool column set;
+        empty values where the tool didn't run or skipped a protein):
+          - ``gene_info``      — all proteins extracted from the genome
+          - ``predictions``    — cross_validate output (DLP/DSE/SignalP/PLM-E)
+          - ``plm_effector``   — merged per-type PLM-E TSV
+          - ``substrates_all`` — proximity + T5SS-self substrate flags
+          - per-tool annotation outputs (blastp, hhsuite, interproscan,
+            eggnog, plm_blast, protparam)
+        """
         import pandas as pd
 
-        # Start with integrated annotations (richest data)
-        df = pd.DataFrame()
-        fpath = self.files.get("integrated", "")
-        if fpath and os.path.exists(fpath):
+        def _read_tsv_or_csv(path: str):
+            """Auto-detect TSV vs CSV and read; return empty DataFrame on failure."""
+            if not path or not os.path.exists(path):
+                return pd.DataFrame()
             try:
-                df = pd.read_csv(fpath)
-            except Exception:
-                pass
+                return pd.read_csv(path, sep=None, engine="python")
+            except Exception as e:
+                logger.warning("Could not read %s for raw CSV: %s", path, e)
+                return pd.DataFrame()
 
-        if df.empty:
-            # Fallback: just copy substrates if no integrated CSV
-            fpath = self.files.get("substrates_filtered", self.files.get("substrates", ""))
-            if fpath and os.path.exists(fpath):
-                try:
-                    df = pd.read_csv(fpath, sep="\t")
-                except Exception:
-                    pass
+        def _left_join(base: pd.DataFrame, addition: pd.DataFrame, label: str) -> pd.DataFrame:
+            """Left-join `addition` onto `base` on locus_tag. Prefix-disambiguate
+            overlapping columns (other than the join key) with the source label
+            so we never silently drop per-tool intermediates."""
+            if addition.empty or "locus_tag" not in addition.columns:
+                return base
+            if base.empty:
+                return addition
+            overlap = (set(addition.columns) & set(base.columns)) - {"locus_tag"}
+            if overlap:
+                addition = addition.rename(columns={c: f"{label}__{c}" for c in overlap})
+            addition = addition.drop_duplicates(subset="locus_tag", keep="first")
+            return base.merge(addition, on="locus_tag", how="left")
 
-        if not df.empty:
-            df.to_csv(output_path, index=False)
-        else:
-            # Write empty file with minimal header
-            with open(output_path, "w") as f:
-                f.write("locus_tag,sample_id\n")
+        # ── Base: every protein in the genome ──
+        df = _read_tsv_or_csv(self.files.get("gene_info", ""))
+        if df.empty or "locus_tag" not in df.columns:
+            # Fallback to integrated CSV path (preserves old behaviour
+            # for runs that never ran extract_proteins, e.g. failure tests).
+            df = _read_tsv_or_csv(self.files.get("integrated", ""))
+            if not df.empty:
+                df.to_csv(output_path, index=False)
+            else:
+                with open(output_path, "w") as f:
+                    f.write("locus_tag,sample_id\n")
+            return
+
+        df["sample_id"] = self.config.sample_id
+
+        # ── Layer in every intermediate ──
+        # Order matters only for label-prefixing of overlapping columns.
+        sources = [
+            ("pred", self.files.get("predictions", "")),
+            ("plme", self.files.get("plm_effector", "")),
+            ("substrates_all", self.files.get("substrates_all", "")),
+            ("blastp", self.files.get("blastp", "")),
+            ("hhsuite", self.files.get("hhsuite", "")),
+            ("ips", self.files.get("interproscan", "")),
+            ("eggnog", self.files.get("eggnog", "")),
+            ("plmblast", self.files.get("plm_blast", "")),
+            ("protparam", self.files.get("protparam", "")),
+        ]
+        for label, path in sources:
+            df = _left_join(df, _read_tsv_or_csv(path), label)
+
+        df.to_csv(output_path, index=False)
 
     def _build_summary(self, output_path: Path):
         """Combine report text, enrichment summary, and Fisher results."""

@@ -258,3 +258,55 @@ class TestStagePrefixFiles:
         new_a = stage_prefix_files_to_local_ssd_if_remote(prefix_a, cache, min_free_gb=0.0)
         new_b = stage_prefix_files_to_local_ssd_if_remote(prefix_b, cache, min_free_gb=0.0)
         assert os.path.dirname(new_a) != os.path.dirname(new_b)
+
+
+# ---------------------------------------------------------------------------
+# auto_batch_size_from_vram — VRAM-tier table for PLM-E
+# ---------------------------------------------------------------------------
+
+
+class TestAutoBatchSizeFromVram:
+    """Pin the VRAM → batch size tier mapping so a future tier-table tweak
+    can't silently shrink throughput on A40 / A100 / L40S."""
+
+    def _patch_torch(self, monkeypatch, available: bool, total_bytes: int = 0):
+        """Stand in for torch.cuda so the test doesn't need a real GPU."""
+        import sys
+        import types
+
+        fake_torch = types.SimpleNamespace()
+        fake_torch.cuda = types.SimpleNamespace(
+            is_available=lambda: available,
+            get_device_properties=lambda i: types.SimpleNamespace(total_memory=total_bytes),
+        )
+        monkeypatch.setitem(sys.modules, "torch", fake_torch)
+
+    def test_no_cuda_returns_safe_default(self, monkeypatch):
+        from ssign_lib.resources import auto_batch_size_from_vram
+
+        self._patch_torch(monkeypatch, available=False)
+        assert auto_batch_size_from_vram() == 4
+
+    def test_48gb_a40_picks_batch_32(self, monkeypatch):
+        from ssign_lib.resources import auto_batch_size_from_vram
+
+        self._patch_torch(monkeypatch, available=True, total_bytes=48 * 1024**3)
+        assert auto_batch_size_from_vram() == 32
+
+    def test_24gb_4090_picks_batch_16(self, monkeypatch):
+        from ssign_lib.resources import auto_batch_size_from_vram
+
+        self._patch_torch(monkeypatch, available=True, total_bytes=24 * 1024**3)
+        assert auto_batch_size_from_vram() == 16
+
+    def test_12gb_picks_batch_8(self, monkeypatch):
+        from ssign_lib.resources import auto_batch_size_from_vram
+
+        self._patch_torch(monkeypatch, available=True, total_bytes=12 * 1024**3)
+        assert auto_batch_size_from_vram() == 8
+
+    def test_8gb_picks_batch_4(self, monkeypatch):
+        from ssign_lib.resources import auto_batch_size_from_vram
+
+        self._patch_torch(monkeypatch, available=True, total_bytes=8 * 1024**3)
+        assert auto_batch_size_from_vram() == 4

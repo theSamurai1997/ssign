@@ -85,6 +85,44 @@ def read_fasta_for_prediction_terminal(
     return ids, sequences
 
 
+_DTYPE_ALIASES = {
+    "fp32": None,
+    "float32": None,
+    "none": None,
+    "": None,
+    "bf16": "bfloat16",
+    "bfloat16": "bfloat16",
+    "fp16": "float16",
+    "float16": "float16",
+    "half": "float16",
+}
+
+
+def resolve_autocast_dtype(name):
+    """Map a user-facing dtype name to the torch.dtype expected by autocast.
+
+    Returns ``None`` to signal "no autocast" (default for fp32 / CPU paths).
+    Accepts the same name as a torch.dtype, a string alias, or None.
+    Unknown names raise ValueError so a typo at the CLI doesn't silently
+    fall through to fp32.
+    """
+    import torch  # lazy
+
+    if name is None:
+        return None
+    if isinstance(name, torch.dtype):
+        return name
+    key = str(name).strip().lower()
+    if key not in _DTYPE_ALIASES:
+        raise ValueError(
+            f"Unknown PLM-Effector dtype: {name!r}. Expected one of: fp32 / bf16 / fp16 (or their long names)."
+        )
+    resolved = _DTYPE_ALIASES[key]
+    if resolved is None:
+        return None
+    return getattr(torch, resolved)
+
+
 def batch_extract_features(
     sequences,
     pretrained_type: str,
@@ -93,17 +131,37 @@ def batch_extract_features(
     device,
     max_length: int = 512,
     batch_size: int = 10,
+    autocast_dtype=None,
 ):
     """Run a batched forward pass through a pretrained PLM.
 
     Returns `(features, attention_masks)` as numpy arrays shaped
     `(n_sequences, max_length, hidden_dim)` and
     `(n_sequences, max_length)` respectively.
+
+    ``autocast_dtype`` lets the caller run the forward pass under
+    ``torch.autocast`` (bfloat16 or float16). None (default) keeps the
+    model in its loaded precision (fp32). bfloat16 is the safe default
+    for inference on A40/A100/L40S because it preserves fp32's exponent
+    range; fp16 trades extra speed on V100/T4 for narrower range and is
+    occasionally seen to shift predictions on softmax-heavy paths.
     """
+    import contextlib
+
     import torch  # Lazy — ssign's base install doesn't require torch
 
     features: list = []
     attention_masks: list = []
+
+    use_autocast = autocast_dtype is not None and device.type == "cuda"
+
+    def _amp_ctx():
+        # Fresh autocast manager per batch — torch.autocast tracks state in
+        # __enter__/__exit__, and re-using one instance across iterations is
+        # technically allowed but unidiomatic enough to confuse a future reader.
+        if use_autocast:
+            return torch.autocast(device_type="cuda", dtype=autocast_dtype)
+        return contextlib.nullcontext()
 
     for i in range(0, len(sequences), batch_size):
         batch = sequences[i : i + batch_size]
@@ -115,15 +173,17 @@ def batch_extract_features(
             max_length=max_length,
         )
         inputs = {k: v.to(device) for k, v in inputs.items()}
-        with torch.no_grad():
-            if pretrained_type == "ProtT5":
-                outputs = model(
-                    input_ids=inputs["input_ids"],
-                    attention_mask=inputs["attention_mask"],
-                )
-            else:
-                outputs = model(**inputs)
-        features.append(outputs.last_hidden_state.cpu())
+        # ProtT5's forward() rejects extra tokenizer kwargs (e.g. token_type_ids)
+        # so we pass only the two it accepts; the other PLMs are happy with **inputs.
+        if pretrained_type == "ProtT5":
+            fwd_kwargs = {"input_ids": inputs["input_ids"], "attention_mask": inputs["attention_mask"]}
+        else:
+            fwd_kwargs = inputs
+        with torch.no_grad(), _amp_ctx():
+            outputs = model(**fwd_kwargs)
+        # numpy lacks a bfloat16 dtype, so always cast back to fp32 before
+        # leaving the GPU. The cast is free relative to the forward pass.
+        features.append(outputs.last_hidden_state.float().cpu())
         attention_masks.append(inputs["attention_mask"].cpu())
         del inputs, outputs
         if device.type == "cuda":

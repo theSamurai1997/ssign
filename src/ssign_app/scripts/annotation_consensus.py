@@ -8,7 +8,7 @@ keyword matching, then computes:
   - detailed_annotation: all unique categories found, pipe-separated
   - n_tools_agreeing: tools supporting the broad_annotation
   - concordance_ratio: n_agreeing / n_with_hits
-  - confidence_tier: High (≥3 tools agree), Medium (2), Low (1), None (0)
+  - confidence_tier: High (≥3 tools agree), Medium (2), Low (1), no_hits (0)
   - evidence_keywords: "Category[Tool1,Tool2]; Category2[Tool3]"
 """
 
@@ -74,6 +74,10 @@ def compute_consensus(tool_descriptions: dict[str, str]) -> dict:
         dict with consensus fields.
     """
     if not tool_descriptions:
+        # Sentinel for "no annotation tools produced hits for this protein".
+        # Was previously "None" -- but pandas.read_csv interprets the bare
+        # string "None" as NaN by default, so downstream consumers saw an
+        # empty cell and couldn't distinguish "no hits" from "missing".
         return {
             "broad_annotation": "",
             "broad_consensus_annotation": "",
@@ -83,7 +87,7 @@ def compute_consensus(tool_descriptions: dict[str, str]) -> dict:
             "n_tools_agreeing": 0,
             "n_tools_with_hits": 0,
             "concordance_ratio": 0.0,
-            "confidence_tier": "None",
+            "confidence_tier": "no_hits",
         }
 
     n_tools = len(tool_descriptions)
@@ -129,7 +133,8 @@ def compute_consensus(tool_descriptions: dict[str, str]) -> dict:
     # Concordance
     concordance = n_agreeing / n_tools if n_tools > 0 else 0.0
 
-    # Confidence tier
+    # Confidence tier. "no_hits" (rather than "None") avoids pandas's
+    # default NaN coercion when the integrated CSV is re-read downstream.
     if n_agreeing >= 3:
         tier = "High"
     elif n_agreeing == 2:
@@ -137,7 +142,7 @@ def compute_consensus(tool_descriptions: dict[str, str]) -> dict:
     elif n_agreeing == 1:
         tier = "Low"
     else:
-        tier = "None"
+        tier = "no_hits"
 
     # Consensus annotation with supporting tools
     if broad:

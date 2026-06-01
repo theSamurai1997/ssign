@@ -107,6 +107,7 @@ def iter_terminal_feature_chunks(
     device,
     batch_size: int = 5,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
+    autocast_dtype=None,
 ):
     """Yield per-chunk N+C terminal features for every protein in the FASTA.
 
@@ -147,6 +148,7 @@ def iter_terminal_feature_chunks(
                     device,
                     max_length=max_length,
                     batch_size=batch_size,
+                    autocast_dtype=autocast_dtype,
                 )
 
                 chunk_out[terminal] = {
@@ -276,6 +278,7 @@ def _extract_one_plm_in_subprocess(
     batch_size: int,
     chunk_size: int,
     out_dir: str,
+    dtype: str = "bf16",
 ) -> list[str]:
     """Run iter_terminal_feature_chunks for one PLM in a fresh Python process.
 
@@ -310,11 +313,14 @@ def _extract_one_plm_in_subprocess(
         str(chunk_size),
         "--output-dir",
         out_dir,
+        "--dtype",
+        str(dtype),
     ]
     logger.info(
-        "PLM-Effector: spawning isolated subprocess for %s (chunk_size=%d)",
+        "PLM-Effector: spawning isolated subprocess for %s (chunk_size=%d, dtype=%s)",
         pretrained_type,
         chunk_size,
+        dtype,
     )
 
     # Stream stderr line-by-line to our stderr so the user sees per-chunk
@@ -369,6 +375,7 @@ def extract_all_features(
     batch_size: int = 5,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     isolate_plms: bool = True,
+    dtype: str = "bf16",
 ) -> dict:
     """Run feature extraction for an explicit set of PLMs.
 
@@ -391,6 +398,9 @@ def extract_all_features(
         produce the same number of chunks (proteins are split identically),
         and the chunk_idx ordering aligns across PLMs.
     """
+    from .utils import resolve_autocast_dtype
+
+    autocast_dtype = resolve_autocast_dtype(dtype)
     chunk_paths: dict = {}
     for pretrained_type in pretrained_types:
         if isolate_plms:
@@ -402,6 +412,7 @@ def extract_all_features(
                 batch_size=batch_size,
                 chunk_size=chunk_size,
                 out_dir=feature_cache_dir,
+                dtype=dtype,
             )
         else:
             paths = []
@@ -413,6 +424,7 @@ def extract_all_features(
                     device=device,
                     batch_size=batch_size,
                     chunk_size=chunk_size,
+                    autocast_dtype=autocast_dtype,
                 )
             ):
                 path = _chunk_path(feature_cache_dir, pretrained_type, chunk_idx)
@@ -439,6 +451,11 @@ def _cli_main() -> int:
     p.add_argument("--device", required=True, help='torch device string, e.g. "cuda" or "cpu"')
     p.add_argument("--batch-size", type=int, default=5)
     p.add_argument("--chunk-size", type=int, default=DEFAULT_CHUNK_SIZE)
+    p.add_argument(
+        "--dtype",
+        default="bf16",
+        help="Autocast dtype for the PLM forward pass: bf16 (default), fp16, or fp32.",
+    )
     p.add_argument("--output-dir", required=True, help="Directory to write chunk .npz files into")
     args = p.parse_args()
 
@@ -453,6 +470,9 @@ def _cli_main() -> int:
     except Exception as e:
         logger.warning(f"Could not set torch thread count: {e}")
 
+    from .utils import resolve_autocast_dtype
+
+    autocast_dtype = resolve_autocast_dtype(args.dtype)
     os.makedirs(args.output_dir, exist_ok=True)
     n_written = 0
     for chunk_idx, chunk_features in enumerate(
@@ -463,6 +483,7 @@ def _cli_main() -> int:
             device=device,
             batch_size=args.batch_size,
             chunk_size=args.chunk_size,
+            autocast_dtype=autocast_dtype,
         )
     ):
         path = _chunk_path(args.output_dir, args.pretrained_type, chunk_idx)

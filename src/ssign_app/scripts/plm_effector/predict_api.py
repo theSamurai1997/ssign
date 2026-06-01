@@ -64,6 +64,7 @@ def predict(
     device=None,
     batch_size: int = 5,
     chunk_size: int = 256,
+    dtype: str = "bf16",
 ) -> dict:
     """Run PLM-Effector on a protein FASTA for one or more effector types.
 
@@ -111,11 +112,12 @@ def predict(
     torch_device = _resolve_device(device)
     pretrained_types = pretrained_types_for(effector_types)
     logger.info(
-        "PLM-Effector: extracting features for %s on %s (batch_size=%d, chunk_size=%d, PLMs=%s)",
+        "PLM-Effector: extracting features for %s on %s (batch_size=%d, chunk_size=%d, dtype=%s, PLMs=%s)",
         ",".join(effector_types),
         torch_device,
         batch_size,
         chunk_size,
+        dtype,
         ",".join(pretrained_types),
     )
 
@@ -129,6 +131,7 @@ def predict(
             feature_cache_dir=feature_dir,
             batch_size=batch_size,
             chunk_size=chunk_size,
+            dtype=dtype,
         )
         n_chunks = len(next(iter(chunk_paths.values())))
         logger.info(
