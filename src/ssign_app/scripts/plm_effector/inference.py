@@ -7,9 +7,22 @@
 # explicitly free GPU memory between models (gc.collect).
 import gc
 import os
+import sys
 
 import torch
 from torch.utils.data import DataLoader, TensorDataset
+
+from . import models as _models
+
+# Upstream's training script ran with `models.py` on the import path as a
+# top-level module, so the pickled .pth files store class references as
+# ``models.SimpleMLP`` etc. After vendoring, the same file lives at
+# ``ssign_app.scripts.plm_effector.models``, so torch.load's unpickler
+# can't resolve ``models`` and raises ModuleNotFoundError. Aliasing the
+# vendored module into ``sys.modules`` makes the pickled qualified names
+# resolve transparently. setdefault avoids clobbering a real ``models``
+# package if one ever appears upstream.
+sys.modules.setdefault("models", _models)
 
 
 def test_4predict_inbatch(model, features, device, batch_size=32):
