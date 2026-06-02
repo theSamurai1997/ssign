@@ -424,14 +424,31 @@ class StepResult:
     output_files: dict = field(default_factory=dict)
 
 
-def run_script(script_name: str, args: list, timeout: int = 7200) -> tuple:
-    """Run a bin/ script with arguments. Returns (returncode, stdout, stderr)."""
+def run_script(
+    script_name: str,
+    args: list,
+    timeout: int = 7200,
+    *,
+    stream_stderr: bool = False,
+) -> tuple:
+    """Run a bin/ script with arguments. Returns (returncode, stdout, stderr).
+
+    ``stream_stderr=True`` forwards each stderr line to the runner logger as it
+    arrives, instead of buffering until the subprocess exits. Use it for long
+    steps where intermediate progress (e.g. per-PLM-type completion in
+    PLM-Effector) is what tells the user "still alive, on type N of 5". Default
+    off — most tool wrappers are silent on success or chatty enough to flood
+    the log.
+    """
     script_path = BIN_DIR / script_name
     if not script_path.exists():
         return (-1, "", f"Script not found: {script_path}")
 
     cmd = [sys.executable, str(script_path)] + args
     logger.info(f"Running: {' '.join(cmd[:4])}...")
+
+    if stream_stderr:
+        return _run_script_streaming(cmd, script_name, timeout)
 
     try:
         result = subprocess.run(
@@ -441,17 +458,7 @@ def run_script(script_name: str, args: list, timeout: int = 7200) -> tuple:
             timeout=timeout,
         )
         if result.returncode != 0:
-            # StepResult callers truncate stderr to ~500 chars; benign HF /
-            # tokenizer warnings eat that budget before the traceback. Log
-            # the tail so the stack frame survives without blowing up the
-            # run log when tools (IPS, BLASTp) dump megabytes on failure.
-            logger.error(
-                "%s exited with code %s\n--- stdout (tail) ---\n%s\n--- stderr (tail) ---\n%s",
-                script_name,
-                result.returncode,
-                result.stdout[-8000:],
-                result.stderr[-8000:],
-            )
+            _log_nonzero_exit(script_name, result.returncode, result.stdout, result.stderr)
         return (result.returncode, result.stdout, result.stderr)
     except subprocess.TimeoutExpired:
         return (-1, "", f"Timeout after {timeout}s")
@@ -461,6 +468,87 @@ def run_script(script_name: str, args: list, timeout: int = 7200) -> tuple:
         # even though the caller only sees the str(e) summary.
         logger.exception("run_script(%s) raised unexpectedly", script_name)
         return (-1, "", str(e))
+
+
+def _log_nonzero_exit(script_name: str, rc: int, stdout: str, stderr: str) -> None:
+    """Log a script's nonzero exit with the tail of both streams.
+
+    StepResult callers truncate stderr to ~500 chars; benign HF / tokenizer
+    warnings eat that budget before the real traceback. Logging the tail
+    keeps the stack frame around without exploding the run log when tools
+    (IPS, BLASTp) dump megabytes on failure.
+    """
+    logger.error(
+        "%s exited with code %s\n--- stdout (tail) ---\n%s\n--- stderr (tail) ---\n%s",
+        script_name,
+        rc,
+        stdout[-8000:],
+        stderr[-8000:],
+    )
+
+
+def _run_script_streaming(cmd: list, script_name: str, timeout: int) -> tuple:
+    """Popen variant of run_script that forwards stderr lines to the logger live.
+
+    Both stdout and stderr must be drained in separate threads so a full pipe
+    buffer on one stream doesn't deadlock the child. ``PYTHONUNBUFFERED=1`` in
+    the child env defeats Python's default block-buffering of piped stderr so
+    lines reach us as the child emits them, not in 4 KB chunks at exit.
+    ``errors='replace'`` matters on HPC nodes whose locale is ``C``/``POSIX``;
+    the default strict decoder would raise inside a daemon drain thread and
+    silently kill it on the first non-ASCII byte.
+    """
+    env = {**os.environ, "PYTHONUNBUFFERED": "1"}
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            bufsize=1,
+            env=env,
+        )
+    except (OSError, ValueError) as e:
+        logger.exception("run_script(%s) failed to start subprocess", script_name)
+        return (-1, "", str(e))
+
+    stdout_chunks: list = []
+    stderr_chunks: list = []
+
+    def _drain(pipe, sink, log_prefix=None):
+        for line in pipe:
+            sink.append(line)
+            if log_prefix is not None:
+                msg = line.rstrip("\n")
+                if msg:
+                    logger.info("[%s] %s", log_prefix, msg)
+
+    t_out = threading.Thread(target=_drain, args=(proc.stdout, stdout_chunks), daemon=True)
+    t_err = threading.Thread(target=_drain, args=(proc.stderr, stderr_chunks, script_name), daemon=True)
+    t_out.start()
+    t_err.start()
+
+    try:
+        proc.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
+        t_out.join(timeout=1)
+        t_err.join(timeout=1)
+        return (-1, "".join(stdout_chunks), f"Timeout after {timeout}s")
+
+    t_out.join()
+    t_err.join()
+
+    rc = proc.returncode
+    stdout_text = "".join(stdout_chunks)
+    stderr_text = "".join(stderr_chunks)
+
+    if rc != 0:
+        _log_nonzero_exit(script_name, rc, stdout_text, stderr_text)
+    return (rc, stdout_text, stderr_text)
 
 
 class PipelineRunner:
@@ -1853,7 +1941,12 @@ class PipelineRunner:
             "--chunk-size",
             str(self.config.plm_chunk_size),
         ]
-        rc, stdout, stderr = run_script("run_plm_effector.py", args, timeout=14400)
+        rc, stdout, stderr = run_script(
+            "run_plm_effector.py",
+            args,
+            timeout=14400,
+            stream_stderr=True,
+        )
         if rc != 0:
             return StepResult(
                 "plm_effector",
