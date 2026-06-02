@@ -3001,3 +3001,95 @@ def run_cross_genome_orthologs(
         )
 
     return result
+
+
+def pool_enrichment_stats(per_genome_tsvs: list[str], output_tsv: str) -> int:
+    """Pool per-genome enrichment_stats.tsv outputs into one cross-genome view.
+
+    Aggregation policy:
+    - Per (broad_type, tool), sum M and k across genomes.
+    - Background ``p_bg`` is weighted-averaged by ``n_null`` across genomes.
+    - Re-run the binomial test on the pooled (k, M, p_bg); BH FDR across
+      all pooled (broad_type x tool) tests.
+
+    Per-system rows are genome-local (sys_ids don't recur across genomes)
+    so cross-genome pooling only happens at the broad-type aggregate
+    layer. When a genome has only one system of a given broad type, the
+    per-genome enrichment script skips emitting the duplicate broad_type
+    row -- pool falls back to that genome's single per-system row.
+
+    Returns the number of pooled rows written.
+    """
+    import csv
+    import sys as _sys
+
+    _scripts = os.path.join(os.path.dirname(__file__), "..", "scripts")
+    if _scripts not in _sys.path:
+        _sys.path.insert(0, _scripts)
+    from enrichment_testing import OUT_FIELDS, bh_fdr, binom_pvalue
+    from enrichment_testing import broad_type as _bt
+
+    # (broad_type, tool) -> {M, k, n_null, p_bg_x_n}
+    accum: dict[tuple[str, str], dict] = {}
+    for tsv in per_genome_tsvs:
+        if not tsv or not os.path.exists(tsv):
+            continue
+        # First pass through the genome's rows: pick one (broad_type, tool)
+        # contribution per genome -- prefer the broad_type aggregate when
+        # present, else fall back to the per-system row.
+        per_type_pref: dict[tuple[str, str], dict] = {}
+        with open(tsv) as f:
+            for row in csv.DictReader(f, delimiter="\t"):
+                tool = row.get("tool", "")
+                kind = row.get("scope_kind", "")
+                if kind == "broad_type":
+                    per_type_pref[(row.get("scope_id", ""), tool)] = row
+                elif kind == "system":
+                    key = (_bt(row.get("ss_type", "")), tool)
+                    per_type_pref.setdefault(key, row)
+        for (bt, tool), row in per_type_pref.items():
+            try:
+                M = int(row["M"])
+                k = int(row["k"])
+                p_bg = float(row["p_bg"])
+                n_null = int(row["n_null"])
+            except (KeyError, ValueError):
+                continue
+            slot = accum.setdefault((bt, tool), {"M": 0, "k": 0, "n_null": 0, "p_bg_x_n": 0.0})
+            slot["M"] += M
+            slot["k"] += k
+            slot["n_null"] += n_null
+            slot["p_bg_x_n"] += p_bg * n_null
+
+    pooled = []
+    for (bt, tool), s in accum.items():
+        if s["n_null"] <= 0 or s["M"] <= 0:
+            continue
+        p_bg_pool = s["p_bg_x_n"] / s["n_null"]
+        fold = round((s["k"] / s["M"]) / p_bg_pool, 4) if p_bg_pool > 0 else ""
+        pooled.append(
+            {
+                "scope_kind": "broad_type_pool",
+                "scope_id": bt,
+                "ss_type": bt,
+                "tool": tool,
+                "M": s["M"],
+                "k": s["k"],
+                "p_bg": round(p_bg_pool, 6),
+                "fold_enrich": fold,
+                "pvalue": round(binom_pvalue(s["k"], s["M"], p_bg_pool), 6),
+                "n_null": s["n_null"],
+            }
+        )
+
+    bh_fdr(pooled)
+
+    with open(output_tsv, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=OUT_FIELDS, delimiter="\t")
+        writer.writeheader()
+        for r in pooled:
+            r_out = dict(r)
+            r_out["sample_id"] = "POOLED"
+            writer.writerow(r_out)
+
+    return len(pooled)

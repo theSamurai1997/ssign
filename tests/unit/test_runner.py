@@ -893,3 +893,130 @@ class TestStepSampleNullProteins:
         result = r._step_sample_null_proteins()
         assert not result.success
         assert "missing" in result.message.lower()
+
+
+class TestPoolEnrichmentStats:
+    """Cross-genome pooling: sum M and k across genomes per (broad_type, tool),
+    weighted-average p_bg by n_null, re-run binomial test, BH FDR on pooled."""
+
+    def _write_per_genome_tsv(self, path, rows):
+        from ssign_app.scripts.enrichment_testing import OUT_FIELDS
+
+        with open(path, "w", newline="") as f:
+            import csv as _csv
+
+            writer = _csv.DictWriter(f, fieldnames=OUT_FIELDS, delimiter="\t")
+            writer.writeheader()
+            for r in rows:
+                writer.writerow(r)
+
+    def _row(self, **kwargs):
+        # Defaults match the OUT_FIELDS schema so the per-genome TSV is valid.
+        base = {
+            "sample_id": "g",
+            "scope_kind": "system",
+            "scope_id": "sys_1",
+            "ss_type": "T2SS",
+            "tool": "DLP",
+            "M": 5,
+            "k": 2,
+            "p_bg": 0.1,
+            "fold_enrich": 4.0,
+            "pvalue": 0.01,
+            "qvalue": 0.01,
+            "significant": True,
+            "n_null": 100,
+        }
+        base.update(kwargs)
+        return base
+
+    def test_sums_M_and_k_across_genomes(self, tmp_path):
+        from ssign_app.core.runner import pool_enrichment_stats
+
+        a = tmp_path / "a_enrichment_stats.tsv"
+        b = tmp_path / "b_enrichment_stats.tsv"
+        # Each genome: 1 T2SS system, single tool DLP row.
+        self._write_per_genome_tsv(a, [self._row(scope_kind="system", ss_type="T2SS", M=5, k=2, p_bg=0.1, n_null=100)])
+        self._write_per_genome_tsv(b, [self._row(scope_kind="system", ss_type="T2SS", M=10, k=4, p_bg=0.2, n_null=100)])
+
+        out = tmp_path / "pooled.tsv"
+        n = pool_enrichment_stats([str(a), str(b)], str(out))
+        assert n == 1  # one (broad_type, tool) row
+
+        import csv as _csv
+
+        rows = list(_csv.DictReader(open(out), delimiter="\t"))
+        assert len(rows) == 1
+        r = rows[0]
+        assert r["scope_kind"] == "broad_type_pool"
+        assert r["scope_id"] == "T2SS"
+        assert int(r["M"]) == 15
+        assert int(r["k"]) == 6
+        # Weighted p_bg: (100*0.1 + 100*0.2) / 200 = 0.15
+        assert abs(float(r["p_bg"]) - 0.15) < 1e-9
+
+    def test_prefers_broad_type_row_over_per_system(self, tmp_path):
+        from ssign_app.core.runner import pool_enrichment_stats
+
+        # Genome has 2 T2SS systems → per-genome script emitted both per-system
+        # rows AND the broad_type aggregate. Pool should use the aggregate.
+        tsv = tmp_path / "g_enrichment_stats.tsv"
+        rows_in = [
+            self._row(scope_kind="system", scope_id="s1", ss_type="T2SS", M=4, k=1, p_bg=0.1, n_null=100),
+            self._row(scope_kind="system", scope_id="s2", ss_type="T2SS", M=4, k=1, p_bg=0.1, n_null=100),
+            self._row(scope_kind="broad_type", scope_id="T2SS", ss_type="T2SS", M=7, k=2, p_bg=0.1, n_null=100),
+        ]
+        self._write_per_genome_tsv(tsv, rows_in)
+
+        out = tmp_path / "pooled.tsv"
+        pool_enrichment_stats([str(tsv)], str(out))
+
+        import csv as _csv
+
+        pooled = list(_csv.DictReader(open(out), delimiter="\t"))
+        # Only one pooled row (T2SS, DLP); M comes from the broad_type aggregate
+        # (which dedupes overlapping neighborhoods), not the sum of per-system.
+        assert len(pooled) == 1
+        assert int(pooled[0]["M"]) == 7
+        assert int(pooled[0]["k"]) == 2
+
+    def test_collapses_subtypes_to_broad_type(self, tmp_path):
+        from ssign_app.core.runner import pool_enrichment_stats
+
+        # T5aSS + T5bSS rows pool under T5SS.
+        a = tmp_path / "a_enrichment_stats.tsv"
+        b = tmp_path / "b_enrichment_stats.tsv"
+        self._write_per_genome_tsv(a, [self._row(scope_kind="system", ss_type="T5aSS", M=3, k=1, p_bg=0.1, n_null=100)])
+        self._write_per_genome_tsv(b, [self._row(scope_kind="system", ss_type="T5bSS", M=4, k=2, p_bg=0.1, n_null=100)])
+
+        out = tmp_path / "pooled.tsv"
+        pool_enrichment_stats([str(a), str(b)], str(out))
+
+        import csv as _csv
+
+        rows = list(_csv.DictReader(open(out), delimiter="\t"))
+        assert len(rows) == 1
+        assert rows[0]["scope_id"] == "T5SS"
+        assert int(rows[0]["M"]) == 7
+        assert int(rows[0]["k"]) == 3
+
+    def test_missing_input_file_skipped(self, tmp_path):
+        from ssign_app.core.runner import pool_enrichment_stats
+
+        present = tmp_path / "present.tsv"
+        self._write_per_genome_tsv(present, [self._row()])
+        missing = tmp_path / "does_not_exist.tsv"
+        out = tmp_path / "pooled.tsv"
+        n = pool_enrichment_stats([str(present), str(missing)], str(out))
+        assert n == 1  # missing file is silently skipped, present one still pools
+
+    def test_empty_inputs_writes_header_only(self, tmp_path):
+        from ssign_app.core.runner import pool_enrichment_stats
+
+        out = tmp_path / "pooled.tsv"
+        n = pool_enrichment_stats([], str(out))
+        assert n == 0
+        # File exists with just the header row
+        assert os.path.exists(out)
+        with open(out) as f:
+            assert len(f.readlines()) == 1

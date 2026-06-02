@@ -1861,6 +1861,25 @@ with tab_run:
             sample_names_run = [c.sample_id for c in genome_configs]
             _merge_genome_outputs(outdir_final, sample_names_run)
 
+            # ── Pool enrichment stats across genomes ──
+            # When --enrichment-stats is on and N_genomes > 1, gather every
+            # per-genome _enrichment_stats.tsv and emit a pooled view.
+            # Per-genome stats still live alongside it; pool is additive.
+            if len(sample_names_run) > 1 and any(c.enrichment_stats for c in genome_configs):
+                from ssign_app.core.runner import pool_enrichment_stats
+
+                per_genome_tsvs = [
+                    os.path.join(outdir_final, f"{sid}_enrichment_stats.tsv") for sid in sample_names_run
+                ]
+                per_genome_tsvs = [p for p in per_genome_tsvs if os.path.exists(p)]
+                if len(per_genome_tsvs) >= 2:
+                    pooled_path = os.path.join(outdir_final, "pooled_enrichment_stats.tsv")
+                    try:
+                        n_pooled = pool_enrichment_stats(per_genome_tsvs, pooled_path)
+                        print(f"[ssign] Wrote {n_pooled} pooled enrichment rows to {pooled_path}", flush=True)
+                    except Exception as e:
+                        st.warning(f"Could not pool enrichment stats across genomes: {e}")
+
             # Pipeline finished (success or partial) — clean up the staged
             # input tmpdir; the runner has copied everything it needs into
             # outdir / work_dir.
