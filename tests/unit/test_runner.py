@@ -810,3 +810,86 @@ class TestBuildRawCsv:
         assert "blastp__product" in df.columns
         assert df.iloc[0]["product"] == "gi_product_value"
         assert df.iloc[0]["blastp__product"] == "blastp_product_value"
+
+
+class TestStepSampleNullProteins:
+    """The null-sampling step runs `sample_null_proteins.py` and concatenates
+    its output FASTA with the neighborhood FASTA so DLP/DSE pick up both in
+    a single tool invocation. SignalP and PLM-Effector continue to read
+    `neighborhood_proteins`."""
+
+    def _setup(self, tmp_path):
+        # 15-protein two-contig fixture, mirrors conftest's two_contig_genes.
+        from ssign_app.scripts.ssign_lib.fasta_io import write_fasta
+
+        proteins = tmp_path / "proteins.faa"
+        seqs = {f"GENE_{i:04d}": "M" + ("A" * 30) for i in range(10)}
+        seqs.update({f"GENEB_{i:04d}": "M" + ("L" * 30) for i in range(5)})
+        write_fasta(seqs, proteins)
+
+        # 5 SS neighborhood proteins (a subset of the proteome -- the upstream
+        # extract_neighborhood step would write exactly these).
+        neighborhood = tmp_path / "neighborhood.faa"
+        write_fasta({f"GENE_{i:04d}": seqs[f"GENE_{i:04d}"] for i in range(2, 7)}, neighborhood)
+
+        gene_order = tmp_path / "gene_order.tsv"
+        with open(gene_order, "w") as f:
+            f.write("contig\tgene_index\tlocus_tag\n")
+            for i in range(10):
+                f.write(f"contig_A\t{i}\tGENE_{i:04d}\n")
+            for i in range(5):
+                f.write(f"contig_B\t{i}\tGENEB_{i:04d}\n")
+
+        ss_components = tmp_path / "ss_components.tsv"
+        with open(ss_components, "w") as f:
+            f.write("locus_tag\tss_type\n")
+            f.write("GENE_0004\tT2SS\n")
+            f.write("GENE_0005\tT2SS\n")
+
+        return proteins, neighborhood, gene_order, ss_components
+
+    def test_writes_three_files_and_concat_contains_both(self, tmp_path):
+        proteins, neighborhood, gene_order, ss_components = self._setup(tmp_path)
+
+        config = PipelineConfig(
+            outdir=str(tmp_path),
+            sample_id="t",
+            enrichment_stats=True,
+            n_null_proteins=3,
+            null_seed=42,
+            proximity_window=1,  # tight window to leave a large null pool
+        )
+        r = PipelineRunner(config)
+        r.work_dir = str(tmp_path)
+        r.files = {
+            "proteins": str(proteins),
+            "gene_order": str(gene_order),
+            "ss_components": str(ss_components),
+            "neighborhood_proteins": str(neighborhood),
+        }
+
+        result = r._step_sample_null_proteins()
+        assert result.success, result.message
+        assert "null_proteins_fasta" in r.files
+        assert "null_proteins_ids" in r.files
+        assert "dlp_dse_input" in r.files
+
+        # Concat must contain every neighborhood ID + every null ID, no duplicates
+        from ssign_app.scripts.ssign_lib.fasta_io import read_fasta as _rf
+
+        concat_ids = set(_rf(r.files["dlp_dse_input"]).keys())
+        neigh_ids = set(_rf(str(neighborhood)).keys())
+        null_ids = {line.strip() for line in open(r.files["null_proteins_ids"]) if line.strip()}
+        assert neigh_ids.issubset(concat_ids)
+        assert null_ids.issubset(concat_ids)
+        assert null_ids.isdisjoint(neigh_ids)
+        assert len(concat_ids) == len(neigh_ids) + len(null_ids)
+
+    def test_missing_upstream_files_returns_failure(self, tmp_path):
+        config = PipelineConfig(outdir=str(tmp_path), sample_id="t", enrichment_stats=True)
+        r = PipelineRunner(config)
+        r.work_dir = str(tmp_path)
+        r.files = {}  # nothing upstream
+        result = r._step_sample_null_proteins()
+        assert not result.success
+        assert "missing" in result.message.lower()

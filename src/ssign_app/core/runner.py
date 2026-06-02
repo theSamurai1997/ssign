@@ -763,8 +763,14 @@ class PipelineRunner:
             ("Running MacSyFinder", self._step_macsyfinder),
             ("Validating secretion systems", self._step_validate_systems),
             ("Extracting SS neighborhood", self._step_extract_neighborhood),
-            prediction_steps,  # PARALLEL: deeplocpro + deepsece + signalp
         ]
+        # Null sample for the enrichment binomial test (opt-in). Must run
+        # before the prediction group so its output FASTA flows into DLP +
+        # DSE in the same invocation. SignalP and PLM-Effector still read
+        # neighborhood_proteins (the null sample isn't routed to them).
+        if self.config.enrichment_stats:
+            stages.append(("Sampling null proteins for enrichment stats", self._step_sample_null_proteins))
+        stages.append(prediction_steps)  # PARALLEL: deeplocpro + deepsece + signalp
         # PLM-Effector runs sequentially AFTER the prediction parallel group:
         # it spawns subprocess-per-PLM internally (~6 GB peak), and on a
         # 32 GB allocation it must not share the budget with DLP/DSE/SignalP.
@@ -1382,16 +1388,84 @@ class PipelineRunner:
             return StepResult("extract_neighborhood", True, f"{n_neigh} neighborhood proteins")
         return StepResult("extract_neighborhood", False, stderr[:500])
 
+    def _step_sample_null_proteins(self) -> StepResult:
+        """Sample non-SS-neighborhood proteins for enrichment-stats background.
+
+        Inserted between extract_neighborhood and the prediction parallel
+        group when --enrichment-stats is on. Produces three artefacts:
+          - null_proteins.faa: N random non-neighborhood proteins
+          - null_protein_ids.tsv: their locus_tags (consumed by enrichment_testing)
+          - dlp_dse_input.faa: neighborhood + null concat, fed to DLP and DSE only
+        SignalP and PLM-Effector continue reading neighborhood_proteins, so the
+        null sample doesn't pay their per-protein cost.
+        """
+        proteins = self.files.get("proteins", "")
+        gene_order = self.files.get("gene_order", "")
+        ss_components = self.files.get("ss_components", "")
+        neighborhood_fasta = self.files.get("neighborhood_proteins", "")
+        if not (proteins and gene_order and ss_components and neighborhood_fasta):
+            return StepResult("sample_null_proteins", False, "Missing upstream files for null sampling")
+
+        null_fasta = self._wf(f"{self.config.sample_id}_null_proteins.faa")
+        null_ids = self._wf(f"{self.config.sample_id}_null_protein_ids.tsv")
+
+        rc, _stdout, stderr = run_script(
+            "sample_null_proteins.py",
+            [
+                "--proteins",
+                proteins,
+                "--gene-order",
+                gene_order,
+                "--ss-components",
+                ss_components,
+                "--window",
+                str(self.config.proximity_window),
+                "--n",
+                str(self.config.n_null_proteins),
+                "--seed",
+                str(self.config.null_seed),
+                "--out-fasta",
+                null_fasta,
+                "--out-ids",
+                null_ids,
+            ],
+        )
+        if rc != 0:
+            return StepResult("sample_null_proteins", False, stderr[:500])
+
+        # Concat neighborhood + null for DLP/DSE input. Each source already
+        # ends each record with a newline so a plain byte-level concat is safe.
+        concat = self._wf(f"{self.config.sample_id}_dlp_dse_input.faa")
+        with open(concat, "wb") as out:
+            for src in (neighborhood_fasta, null_fasta):
+                if os.path.exists(src) and os.path.getsize(src) > 0:
+                    with open(src, "rb") as f:
+                        out.write(f.read())
+
+        self.files["null_proteins_fasta"] = null_fasta
+        self.files["null_proteins_ids"] = null_ids
+        self.files["dlp_dse_input"] = concat
+
+        n_null = sum(1 for line in open(null_ids) if line.strip())
+        return StepResult("sample_null_proteins", True, f"Sampled {n_null} null proteins")
+
     # ── Phase 3: Prediction ──
 
     def _step_deeplocpro(self) -> StepResult:
         output = self._wf(f"{self.config.sample_id}_deeplocpro.tsv")
 
-        # Use neighborhood proteins (focused) unless whole-genome mode is on
+        # Use neighborhood proteins (focused) unless whole-genome mode is on.
+        # When --enrichment-stats is on, dlp_dse_input is the concat of the
+        # neighborhood + null sample so the null background gets predicted in
+        # the same tool invocation.
         if self.config.dlp_whole_genome:
             input_proteins = self.files.get("proteins", "")
         else:
-            input_proteins = self.files.get("neighborhood_proteins", self.files.get("proteins", ""))
+            input_proteins = (
+                self.files.get("dlp_dse_input")
+                or self.files.get("neighborhood_proteins")
+                or self.files.get("proteins", "")
+            )
 
         args = [
             "--input",
@@ -1434,10 +1508,16 @@ class PipelineRunner:
     def _step_deepsece(self) -> StepResult:
         output = self._wf(f"{self.config.sample_id}_deepsece.tsv")
 
+        # Mirrors _step_deeplocpro's enrichment-stats handling: prefer the
+        # concat (neighborhood + null) when --enrichment-stats is on.
         if self.config.dse_whole_genome:
             input_proteins = self.files.get("proteins", "")
         else:
-            input_proteins = self.files.get("neighborhood_proteins", self.files.get("proteins", ""))
+            input_proteins = (
+                self.files.get("dlp_dse_input")
+                or self.files.get("neighborhood_proteins")
+                or self.files.get("proteins", "")
+            )
 
         rc, stdout, stderr = run_script(
             "run_deepsece.py",
