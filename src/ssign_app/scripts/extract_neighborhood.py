@@ -17,7 +17,7 @@ from collections import defaultdict
 
 from Bio import SeqIO
 
-logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -25,11 +25,11 @@ def load_gene_order(path):
     """Load gene order TSV → dict of contig → [(position, locus_tag), ...]."""
     contigs = defaultdict(list)
     with open(path) as f:
-        reader = csv.DictReader(f, delimiter='\t')
+        reader = csv.DictReader(f, delimiter="\t")
         for row in reader:
-            contig = row.get('contig', row.get('replicon', ''))
-            locus = row.get('locus_tag', row.get('protein_id', ''))
-            pos = int(row.get('position', row.get('gene_index', 0)))
+            contig = row.get("contig", row.get("replicon", ""))
+            locus = row.get("locus_tag", row.get("protein_id", ""))
+            pos = int(row.get("position", row.get("gene_index", 0)))
             if contig and locus:
                 contigs[contig].append((pos, locus))
     # Sort by position
@@ -42,9 +42,9 @@ def load_ss_components(path):
     """Load SS components TSV → set of locus_tags."""
     components = set()
     with open(path) as f:
-        reader = csv.DictReader(f, delimiter='\t')
+        reader = csv.DictReader(f, delimiter="\t")
         for row in reader:
-            locus = row.get('locus_tag', row.get('protein_id', ''))
+            locus = row.get("locus_tag", row.get("protein_id", ""))
             if locus:
                 components.add(locus)
     return components
@@ -70,21 +70,13 @@ def get_neighborhood_proteins(gene_order, ss_components, window):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Extract neighborhood proteins around SS components"
-    )
-    parser.add_argument("--gene-order", required=True,
-                        help="Gene order TSV from extract_gene_order.py")
-    parser.add_argument("--ss-components", required=True,
-                        help="SS components TSV from validate_macsyfinder_systems.py")
-    parser.add_argument("--proteins", required=True,
-                        help="Full proteome FASTA")
-    parser.add_argument("--window", type=int, default=3,
-                        help="Proximity window (default: 3 genes)")
-    parser.add_argument("--output", required=True,
-                        help="Output FASTA with neighborhood proteins only")
-    parser.add_argument("--output-ids", default="",
-                        help="Optional: output file listing neighborhood protein IDs")
+    parser = argparse.ArgumentParser(description="Extract neighborhood proteins around SS components")
+    parser.add_argument("--gene-order", required=True, help="Gene order TSV from extract_gene_order.py")
+    parser.add_argument("--ss-components", required=True, help="SS components TSV from validate_macsyfinder_systems.py")
+    parser.add_argument("--proteins", required=True, help="Full proteome FASTA")
+    parser.add_argument("--window", type=int, default=3, help="Proximity window (default: 3 genes)")
+    parser.add_argument("--output", required=True, help="Output FASTA with neighborhood proteins only")
+    parser.add_argument("--output-ids", default="", help="Optional: output file listing neighborhood protein IDs")
     args = parser.parse_args()
 
     # Load data
@@ -93,12 +85,14 @@ def main():
 
     if not ss_components:
         logger.warning("No SS components found — outputting empty FASTA")
-        with open(args.output, 'w') as f:
+        with open(args.output, "w") as f:
             pass
+        if args.output_ids:
+            with open(args.output_ids, "w") as f:
+                pass
         return
 
-    logger.info(f"Loaded {sum(len(v) for v in gene_order.values())} genes "
-                f"across {len(gene_order)} contigs")
+    logger.info(f"Loaded {sum(len(v) for v in gene_order.values())} genes across {len(gene_order)} contigs")
     logger.info(f"Found {len(ss_components)} SS component proteins")
 
     # Get neighborhood
@@ -107,25 +101,25 @@ def main():
 
     # Extract sequences
     n_written = 0
-    with open(args.output, 'w') as out:
-        for rec in SeqIO.parse(args.proteins, 'fasta'):
+    with open(args.output, "w") as out:
+        for rec in SeqIO.parse(args.proteins, "fasta"):
             if rec.id in neighborhood:
-                SeqIO.write(rec, out, 'fasta')
+                SeqIO.write(rec, out, "fasta")
                 n_written += 1
 
     logger.info(f"Wrote {n_written} neighborhood proteins to {args.output}")
 
     # Optionally write ID list
     if args.output_ids:
-        with open(args.output_ids, 'w') as f:
+        with open(args.output_ids, "w") as f:
             for pid in sorted(neighborhood):
-                f.write(pid + '\n')
+                f.write(pid + "\n")
 
     # Summary
-    total_proteins = sum(1 for _ in SeqIO.parse(args.proteins, 'fasta'))
+    total_proteins = sum(1 for _ in SeqIO.parse(args.proteins, "fasta"))
     pct = 100 * n_written / max(total_proteins, 1)
     logger.info(f"Reduction: {total_proteins} → {n_written} proteins ({pct:.1f}% of proteome)")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

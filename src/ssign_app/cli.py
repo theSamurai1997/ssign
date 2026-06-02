@@ -169,6 +169,32 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
         help="SignalP min probability for a signal peptide (default: 0.5).",
     )
 
+    # ── Enrichment stats (opt-in) ───────────────────────────────────────
+    g = p.add_argument_group("enrichment stats")
+    g.add_argument(
+        "--enrichment-stats",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Sample random non-SS-neighborhood proteins, run DLP + DSE on them, "
+            "and use the resulting background rates for per-system binomial "
+            "enrichment tests (BH FDR). Replaces the legacy Fisher's-exact + "
+            "permutation analysis. Off by default."
+        ),
+    )
+    g.add_argument(
+        "--n-null-proteins",
+        type=int,
+        default=200,
+        help="Random non-neighborhood proteins to sample per genome (default: 200).",
+    )
+    g.add_argument(
+        "--null-seed",
+        type=int,
+        default=42,
+        help="RNG seed for null-protein sampling, for reproducibility (default: 42).",
+    )
+
     # ── Phase 1: ORF prediction / annotation ────────────────────────────
     g = p.add_argument_group("ORF prediction + annotation")
     g.add_argument(
@@ -458,6 +484,9 @@ def _config_from_args(args: argparse.Namespace) -> "PipelineConfig":
         "dlp_whole_genome": args.dlp_whole_genome,
         "dse_whole_genome": args.dse_whole_genome,
         "sp_whole_genome": args.sp_whole_genome,
+        "enrichment_stats": args.enrichment_stats,
+        "n_null_proteins": args.n_null_proteins,
+        "null_seed": args.null_seed,
         "skip_blastp": args.skip_blastp,
         "blastp_db": args.blastp_db,
         "blastp_exclude_taxid": args.blastp_exclude_taxid,

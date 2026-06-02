@@ -236,6 +236,19 @@ class PipelineConfig:
     dse_whole_genome: bool = False
     sp_whole_genome: bool = False
 
+    # --- Enrichment stats (opt-in) ------------------------------------------
+    # When True, sample a small random pool of non-SS-neighborhood proteins
+    # per genome and pipe them through DLP + DSE alongside the neighborhood.
+    # The null sample sets the genome-specific background rates `p_DLP` and
+    # `p_DSE`; per-system binomial tests against those rates replace the
+    # broken Fisher's-exact + dead permutation path in enrichment_testing.py.
+    # SignalP and PLM-Effector are deliberately not run on the null sample
+    # (too expensive for the marginal information gained — they're auxiliary
+    # evidence, not the test statistic).
+    enrichment_stats: bool = False
+    n_null_proteins: int = 200
+    null_seed: int = 42
+
     # Phase 5: Annotation tools
     skip_blastp: Optional[bool] = None
     blastp_db: str = ""
@@ -1342,6 +1355,7 @@ class PipelineRunner:
             return StepResult("extract_neighborhood", False, "No SS components from previous step")
 
         neighborhood_fasta = self._wf(f"{self.config.sample_id}_neighborhood.faa")
+        neighborhood_ids = self._wf(f"{self.config.sample_id}_neighborhood_ids.tsv")
 
         rc, stdout, stderr = run_script(
             "extract_neighborhood.py",
@@ -1356,11 +1370,14 @@ class PipelineRunner:
                 str(self.config.proximity_window),
                 "--output",
                 neighborhood_fasta,
+                "--output-ids",
+                neighborhood_ids,
             ],
         )
 
         if rc == 0:
             self.files["neighborhood_proteins"] = neighborhood_fasta
+            self.files["neighborhood_ids"] = neighborhood_ids
             n_neigh = sum(1 for line in open(neighborhood_fasta) if line.startswith(">"))
             return StepResult("extract_neighborhood", True, f"{n_neigh} neighborhood proteins")
         return StepResult("extract_neighborhood", False, stderr[:500])
