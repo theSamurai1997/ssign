@@ -2785,29 +2785,27 @@ class PipelineRunner:
         df.to_csv(output_path, index=False)
 
     def _build_summary(self, output_path: Path):
-        """Combine report text, enrichment summary, and Fisher results."""
+        """Combine report text + enrichment-stats table (when present)."""
         parts = []
 
-        # Report text
         if "report_txt" in self.files and os.path.exists(self.files["report_txt"]):
             with open(self.files["report_txt"]) as f:
                 parts.append(f.read())
 
-        # Enrichment summary
-        if "enrichment_summary" in self.files and os.path.exists(self.files["enrichment_summary"]):
-            with open(self.files["enrichment_summary"]) as f:
-                parts.append("\n\n" + "=" * 60 + "\nENRICHMENT ANALYSIS\n" + "=" * 60 + "\n\n" + f.read())
-
-        # Fisher results table
-        if "enrichment_fisher" in self.files and os.path.exists(self.files["enrichment_fisher"]):
+        if "enrichment_stats" in self.files and os.path.exists(self.files["enrichment_stats"]):
             try:
                 import pandas as pd
 
-                df = pd.read_csv(self.files["enrichment_fisher"])
+                df = pd.read_csv(self.files["enrichment_stats"], sep="\t")
                 if not df.empty:
                     parts.append(
-                        "\n\n" + "-" * 60 + "\n"
-                        "Fisher's Exact Test Results\n" + "-" * 60 + "\n\n" + df.to_string(index=False) + "\n"
+                        "\n\n"
+                        + "=" * 60
+                        + "\nENRICHMENT ANALYSIS\n"
+                        + "=" * 60
+                        + "\n\n"
+                        + df.to_string(index=False)
+                        + "\n"
                     )
             except Exception:
                 pass
