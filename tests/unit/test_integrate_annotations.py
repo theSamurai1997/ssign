@@ -318,3 +318,65 @@ class TestToolHitColumnsContract:
             "GBFF",
         }
         assert expected <= set(TOOL_HIT_COLUMNS)
+
+
+class TestT5QualityFlagSort:
+    """Rows with a non-empty t5_quality_flag must sort to the bottom of the
+    master CSV. Clean rows come first, then worst-flag-last: 'no_signalp'
+    before 'unclassified' before 'barrel_only' before 'omp_porin_no_at'.
+    """
+
+    def test_flagged_rows_pushed_to_bottom(self, monkeypatch, tmp_dir):
+        substrates_with_flag = [
+            {**_substrate("BAD_BARREL"), "t5_quality_flag": "barrel_only"},
+            {**_substrate("CLEAN_1"), "t5_quality_flag": ""},
+            {**_substrate("BAD_OMP"), "t5_quality_flag": "omp_porin_no_at"},
+            {**_substrate("CLEAN_2"), "t5_quality_flag": ""},
+            {**_substrate("BAD_NOSIG"), "t5_quality_flag": "no_signalp"},
+        ]
+        # Need to include the new column in fields to write the TSV.
+        sub_filtered = write_tsv(
+            os.path.join(tmp_dir, "substrates_filtered.tsv"),
+            SUBSTRATE_FIELDS + ["t5_quality_flag"],
+            substrates_with_flag,
+        )
+        sub_all = write_tsv(
+            os.path.join(tmp_dir, "substrates_all.tsv"),
+            SUBSTRATE_FIELDS + ["t5_quality_flag"],
+            substrates_with_flag,
+        )
+        out = os.path.join(tmp_dir, "master.csv")
+        run_script_main(
+            monkeypatch,
+            integrate_main,
+            [
+                "integrate_annotations",
+                "--substrates-filtered",
+                sub_filtered,
+                "--substrates-all",
+                sub_all,
+                "--sample",
+                "test_sample",
+                "--output",
+                out,
+            ],
+        )
+        df = pd.read_csv(out, keep_default_na=False)
+        # Clean rows come first in input order
+        assert df["locus_tag"].tolist() == [
+            "CLEAN_1",
+            "CLEAN_2",
+            "BAD_NOSIG",
+            "BAD_BARREL",
+            "BAD_OMP",
+        ]
+
+    def test_no_flag_column_leaves_order_untouched(self, monkeypatch, tmp_dir):
+        """When no t5_quality_flag column exists (e.g. a proximity-only run),
+        the sort is a no-op and input order is preserved."""
+        df = _run_integrate(
+            monkeypatch,
+            tmp_dir,
+            [_substrate("B"), _substrate("A"), _substrate("C")],
+        )
+        assert df["locus_tag"].tolist() == ["B", "A", "C"]

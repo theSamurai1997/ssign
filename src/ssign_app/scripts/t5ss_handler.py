@@ -2,8 +2,7 @@
 """Handle T5SS (Type V Secretion System) self-secreting autotransporters.
 
 T5aSS proteins ARE their own substrates (self-secreting). Each MacSyFinder
-T5aSS component is then classified by a geometric Pfam-domain filter that
-matches the published method (Reid et al., split_t5a_domains.py 2026):
+T5aSS component is classified by a geometric Pfam-domain filter:
 
     passenger_length = (barrel_start - LINKER_LENGTH) - (sp_end + 1) + 1
 
@@ -13,12 +12,21 @@ and ``LINKER_LENGTH`` (30 aa) is the alpha-helical linker between passenger
 and barrel. The HMM (PF03797 + the porin PF13505 for OMP discrimination) is
 bundled with the package at ``src/ssign_app/data/t5aSS/``.
 
-Classification (``domain_group`` column of the domains TSV):
-- Classical AT          — PF03797 + passenger >= 100 aa     → KEEP as substrate
-- Minimal passenger     — PF03797 + passenger 1-99 aa       → KEEP as substrate
-- Barrel-only           — PF03797 with passenger == 0 aa    → DROP (pseudogene fragment)
-- OMP/Porin (no AT barrel) — PF13505 only, no PF03797       → DROP (non-AT outer-membrane protein)
-- Unclassified-AT       — MacSyFinder called T5aSS but neither HMM hit       → KEEP (lenient)
+All five geometric classes are emitted as substrates. Lower-confidence ones
+carry a ``t5_quality_flag`` so users can see them but the master CSV sorts
+them to the bottom (see integrate_annotations.py).
+
+Classification (``domain_group``) and quality flag:
+- Classical AT          — PF03797, passenger >= 100 aa      → flag = ""
+- Minimal passenger     — PF03797, passenger 1-99 aa        → flag = ""
+- Barrel-only           — PF03797, passenger == 0 aa        → flag = "barrel_only"
+- OMP/Porin             — PF13505 only, no PF03797          → flag = "omp_porin_no_at"
+- Unclassified-AT       — MacSyFinder called T5aSS but neither HMM hit → flag = "unclassified"
+
+When SignalP returned no cleavage site, an additional ``no_signalp`` flag
+takes priority over a clean classification: T5SS substrates are Sec/Tat-
+dependent so a missing signal peptide is a strong "not secreted" signal,
+even if the geometry looks fine.
 """
 
 import argparse
@@ -35,10 +43,12 @@ _scripts_dir = _os.path.dirname(_os.path.abspath(__file__))
 if _scripts_dir not in _sys.path:
     _sys.path.insert(0, _scripts_dir)
 
-from ssign_lib.constants import LINKER_LENGTH, MIN_PASSENGER_LENGTH  # noqa: E402
+from ssign_lib.constants import (  # noqa: E402
+    LINKER_LENGTH,
+    MIN_PASSENGER_LENGTH,
+)
 
 BUNDLED_HMMS = {"PF03797": "PF03797.hmm", "PF13505": "PF13505.hmm"}
-DROP_GROUPS = {"Barrel-only", "OMP/Porin (no AT barrel)"}
 
 
 def _hmm_path(filename: str) -> str:
@@ -89,29 +99,42 @@ def scan_bundled_pfams(proteins_fasta: str) -> dict[str, dict[str, tuple[int, in
 def classify_t5a(
     pfam_hits: dict[str, tuple[int, int]],
     sp_end: int | None,
-) -> tuple[str, int]:
-    """Apply geometric classifier. Returns (domain_group, passenger_length).
+) -> tuple[str, int, str]:
+    """Apply geometric classifier. Returns (domain_group, passenger_length, quality_flag).
 
-    When SignalP gave no cleavage site, sp_end falls back to 1 so a real
-    autotransporter is kept rather than mis-dropped on a SignalP miss.
+    Quality flags surface the per-row caveat: empty for a clean call, otherwise
+    one of T5_QUALITY_FLAG_RANK's keys. Structural problems (no barrel, barrel-only) win
+    over a missing signal peptide; `no_signalp` flags an otherwise-clean call
+    where the Sec/Tat signal couldn't be detected. The passenger-length
+    estimate falls back to sp_end=1 only to keep the group label informative.
     """
     has_barrel = "PF03797" in pfam_hits
     has_porin = "PF13505" in pfam_hits
+    no_signalp = sp_end is None or sp_end <= 0
 
     if not has_barrel and has_porin:
-        return "OMP/Porin (no AT barrel)", 0
+        return "OMP/Porin (no AT barrel)", 0, "omp_porin_no_at"
     if not has_barrel:
-        return "Unclassified-AT", 0
+        return "Unclassified-AT", 0, "unclassified"
 
     barrel_start, _barrel_end = pfam_hits["PF03797"]
-    effective_sp_end = sp_end if (sp_end is not None and sp_end > 0) else 1
+    effective_sp_end = sp_end if not no_signalp else 1
     passenger_length = max(0, (barrel_start - LINKER_LENGTH) - (effective_sp_end + 1) + 1)
 
     if passenger_length >= MIN_PASSENGER_LENGTH:
-        return "Classical AT", passenger_length
-    if passenger_length >= 1:
-        return "Minimal passenger", passenger_length
-    return "Barrel-only", 0
+        group = "Classical AT"
+    elif passenger_length >= 1:
+        group = "Minimal passenger"
+    else:
+        group = "Barrel-only"
+
+    if group == "Barrel-only":
+        flag = "barrel_only"
+    elif no_signalp:
+        flag = "no_signalp"
+    else:
+        flag = ""
+    return group, passenger_length, flag
 
 
 def _parse_sp_end(raw: str) -> int | None:
@@ -159,9 +182,10 @@ def main():
         # Geometric filter only applies to T5aSS (T5bSS/T5cSS use their own
         # MacSyFinder profiles and don't fragment the same way).
         if ss_type == "T5aSS":
-            domain_group, passenger_length = classify_t5a(pfam_hits.get(locus, {}), sp_end)
+            domain_group, passenger_length, quality_flag = classify_t5a(pfam_hits.get(locus, {}), sp_end)
         else:
             domain_group, passenger_length = f"{ss_type}-component", 0
+            quality_flag = "no_signalp" if (sp_end is None or sp_end <= 0) else ""
 
         classifications.append(
             {
@@ -169,14 +193,12 @@ def main():
                 "sample_id": args.sample,
                 "ss_type": ss_type,
                 "domain_group": domain_group,
+                "t5_quality_flag": quality_flag,
                 "passenger_length": passenger_length,
                 "sp_end": sp_end if sp_end is not None else "",
                 "barrel_start": pfam_hits.get(locus, {}).get("PF03797", ("", ""))[0],
             }
         )
-
-        if domain_group in DROP_GROUPS:
-            continue
 
         try:
             dlp_prob = float(pred.get("dlp_extracellular_prob", pred.get("extracellular_prob", 0)))
@@ -189,6 +211,7 @@ def main():
                 "sample_id": args.sample,
                 "tool": "T5SS-self",
                 "nearby_ss_types": ss_type,
+                "t5_quality_flag": quality_flag,
                 "dlp_extracellular_prob": dlp_prob,
                 "predicted_localization": pred.get("predicted_localization", ""),
                 "dlp_max_localization": pred.get("dlp_max_localization", ""),
@@ -207,6 +230,7 @@ def main():
         "sample_id",
         "tool",
         "nearby_ss_types",
+        "t5_quality_flag",
         "dlp_extracellular_prob",
         "predicted_localization",
         "dlp_max_localization",
@@ -229,6 +253,7 @@ def main():
         "sample_id",
         "ss_type",
         "domain_group",
+        "t5_quality_flag",
         "passenger_length",
         "sp_end",
         "barrel_start",
@@ -239,12 +264,12 @@ def main():
         for c in classifications:
             writer.writerow(c)
 
-    n_dropped = sum(1 for c in classifications if c["domain_group"] in DROP_GROUPS)
+    n_flagged = sum(1 for s in substrates if s["t5_quality_flag"])
     logger.info(
-        "Found %d T5SS self-substrates in %s (dropped %d as barrel-only/OMP)",
+        "Found %d T5SS self-substrates in %s (%d flagged: barrel-only / OMP / unclassified / no-signalp)",
         len(substrates),
         args.sample,
-        n_dropped,
+        n_flagged,
     )
 
 

@@ -70,6 +70,17 @@ MAP_GBFF_BAKTA_MIN_OVERLAP = 0.8
 MIN_PASSENGER_LENGTH = 100  # aa — below this = "minimal passenger"
 LINKER_LENGTH = 30  # aa — alpha-helix linker between passenger and barrel
 
+# Per-row quality flags emitted by t5ss_handler.py, ordered worst → best.
+# Lower numbers in T5_QUALITY_FLAG_RANK sort toward the top of the master CSV;
+# missing or empty flag = clean call, ranked 0.
+T5_QUALITY_FLAG_RANK = {
+    "": 0,
+    "no_signalp": 1,
+    "unclassified": 2,
+    "barrel_only": 3,
+    "omp_porin_no_at": 4,
+}
+
 # --- System filtering ---
 DEFAULT_EXCLUDED_SYSTEMS = ["Flagellum", "Tad", "T3SS"]
 

@@ -11,7 +11,7 @@ import argparse
 import csv
 import logging
 
-logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -24,38 +24,45 @@ def main():
     parser.add_argument("--sample", required=True)
     parser.add_argument("--excluded-systems", default="Flagellum,Tad,T3SS")
     parser.add_argument("--required-fraction-correct", type=float, default=0.8)
-    parser.add_argument("--filter-dse-type-mismatch", action="store_true",
-                        help="Remove DSE-only substrates where DSE predicted type "
-                             "doesn't match nearby MacSyFinder system type")
+    parser.add_argument(
+        "--filter-dse-type-mismatch",
+        action="store_true",
+        help="Remove DSE-only substrates where DSE predicted type doesn't match nearby MacSyFinder system type",
+    )
     parser.add_argument("--out-filtered", required=True)
     parser.add_argument("--out-all", required=True)
     args = parser.parse_args()
 
-    excluded = set(s.strip() for s in args.excluded_systems.split(',') if s.strip())
+    excluded = set(s.strip() for s in args.excluded_systems.split(",") if s.strip())
 
     # Load proximity substrates
     substrates = []
     with open(args.proximity_substrates) as f:
-        for row in csv.DictReader(f, delimiter='\t'):
-            row['substrate_source'] = 'proximity'
+        for row in csv.DictReader(f, delimiter="\t"):
+            row["substrate_source"] = "proximity"
             substrates.append(row)
 
     # Load T5SS substrates
     with open(args.t5ss_substrates) as f:
-        for row in csv.DictReader(f, delimiter='\t'):
-            row['substrate_source'] = 'T5SS-self'
+        for row in csv.DictReader(f, delimiter="\t"):
+            row["substrate_source"] = "T5SS-self"
             substrates.append(row)
 
-    # Write unfiltered (all substrates before exclusion)
+    # Write unfiltered (all substrates before exclusion). Union keys across
+    # every row — proximity rows and T5SS-self rows carry different columns
+    # (T5SS-self has t5_quality_flag, proximity has plm_effector_* etc.) and
+    # taking substrates[0].keys() would silently drop one side's columns.
     if substrates:
-        fieldnames = list(substrates[0].keys())
+        seen: dict[str, None] = {}
+        for s in substrates:
+            for k in s:
+                seen.setdefault(k, None)
+        fieldnames = list(seen)
     else:
-        fieldnames = ['locus_tag', 'sample_id', 'tool', 'nearby_ss_types',
-                      'substrate_source']
+        fieldnames = ["locus_tag", "sample_id", "tool", "nearby_ss_types", "substrate_source"]
 
-    with open(args.out_all, 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter='\t',
-                                extrasaction='ignore')
+    with open(args.out_all, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter="\t", extrasaction="ignore")
         writer.writeheader()
         for s in substrates:
             writer.writerow(s)
@@ -65,23 +72,23 @@ def main():
     filtered = []
     n_dse_mismatch_removed = 0
     for s in substrates:
-        ss_types = set(s.get('nearby_ss_types', '').split(','))
-        ss_types.discard('')
+        ss_types = set(s.get("nearby_ss_types", "").split(","))
+        ss_types.discard("")
 
         # Keep if any non-excluded SS type is associated
         non_excluded = ss_types - excluded
-        if non_excluded or s.get('substrate_source') == 'T5SS-self':
+        if non_excluded or s.get("substrate_source") == "T5SS-self":
             # Update nearby_ss_types to only show non-excluded
             if non_excluded:
-                s['nearby_ss_types'] = ','.join(sorted(non_excluded))
+                s["nearby_ss_types"] = ",".join(sorted(non_excluded))
 
             # DSE type-match filter: for DSE-only substrates, check if
             # DSE predicted type matches the nearby MacSyFinder system
             if args.filter_dse_type_mismatch:
-                tool = s.get('tool', '')
-                dse_match = s.get('dse_type_match', 'True')
+                tool = s.get("tool", "")
+                dse_match = s.get("dse_type_match", "True")
                 # Only filter DSE-only substrates (not DLP or DLP+DSE)
-                if tool == 'DSE' and str(dse_match).lower() in ('false', '0', ''):
+                if tool == "DSE" and str(dse_match).lower() in ("false", "0", ""):
                     n_dse_mismatch_removed += 1
                     continue
 
@@ -93,18 +100,16 @@ def main():
             f"where predicted SS type didn't match nearby MacSyFinder system"
         )
 
-    with open(args.out_filtered, 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter='\t',
-                                extrasaction='ignore')
+    with open(args.out_filtered, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter="\t", extrasaction="ignore")
         writer.writeheader()
         for s in filtered:
             writer.writerow(s)
 
     logger.info(
-        f"{args.sample}: {len(substrates)} total substrates, "
-        f"{len(filtered)} after filtering (excluded: {excluded})"
+        f"{args.sample}: {len(substrates)} total substrates, {len(filtered)} after filtering (excluded: {excluded})"
     )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

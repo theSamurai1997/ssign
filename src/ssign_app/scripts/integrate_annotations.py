@@ -178,6 +178,22 @@ def main():
     # Compute annotation consensus across tools
     df = _compute_consensus(df)
 
+    # Sort T5 flagged rows to the bottom: clean substrates first, then flagged
+    # ones in worst → best order. The rank dict lives in ssign_lib.constants
+    # alongside the rest of the T5 thresholds so handler + integrator share
+    # one source of truth. Stable sort preserves upstream within-group order.
+    if "t5_quality_flag" in df.columns:
+        import os as _os
+        import sys as _sys
+
+        _here = _os.path.dirname(_os.path.abspath(__file__))
+        if _here not in _sys.path:
+            _sys.path.insert(0, _here)
+        from ssign_lib.constants import T5_QUALITY_FLAG_RANK
+
+        df["_t5_sort_rank"] = df["t5_quality_flag"].fillna("").map(T5_QUALITY_FLAG_RANK).fillna(0).astype(int)
+        df = df.sort_values("_t5_sort_rank", kind="stable").drop(columns="_t5_sort_rank").reset_index(drop=True)
+
     # Write output
     df.to_csv(args.output, index=False)
     logger.info(f"Wrote {len(df)} rows x {len(df.columns)} columns to {args.output}")

@@ -5,16 +5,22 @@ Pin: only ss_type values starting with "T5" are picked up; non-T5
 components are ignored; predictions are looked up by locus_tag and merged
 in; the substrate output tags everything with tool="T5SS-self".
 
-Geometric Pfam filter (applies to T5aSS only):
-- PF03797 + passenger >= 100aa → Classical AT       → KEEP
-- PF03797 + passenger 1-99aa   → Minimal passenger  → KEEP
-- PF03797 + passenger == 0     → Barrel-only        → DROP
-- PF13505 only, no PF03797     → OMP/Porin          → DROP
-- Neither HMM hit              → Unclassified-AT    → KEEP (lenient)
+Geometric Pfam filter (applies to T5aSS only). Every class is KEPT as a
+substrate; lower-confidence ones carry a t5_quality_flag so the master CSV
+can sort them to the bottom:
+
+- PF03797 + passenger >= 100aa → Classical AT       flag = ""
+- PF03797 + passenger 1-99aa   → Minimal passenger  flag = ""
+- PF03797 + passenger == 0     → Barrel-only        flag = "barrel_only"
+- PF13505 only, no PF03797     → OMP/Porin          flag = "omp_porin_no_at"
+- Neither HMM hit              → Unclassified-AT    flag = "unclassified"
+
+When SignalP returned no cleavage site, an otherwise-clean call gets
+flag = "no_signalp" instead of "" — T5SS substrates are Sec/Tat-dependent
+so the missing SP is informative.
 
 Wrapper-level tests use placeholder protein sequences that don't hit either
-HMM, so every T5aSS component falls through to "Unclassified-AT" and is kept.
-The keep/drop branches are exercised via direct calls to ``classify_t5a``.
+HMM, so every T5aSS component falls through to "Unclassified-AT".
 """
 
 import os
@@ -82,61 +88,78 @@ def _run_t5ss(monkeypatch, tmp_dir, components, predictions, pfam_hits=None):
 
 def test_classify_classical_at():
     """PF03797 at residue 1300, signal peptide ends at 22 → passenger ~1247 aa."""
-    group, length = classify_t5a({"PF03797": (1300, 1500)}, sp_end=22)
+    group, length, flag = classify_t5a({"PF03797": (1300, 1500)}, sp_end=22)
     assert group == "Classical AT"
     assert length >= 1247
+    assert flag == ""
 
 
 def test_classify_minimal_passenger():
     """PF03797 at residue 100, SP ends at 22 → passenger 23-69 = 47 aa."""
-    group, length = classify_t5a({"PF03797": (100, 350)}, sp_end=22)
+    group, length, flag = classify_t5a({"PF03797": (100, 350)}, sp_end=22)
     assert group == "Minimal passenger"
     assert 1 <= length < 100
+    assert flag == ""
 
 
 def test_classify_barrel_only():
-    """PF03797 at residue 30, SP ends at 22 → passenger ~0 → barrel-only."""
-    group, length = classify_t5a({"PF03797": (30, 280)}, sp_end=22)
+    """PF03797 at residue 30, SP ends at 22 → passenger ~0 → barrel-only (kept, flagged)."""
+    group, length, flag = classify_t5a({"PF03797": (30, 280)}, sp_end=22)
     assert group == "Barrel-only"
     assert length == 0
+    assert flag == "barrel_only"
 
 
 def test_classify_omp_porin():
-    """PF13505 hit but no PF03797 → OMP/Porin, dropped."""
-    group, length = classify_t5a({"PF13505": (10, 200)}, sp_end=22)
+    """PF13505 hit but no PF03797 → OMP/Porin (kept, flagged)."""
+    group, length, flag = classify_t5a({"PF13505": (10, 200)}, sp_end=22)
     assert group == "OMP/Porin (no AT barrel)"
     assert length == 0
+    assert flag == "omp_porin_no_at"
 
 
 def test_classify_unclassified_when_no_hmm_hit():
-    """No HMM hits → lenient default keeps the protein for downstream review."""
-    group, length = classify_t5a({}, sp_end=22)
+    """No HMM hits → lenient default keeps the protein with an 'unclassified' flag."""
+    group, length, flag = classify_t5a({}, sp_end=22)
     assert group == "Unclassified-AT"
     assert length == 0
+    assert flag == "unclassified"
 
 
-def test_classify_missing_signalp_uses_position_1():
-    """A real AT with SignalP miss → passenger computed from position 1.
+def test_classify_missing_signalp_flags_no_signalp():
+    """A real AT with SignalP miss → kept, but flagged 'no_signalp'.
 
-    The lenient default protects against false-negatives when SignalP fails:
-    barrel at 1300 → passenger ~= 1300 - 30 - 1 - 1 = 1268 → Classical AT.
+    T5SS substrates are Sec/Tat-dependent so a missing signal peptide is
+    informative even when the geometry looks fine: barrel at 1300 with
+    sp_end=None → Classical AT geometry, flag='no_signalp'.
     """
-    group, length = classify_t5a({"PF03797": (1300, 1500)}, sp_end=None)
+    group, length, flag = classify_t5a({"PF03797": (1300, 1500)}, sp_end=None)
     assert group == "Classical AT"
     assert length >= 1265
+    assert flag == "no_signalp"
+
+
+def test_classify_barrel_only_wins_over_no_signalp():
+    """Structural problem (barrel-only) takes priority over missing SignalP."""
+    group, length, flag = classify_t5a({"PF03797": (30, 280)}, sp_end=None)
+    assert group == "Barrel-only"
+    assert length == 0
+    assert flag == "barrel_only"
 
 
 def test_passenger_length_at_threshold():
     """Boundary check: passenger of exactly MIN_PASSENGER_LENGTH (100) is Classical."""
     # passenger_length = (barrel_start - 30) - (sp_end + 1) + 1
     # = (152 - 30) - (22 + 1) + 1 = 100 → exactly at threshold
-    group, length = classify_t5a({"PF03797": (152, 400)}, sp_end=22)
+    group, length, flag = classify_t5a({"PF03797": (152, 400)}, sp_end=22)
     assert group == "Classical AT"
     assert length == 100
+    assert flag == ""
     # One residue shorter → Minimal
-    group2, length2 = classify_t5a({"PF03797": (151, 400)}, sp_end=22)
+    group2, length2, flag2 = classify_t5a({"PF03797": (151, 400)}, sp_end=22)
     assert group2 == "Minimal passenger"
     assert length2 == 99
+    assert flag2 == ""
 
 
 # --- _parse_sp_end --------------------------------------------------------
@@ -266,26 +289,86 @@ def test_domain_output_records_classification(monkeypatch, tmp_dir):
     assert by_locus["T5a_1"]["ss_type"] == "T5aSS"
 
 
-def test_wrapper_drops_barrel_only_entries(monkeypatch, tmp_dir):
-    """Inject a PF03797 hit at residue 30 (passenger=0) → Barrel-only → drop.
-    Inject one at residue 1300 (passenger>>100) → Classical AT → keep."""
+def _pred_with_sp(locus, **kwargs):
+    """make_prediction_row helper that fills in a real SignalP cleavage site.
+
+    The default make_prediction_row leaves signalp_cs_position empty (SignalP
+    miss), which the new T5 handler flags as 'no_signalp'. Tests that want to
+    exercise non-SP branches must set it explicitly.
+    """
+    row = make_prediction_row(locus, **kwargs)
+    row["signalp_cs_position"] = "22"
+    return row
+
+
+def test_wrapper_keeps_barrel_only_with_flag(monkeypatch, tmp_dir):
+    """Both barrel-only and Classical AT components are kept as substrates;
+    barrel-only carries t5_quality_flag='barrel_only' so downstream sorting
+    can push it to the bottom of the master CSV."""
     substrates, domains = _run_t5ss(
         monkeypatch,
         tmp_dir,
         [
-            make_ss_component_row("KEEP_1", "T5aSS"),
-            make_ss_component_row("DROP_1", "T5aSS"),
+            make_ss_component_row("CLEAN_1", "T5aSS"),
+            make_ss_component_row("BARREL_1", "T5aSS"),
         ],
-        [make_prediction_row(loc, dlp_ext=0.9) for loc in ["KEEP_1", "DROP_1"]],
+        [_pred_with_sp(loc, dlp_ext=0.9) for loc in ["CLEAN_1", "BARREL_1"]],
         pfam_hits={
-            "KEEP_1": {"PF03797": (1300, 1555)},
-            "DROP_1": {"PF03797": (30, 285)},
+            "CLEAN_1": {"PF03797": (1300, 1555)},
+            "BARREL_1": {"PF03797": (30, 285)},
         },
     )
-    assert {r["locus_tag"] for r in substrates} == {"KEEP_1"}
-    by_locus = {r["locus_tag"]: r for r in domains}
-    assert by_locus["KEEP_1"]["domain_group"] == "Classical AT"
-    assert by_locus["DROP_1"]["domain_group"] == "Barrel-only"
+    by_locus_sub = {r["locus_tag"]: r for r in substrates}
+    assert set(by_locus_sub) == {"CLEAN_1", "BARREL_1"}
+    assert by_locus_sub["CLEAN_1"]["t5_quality_flag"] == ""
+    assert by_locus_sub["BARREL_1"]["t5_quality_flag"] == "barrel_only"
+    by_locus_dom = {r["locus_tag"]: r for r in domains}
+    assert by_locus_dom["CLEAN_1"]["domain_group"] == "Classical AT"
+    assert by_locus_dom["BARREL_1"]["domain_group"] == "Barrel-only"
+
+
+def test_wrapper_keeps_omp_porin_with_flag(monkeypatch, tmp_dir):
+    """PF13505-only hit → kept with t5_quality_flag='omp_porin_no_at'.
+
+    OMP/Porin and Unclassified flags take priority over a missing SP because
+    the structural signal is the stronger one.
+    """
+    substrates, _ = _run_t5ss(
+        monkeypatch,
+        tmp_dir,
+        [make_ss_component_row("OMP_1", "T5aSS")],
+        [_pred_with_sp("OMP_1", dlp_ext=0.9)],
+        pfam_hits={"OMP_1": {"PF13505": (10, 200)}},
+    )
+    assert {r["locus_tag"] for r in substrates} == {"OMP_1"}
+    assert substrates[0]["t5_quality_flag"] == "omp_porin_no_at"
+
+
+def test_wrapper_flags_missing_signalp_for_clean_at(monkeypatch, tmp_dir):
+    """Classical-AT geometry + SignalP miss → flag='no_signalp', kept."""
+    pred = make_prediction_row("AT_1", dlp_ext=0.9)
+    pred["signalp_cs_position"] = ""  # SignalP missed
+    substrates, _ = _run_t5ss(
+        monkeypatch,
+        tmp_dir,
+        [make_ss_component_row("AT_1", "T5aSS")],
+        [pred],
+        pfam_hits={"AT_1": {"PF03797": (1300, 1555)}},
+    )
+    assert substrates[0]["t5_quality_flag"] == "no_signalp"
+
+
+def test_wrapper_flags_missing_signalp_for_t5b_components(monkeypatch, tmp_dir):
+    """T5bSS/T5cSS bypass the geometric filter but still get no_signalp flagged."""
+    pred = make_prediction_row("T5b_1", dlp_ext=0.9)
+    pred["signalp_cs_position"] = ""
+    substrates, _ = _run_t5ss(
+        monkeypatch,
+        tmp_dir,
+        [make_ss_component_row("T5b_1", "T5bSS")],
+        [pred],
+    )
+    assert substrates[0]["t5_quality_flag"] == "no_signalp"
 
 
 def test_no_t5_components_writes_empty_outputs(monkeypatch, tmp_dir):

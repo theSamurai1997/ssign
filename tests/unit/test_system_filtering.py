@@ -223,6 +223,57 @@ class TestDseTypeMismatchFilter:
         assert {r["locus_tag"] for r in filtered} == {"X"}
 
 
+class TestFieldnamesUnion:
+    """T5SS-self substrates carry t5_quality_flag; proximity substrates don't.
+
+    The merged output must include columns from BOTH sources — otherwise
+    whichever schema appears first wins and the other side's columns are
+    silently dropped.
+    """
+
+    def test_union_of_keys_preserves_t5_only_column(self, monkeypatch, tmp_dir):
+        # Proximity row uses the standard schema; T5 row has an extra column.
+        proximity_path = os.path.join(tmp_dir, "proximity.tsv")
+        t5ss_path = os.path.join(tmp_dir, "t5ss.tsv")
+        write_tsv(proximity_path, SUBSTRATE_FIELDS, [_make_substrate("PROX_1")])
+        write_tsv(
+            t5ss_path,
+            SUBSTRATE_FIELDS + ["t5_quality_flag"],
+            [{**_make_substrate("T5SS_1"), "t5_quality_flag": "barrel_only"}],
+        )
+        valid = write_tsv(os.path.join(tmp_dir, "valid.tsv"), _VALID_SYSTEMS_FIELDS, [])
+        predictions = write_tsv(os.path.join(tmp_dir, "preds.tsv"), _PREDICTIONS_FIELDS, [])
+        out_filtered = os.path.join(tmp_dir, "filtered.tsv")
+        out_all = os.path.join(tmp_dir, "all.tsv")
+        run_script_main(
+            monkeypatch,
+            system_filtering_main,
+            [
+                "system_filtering",
+                "--proximity-substrates",
+                proximity_path,
+                "--t5ss-substrates",
+                t5ss_path,
+                "--valid-systems",
+                valid,
+                "--predictions",
+                predictions,
+                "--sample",
+                "test_sample",
+                "--out-filtered",
+                out_filtered,
+                "--out-all",
+                out_all,
+            ],
+        )
+        all_rows = read_tsv_rows(out_all)
+        by_locus = {r["locus_tag"]: r for r in all_rows}
+        assert "t5_quality_flag" in by_locus["T5SS_1"]
+        assert by_locus["T5SS_1"]["t5_quality_flag"] == "barrel_only"
+        # Proximity row doesn't have the column populated but the column exists
+        assert by_locus["PROX_1"].get("t5_quality_flag", "") == ""
+
+
 class TestEmptyInputs:
     def test_no_substrates_writes_header_only(self, monkeypatch, tmp_dir):
         filtered, all_rows = _run_filter(monkeypatch, tmp_dir, [])
