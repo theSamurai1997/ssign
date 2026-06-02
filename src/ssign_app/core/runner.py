@@ -2199,35 +2199,57 @@ class PipelineRunner:
         return StepResult("orthologs", False, stderr[:500])
 
     def _step_enrichment(self) -> StepResult:
-        """Run enrichment testing (Fisher's exact + permutation)."""
-        integrated = self.files.get("integrated", "")
-        if not integrated or not os.path.exists(integrated):
-            return StepResult("enrichment", False, "No integrated CSV — skipping enrichment")
+        """Per-system + per-broad-type binomial enrichment test.
 
-        out_fisher = self._wf(f"{self.config.sample_id}_enrichment_fisher.csv")
-        out_perm = self._wf(f"{self.config.sample_id}_enrichment_permutation.csv")
-        out_summary = self._wf(f"{self.config.sample_id}_enrichment_summary.txt")
+        Opt-in: only runs when --enrichment-stats is on (the null sample
+        produced by _step_sample_null_proteins is required to estimate
+        the genome's background DLP/DSE positive rates).
+        """
+        if not self.config.enrichment_stats:
+            return StepResult("enrichment", True, "Skipped (--enrichment-stats not set)")
 
-        rc, stdout, stderr = run_script(
+        ss_components = self.files.get("ss_components", "")
+        gene_order = self.files.get("gene_order", "")
+        dlp = self.files.get("deeplocpro", "")
+        dse = self.files.get("deepsece", "")
+        null_ids = self.files.get("null_proteins_ids", "")
+        for name, path in (
+            ("ss_components", ss_components),
+            ("gene_order", gene_order),
+            ("dlp", dlp),
+            ("dse", dse),
+            ("null_ids", null_ids),
+        ):
+            if not path or not os.path.exists(path):
+                return StepResult("enrichment", False, f"Missing upstream file for enrichment: {name}")
+
+        out = self._wf(f"{self.config.sample_id}_enrichment_stats.tsv")
+        rc, _stdout, stderr = run_script(
             "enrichment_testing.py",
             [
-                "--integrated-csv",
-                integrated,
-                "--n-permutations",
-                "10000",
-                "--out-fisher",
-                out_fisher,
-                "--out-permutation",
-                out_perm,
-                "--out-summary",
-                out_summary,
+                "--ss-components",
+                ss_components,
+                "--gene-order",
+                gene_order,
+                "--dlp",
+                dlp,
+                "--dse",
+                dse,
+                "--null-ids",
+                null_ids,
+                "--window",
+                str(self.config.proximity_window),
+                "--conf-threshold",
+                str(self.config.conf_threshold),
+                "--sample",
+                self.config.sample_id,
+                "--out",
+                out,
             ],
         )
 
         if rc == 0:
-            self.files["enrichment_fisher"] = out_fisher
-            self.files["enrichment_perm"] = out_perm
-            self.files["enrichment_summary"] = out_summary
+            self.files["enrichment_stats"] = out
             return StepResult("enrichment", True, "Enrichment analysis complete")
         return StepResult("enrichment", False, stderr[:500])
 
