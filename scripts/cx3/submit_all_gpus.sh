@@ -42,7 +42,13 @@ else
                 # "down,offline". Any "down"/"offline"/"stale"/
                 # "state-unknown" marker means jobs sent there won't
                 # start; treat the gpu_type as unusable in that case.
-                if (gpu != "" && state != "" && state !~ /down|offline|stale|state-unknown/)
+                #
+                # gpu_type=="None" is CX3 shorthand for "no GPU on this
+                # node" (CPU-only partitions still advertise the slot).
+                # Drop it — submitting `gpu_type=None` either gets
+                # rejected or, worse, lands you on a node with no GPU.
+                if (gpu != "" && gpu != "None" && state != "" \
+                    && state !~ /down|offline|stale|state-unknown/)
                     print gpu;
                 gpu = ""; state = "";
             }
