@@ -9,7 +9,13 @@ Tracks items skipped during tasks. One bullet per item: what, why, trigger to re
 ## PLM-Effector performance
 
 - **Ensemble model checkpoint cache** (task #16). `run_ensemble` now called 85× instead of 5×; re-reads ~150 MB of small files per call. Page cache makes real cost ~150 MB total, so lower priority than the raw number suggests. Revisit: if PLM-E step wallclock is still the long pole after `0445d94` cross-type caching is validated.
-- **FP16/BF16 + `--batch-size 32`**. Could drop PLM-E ~74m → ~12-15m. Needs validation that FP16 doesn't shift predictions. A40 has 48 GB VRAM, room to grow batch size. Either alone gives ~2×; combined ~5×. Revisit: after cross-type caching speedup is confirmed and we have a baseline to compare against.
+- **FP16/BF16 + `--batch-size 32`**. Could drop PLM-E ~74m → ~12-15m on whole-genome runs. Needs validation that FP16 doesn't shift predictions. Now low priority: PLM-E runs on the SS neighborhood (~128 proteins) by default, so absolute wallclock is small. Only revisit if `--plme-whole-genome` becomes a common workflow.
+
+## CX3 install fixes (user actions still needed before next tier-2 run)
+
+- `source ~/blastp_t5a/ssign/.venv/bin/activate && pip install --no-deps eggnog-mapper`
+- `git clone https://github.com/labstructbioinf/pLM-BLAST.git ~/tools/pLM-BLAST && export SSIGN_PLMBLAST_SCRIPT=~/tools/pLM-BLAST/scripts/plmblast.py` (add the export to `~/.bashrc` AND the PBS script).
+- Runner now hard-fails at pre-flight if either is missing for an enabled step, so a missed install no longer wastes ~1h of HPC time.
 
 ## Torch.load safety
 

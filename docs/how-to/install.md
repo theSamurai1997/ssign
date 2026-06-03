@@ -144,6 +144,22 @@ practice; bioconda relies on the same:
 pip install --no-deps eggnog-mapper
 ```
 
+Verify the install:
+
+```bash
+which emapper.py
+emapper.py --version
+```
+
+> **HPC users (Imperial CX3 and similar):** ssign's bundled `bakta-deps`
+> conda env does **not** ship eggnog-mapper. Either install it into your
+> active ssign venv (the `pip install --no-deps` line above), or install
+> it into `bakta-deps` explicitly with
+> `conda install -n bakta-deps -c bioconda eggnog-mapper` so the runner's
+> auto-discovery picks it up. ssign now hard-fails at pre-flight if
+> `emapper.py` is missing and `--skip-eggnog` is not set, so a missing
+> install no longer wastes a 1-hour PBS allocation.
+
 Fetch the database (~25 GB extracted):
 
 ```bash
@@ -285,6 +301,20 @@ clone the upstream repo and point ssign at `plmblast.py`:
 git clone https://github.com/labstructbioinf/pLM-BLAST.git ~/pLM-BLAST
 export SSIGN_PLMBLAST_SCRIPT=~/pLM-BLAST/scripts/plmblast.py
 ```
+
+Verify the install:
+
+```bash
+test -f "$SSIGN_PLMBLAST_SCRIPT" && echo OK || echo NOT FOUND
+test -f "$(dirname "$(dirname "$SSIGN_PLMBLAST_SCRIPT")")/embeddings.py" && echo OK || echo NOT FOUND
+```
+
+> **HPC / persistent shells:** add the `export SSIGN_PLMBLAST_SCRIPT=...`
+> line to `~/.bashrc` (or the equivalent for your shell) AND to any PBS /
+> SLURM batch script that runs ssign. The variable does not survive
+> across new login shells unless persisted. ssign now hard-fails at
+> pre-flight if both the env var and the PATH entry are missing, so a
+> missing install no longer wastes hours of job time.
 
 Pre-built ECOD70 database (~21 GB compressed, ~24 GB extracted):
 
