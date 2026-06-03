@@ -72,14 +72,31 @@ LINKER_LENGTH = 30  # aa — alpha-helix linker between passenger and barrel
 
 # Per-row quality flags emitted by t5ss_handler.py, ordered worst → best.
 # Lower numbers in T5_QUALITY_FLAG_RANK sort toward the top of the master CSV;
-# missing or empty flag = clean call, ranked 0.
+# missing or empty flag = clean call, ranked 0. `no_signalp` and
+# `no_sec_signal` share rank 1 — both mean "no valid Sec-pathway export
+# signal" and either is sufficient to push the row to the bottom.
 T5_QUALITY_FLAG_RANK = {
     "": 0,
     "no_signalp": 1,
+    "no_sec_signal": 1,
     "unclassified": 2,
     "barrel_only": 3,
     "omp_porin_no_at": 4,
 }
+
+# T5SS components are exported via the Sec pathway across the inner
+# membrane before reaching the OM secretion machinery. Sec/SPI (classic
+# signal peptide) and Sec/SPII (lipoprotein) are biologically valid for
+# T5SS substrates and machinery; Tat-type, PILIN, or OTHER predictions
+# are not. Used by t5ss_handler.py to flag rows whose SignalP prediction
+# is a non-Sec signal as `no_sec_signal`.
+#
+# SignalP 6.0 emits SHORT labels in its "Prediction" column (see
+# installation_instructions.md upstream): "SP" = Sec/SPI, "LIPO" =
+# Sec/SPII, "TAT" = Tat/SPI, "TATLIPO" = Tat/SPII, "PILIN" = Sec/SPIII,
+# "OTHER" = no signal peptide. We match the short forms here because
+# that's what run_signalp.py passes through into signalp_prediction.
+VALID_SEC_SIGNAL_TYPES = ("SP", "LIPO")
 
 # --- System filtering ---
 DEFAULT_EXCLUDED_SYSTEMS = ["Flagellum", "Tad", "T3SS"]

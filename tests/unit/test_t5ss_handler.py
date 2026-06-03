@@ -394,6 +394,157 @@ def test_invalid_dlp_prob_falls_back_to_zero(monkeypatch, tmp_dir):
     assert substrates[0]["dlp_extracellular_prob"] in ("0", "0.0")
 
 
+# --- Sec-signal gate (no_sec_signal flag) -----------------------------------
+
+
+def _pred_with_signalp(locus, prediction, cs_position="22", dlp_ext=0.9):
+    """Builder for a predictions row that pins both signalp_prediction AND
+    signalp_cs_position. The make_prediction_row default leaves
+    signalp_prediction='OTHER' which is fine for the existing no_signalp
+    tests but doesn't exercise the new Sec-type gate. Use this helper for
+    the new gate tests so each row's SignalP intent is explicit."""
+    row = make_prediction_row(locus, dlp_ext=dlp_ext, signalp_pred=prediction)
+    row["signalp_cs_position"] = cs_position
+    return row
+
+
+@pytest.mark.parametrize("prediction", ["SP", "LIPO"])
+def test_valid_sec_signal_does_not_flag(monkeypatch, tmp_dir, prediction):
+    """A T5SS substrate with a Sec/SPI (SP) or Sec/SPII (LIPO) signal is
+    biologically competent for export; the new gate must NOT add a
+    no_sec_signal flag. SignalP 6 emits these short labels in its
+    Prediction column (see installation_instructions.md upstream)."""
+    substrates, _ = _run_t5ss(
+        monkeypatch,
+        tmp_dir,
+        [make_ss_component_row("AT_1", "T5aSS")],
+        [_pred_with_signalp("AT_1", prediction)],
+        pfam_hits={"AT_1": {"PF03797": (1300, 1555)}},
+    )
+    assert substrates[0]["t5_quality_flag"] == ""
+
+
+@pytest.mark.parametrize(
+    "non_sec_prediction",
+    ["TAT", "TATLIPO", "PILIN"],
+)
+def test_non_sec_signal_is_flagged(monkeypatch, tmp_dir, non_sec_prediction):
+    """SignalP 6 short labels TAT (Tat/SPI), TATLIPO (Tat/SPII), and
+    PILIN (Sec/SPIII) route proteins through pathways that aren't
+    compatible with T5SS export. With SignalP run + a non-Sec
+    prediction, the row gets no_sec_signal (kept, not dropped — same
+    convention as other T5 quality flags)."""
+    substrates, _ = _run_t5ss(
+        monkeypatch,
+        tmp_dir,
+        [make_ss_component_row("AT_1", "T5aSS")],
+        [_pred_with_signalp("AT_1", non_sec_prediction)],
+        pfam_hits={"AT_1": {"PF03797": (1300, 1555)}},
+    )
+    assert substrates[0]["t5_quality_flag"] == "no_sec_signal"
+
+
+def test_other_prediction_keeps_no_signalp_not_no_sec_signal(monkeypatch, tmp_dir):
+    """SignalP 'OTHER' is its 'no signal at all' answer — the existing
+    no_signalp flag covers it. Don't double-flag with no_sec_signal."""
+    pred = _pred_with_signalp("AT_1", "OTHER", cs_position="")
+    substrates, _ = _run_t5ss(
+        monkeypatch,
+        tmp_dir,
+        [make_ss_component_row("AT_1", "T5aSS")],
+        [pred],
+        pfam_hits={"AT_1": {"PF03797": (1300, 1555)}},
+    )
+    assert substrates[0]["t5_quality_flag"] == "no_signalp"
+
+
+def test_signalp_skipped_suppresses_sec_gate(monkeypatch, tmp_dir):
+    """When SignalP was skipped for the whole genome (every prediction row
+    has an empty signalp_prediction), the Sec-signal gate must NOT fire —
+    we can't reason about Sec-pathway membership without SignalP results.
+    Pre-fix behaviour is preserved: T5aSS without a cs_position still
+    falls back to no_signalp through the geometric classifier; T5b/c/d/e
+    components still get no_signalp via the non-T5aSS branch."""
+    skipped_pred = make_prediction_row("AT_1", dlp_ext=0.9, signalp_pred="")
+    skipped_pred["signalp_cs_position"] = ""
+    substrates, _ = _run_t5ss(
+        monkeypatch,
+        tmp_dir,
+        [make_ss_component_row("AT_1", "T5aSS")],
+        [skipped_pred],
+        pfam_hits={"AT_1": {"PF03797": (1300, 1555)}},
+    )
+    # SignalP not run → gate is no-op. Pre-existing no_signalp behaviour
+    # for empty cs_position still applies (sp_end=None routes through
+    # classify_t5a's no_signalp branch).
+    assert substrates[0]["t5_quality_flag"] == "no_signalp"
+    assert "no_sec_signal" not in substrates[0]["t5_quality_flag"]
+
+
+def test_mixed_predictions_only_non_sec_get_flagged(monkeypatch, tmp_dir):
+    """Three substrates: two with SP / Sec/SPI (clean), one with TAT /
+    Tat/SPI (no_sec_signal). The clean rows must remain unflagged when
+    their neighbour triggers the gate."""
+    substrates, _ = _run_t5ss(
+        monkeypatch,
+        tmp_dir,
+        [
+            make_ss_component_row("CLEAN_A", "T5aSS"),
+            make_ss_component_row("CLEAN_B", "T5aSS"),
+            make_ss_component_row("BAD_TAT", "T5aSS"),
+        ],
+        [
+            _pred_with_signalp("CLEAN_A", "SP"),
+            _pred_with_signalp("CLEAN_B", "SP"),
+            _pred_with_signalp("BAD_TAT", "TAT"),
+        ],
+        pfam_hits={
+            "CLEAN_A": {"PF03797": (1300, 1555)},
+            "CLEAN_B": {"PF03797": (1300, 1555)},
+            "BAD_TAT": {"PF03797": (1300, 1555)},
+        },
+    )
+    by_locus = {r["locus_tag"]: r["t5_quality_flag"] for r in substrates}
+    assert by_locus["CLEAN_A"] == ""
+    assert by_locus["CLEAN_B"] == ""
+    assert by_locus["BAD_TAT"] == "no_sec_signal"
+
+
+@pytest.mark.parametrize("ss_type", ["T5aSS", "T5bSS", "T5cSS", "T5dSS", "T5eSS"])
+def test_sec_gate_applies_to_every_t5_subtype(monkeypatch, tmp_dir, ss_type):
+    """A TAT (Tat/SPI) prediction on every T5SS subtype must flag
+    no_sec_signal. T5aSS is the only subtype with a geometric classifier;
+    the gate must work uniformly across all five subtypes regardless of
+    that branch."""
+    # T5aSS needs a barrel hit to avoid Unclassified-AT; other subtypes
+    # bypass that classifier entirely.
+    pfam_hits = {"COMP_1": {"PF03797": (1300, 1555)}} if ss_type == "T5aSS" else {}
+    substrates, _ = _run_t5ss(
+        monkeypatch,
+        tmp_dir,
+        [make_ss_component_row("COMP_1", ss_type)],
+        [_pred_with_signalp("COMP_1", "TAT")],
+        pfam_hits=pfam_hits,
+    )
+    assert substrates[0]["t5_quality_flag"] == "no_sec_signal"
+
+
+def test_structural_flag_wins_over_sec_gate(monkeypatch, tmp_dir):
+    """barrel_only / omp_porin_no_at / unclassified are structural failures
+    that should remain visible even if the SignalP prediction is wrong —
+    the structural label is more informative for the user than restating
+    'no Sec signal' on a protein that isn't recognisable as an
+    autotransporter to begin with."""
+    substrates, _ = _run_t5ss(
+        monkeypatch,
+        tmp_dir,
+        [make_ss_component_row("OMP_1", "T5aSS")],
+        [_pred_with_signalp("OMP_1", "TAT")],
+        pfam_hits={"OMP_1": {"PF13505": (10, 200)}},  # porin only, no barrel
+    )
+    assert substrates[0]["t5_quality_flag"] == "omp_porin_no_at"
+
+
 def test_scan_bundled_pfams_against_real_hmm(tmp_dir):
     """Exercise the real pyhmmer scan path against the bundled HMMs.
 

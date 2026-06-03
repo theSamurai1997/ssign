@@ -24,9 +24,21 @@ Classification (``domain_group``) and quality flag:
 - Unclassified-AT       — MacSyFinder called T5aSS but neither HMM hit → flag = "unclassified"
 
 When SignalP returned no cleavage site, an additional ``no_signalp`` flag
-takes priority over a clean classification: T5SS substrates are Sec/Tat-
+takes priority over a clean classification: T5SS substrates are Sec-
 dependent so a missing signal peptide is a strong "not secreted" signal,
 even if the geometry looks fine.
+
+When SignalP was actually run and produced a prediction that is NOT a
+valid Sec signal — SignalP 6 short labels ``TAT`` (Tat/SPI),
+``TATLIPO`` (Tat/SPII), or ``PILIN`` (Sec/SPIII), see
+``VALID_SEC_SIGNAL_TYPES`` — the row is flagged ``no_sec_signal``
+instead. This is distinct from ``no_signalp``: that fires when no
+cleavage site was reported at all (SignalP "OTHER" or empty), this
+fires when SignalP positively predicted the wrong kind of signal.
+Both flags mean "biologically incapable of T5SS" and sort the row
+to the bottom equally. When SignalP was not run for the genome at
+all (no row has a non-empty ``signalp_prediction``), neither flag
+fires, preserving the pre-SignalP pathway.
 """
 
 import argparse
@@ -46,6 +58,7 @@ if _scripts_dir not in _sys.path:
 from ssign_lib.constants import (  # noqa: E402
     LINKER_LENGTH,
     MIN_PASSENGER_LENGTH,
+    VALID_SEC_SIGNAL_TYPES,
 )
 
 BUNDLED_HMMS = {"PF03797": "PF03797.hmm", "PF13505": "PF13505.hmm"}
@@ -148,6 +161,39 @@ def _parse_sp_end(raw: str) -> int | None:
         return None
 
 
+def _signalp_was_run(predictions: dict[str, dict]) -> bool:
+    """True iff at least one input row carries a non-empty ``signalp_prediction``.
+
+    When SignalP is skipped for the genome the column is empty across
+    every row; we use that as the signal to suppress Sec-gating flags.
+    Auto-detect from data instead of plumbing a separate flag through
+    the runner so wrapper-level invocations behave identically.
+    """
+    return any(p.get("signalp_prediction", "") for p in predictions.values())
+
+
+def _apply_sec_signal_gate(existing_flag: str, signalp_prediction: str, signalp_was_run: bool) -> str:
+    """Augment ``existing_flag`` with ``no_sec_signal`` if appropriate.
+
+    Fires only when SignalP was run for the genome AND this protein has
+    a non-empty, non-"OTHER" prediction that isn't in
+    ``VALID_SEC_SIGNAL_TYPES`` (i.e. TAT / TATLIPO / PILIN in SignalP 6
+    short labels). Empty / "OTHER" predictions fall through to the
+    existing ``no_signalp`` logic. Structural flags (barrel_only,
+    omp_porin_no_at, unclassified) win over the Sec-signal gate so the
+    most informative failure mode is what the user sees.
+    """
+    if not signalp_was_run:
+        return existing_flag
+    if existing_flag not in ("", "no_signalp"):
+        return existing_flag
+    if not signalp_prediction or signalp_prediction == "OTHER":
+        return existing_flag
+    if signalp_prediction in VALID_SEC_SIGNAL_TYPES:
+        return existing_flag
+    return "no_sec_signal"
+
+
 def main():
     parser = argparse.ArgumentParser(description="Handle T5SS autotransporters")
     parser.add_argument("--ss-components", required=True)
@@ -170,6 +216,7 @@ def main():
             predictions[row["locus_tag"]] = row
 
     pfam_hits = scan_bundled_pfams(args.proteins) if t5ss_components else {}
+    signalp_was_run = _signalp_was_run(predictions)
 
     substrates = []
     classifications = []
@@ -186,6 +233,8 @@ def main():
         else:
             domain_group, passenger_length = f"{ss_type}-component", 0
             quality_flag = "no_signalp" if (sp_end is None or sp_end <= 0) else ""
+
+        quality_flag = _apply_sec_signal_gate(quality_flag, pred.get("signalp_prediction", ""), signalp_was_run)
 
         classifications.append(
             {
@@ -266,7 +315,7 @@ def main():
 
     n_flagged = sum(1 for s in substrates if s["t5_quality_flag"])
     logger.info(
-        "Found %d T5SS self-substrates in %s (%d flagged: barrel-only / OMP / unclassified / no-signalp)",
+        "Found %d T5SS self-substrates in %s (%d flagged: barrel-only / OMP / unclassified / no-signalp / no-sec-signal)",
         len(substrates),
         args.sample,
         n_flagged,
