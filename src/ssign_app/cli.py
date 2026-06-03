@@ -288,6 +288,12 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
         default=False,
         help="Run SignalP on every protein, not just the SS neighborhood.",
     )
+    g.add_argument(
+        "--plme-whole-genome",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Run PLM-Effector on every protein, not just the SS neighborhood.",
+    )
 
     # ── Phase 5: Annotation tools ───────────────────────────────────────
     g = p.add_argument_group("BLASTp")
@@ -484,6 +490,7 @@ def _config_from_args(args: argparse.Namespace) -> "PipelineConfig":
         "dlp_whole_genome": args.dlp_whole_genome,
         "dse_whole_genome": args.dse_whole_genome,
         "sp_whole_genome": args.sp_whole_genome,
+        "plme_whole_genome": args.plme_whole_genome,
         "enrichment_stats": args.enrichment_stats,
         "n_null_proteins": args.n_null_proteins,
         "null_seed": args.null_seed,

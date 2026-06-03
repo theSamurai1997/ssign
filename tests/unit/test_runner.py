@@ -78,6 +78,16 @@ class TestPipelineConfig:
         a.plm_effector_types.append("EXTRA")
         assert "EXTRA" not in b.plm_effector_types
 
+    def test_whole_genome_flags_default_false(self):
+        # All four prediction tools must default to neighborhood-only.
+        # plme_whole_genome was missing until 2026-06-02 — PLM-E silently
+        # ran on the full proteome (~34× the intended work on K-12).
+        c = PipelineConfig()
+        assert c.dlp_whole_genome is False
+        assert c.dse_whole_genome is False
+        assert c.sp_whole_genome is False
+        assert c.plme_whole_genome is False
+
     def test_skip_flags_align_with_install_tier(self):
         # At tier='base' (small install, no annotation DBs), heavy DB-bound
         # tools are off and the prediction core is on.
@@ -893,6 +903,96 @@ class TestStepSampleNullProteins:
         result = r._step_sample_null_proteins()
         assert not result.success
         assert "missing" in result.message.lower()
+
+
+class TestStepPlmEffectorInput:
+    """`_step_plm_effector` must read the SS neighborhood by default and
+    only fall back to the full proteome when plme_whole_genome=True. The
+    bug fixed in 2026-06-02 (commit X) had it always read the full
+    proteome — 34× more work on K-12, 42m wallclock on an L40S GPU."""
+
+    def _stub_run_script(self, captured):
+        def _fake(script_name, args, **kwargs):
+            captured.append((script_name, list(args)))
+            return (0, "", "")
+
+        return _fake
+
+    def _make_runner(self, tmp_path, plme_whole_genome, files):
+        weights = tmp_path / "weights"
+        weights.mkdir()
+        config = PipelineConfig(
+            outdir=str(tmp_path),
+            sample_id="t",
+            plm_effector_weights_dir=str(weights),
+            plme_whole_genome=plme_whole_genome,
+        )
+        r = PipelineRunner(config)
+        r.work_dir = str(tmp_path)
+        r.files = files
+        return r
+
+    def _input_arg(self, captured):
+        # First captured call is run_plm_effector.py; "--input" is the
+        # second positional in our args list.
+        _, args = captured[0]
+        i = args.index("--input")
+        return args[i + 1]
+
+    def test_default_reads_neighborhood(self, tmp_path, monkeypatch):
+        neigh = tmp_path / "neighborhood.faa"
+        neigh.write_text(">a\nMKT\n")
+        proteins = tmp_path / "proteins.faa"
+        proteins.write_text(">a\nMKT\n>b\nMKL\n")
+        r = self._make_runner(
+            tmp_path,
+            plme_whole_genome=False,
+            files={"proteins": str(proteins), "neighborhood_proteins": str(neigh)},
+        )
+        captured = []
+        monkeypatch.setattr(runner, "run_script", self._stub_run_script(captured))
+        result = r._step_plm_effector()
+        assert result.success, result.message
+        assert self._input_arg(captured) == str(neigh)
+
+    def test_whole_genome_flag_reads_full_proteome(self, tmp_path, monkeypatch):
+        neigh = tmp_path / "neighborhood.faa"
+        neigh.write_text(">a\nMKT\n")
+        proteins = tmp_path / "proteins.faa"
+        proteins.write_text(">a\nMKT\n>b\nMKL\n")
+        r = self._make_runner(
+            tmp_path,
+            plme_whole_genome=True,
+            files={"proteins": str(proteins), "neighborhood_proteins": str(neigh)},
+        )
+        captured = []
+        monkeypatch.setattr(runner, "run_script", self._stub_run_script(captured))
+        result = r._step_plm_effector()
+        assert result.success, result.message
+        assert self._input_arg(captured) == str(proteins)
+
+    def test_ignores_dlp_dse_input_concat(self, tmp_path, monkeypatch):
+        # The enrichment-stats dual-fasta (neighborhood + null sample) is
+        # for DLP/DSE only. PLM-E must NOT pick it up — running ensembles
+        # over the null pool is too expensive for the marginal info gained.
+        neigh = tmp_path / "neighborhood.faa"
+        neigh.write_text(">a\nMKT\n")
+        concat = tmp_path / "dlp_dse_input.faa"
+        concat.write_text(">a\nMKT\n>null1\nMKQ\n")
+        r = self._make_runner(
+            tmp_path,
+            plme_whole_genome=False,
+            files={
+                "proteins": str(tmp_path / "proteins.faa"),
+                "neighborhood_proteins": str(neigh),
+                "dlp_dse_input": str(concat),
+            },
+        )
+        captured = []
+        monkeypatch.setattr(runner, "run_script", self._stub_run_script(captured))
+        result = r._step_plm_effector()
+        assert result.success, result.message
+        assert self._input_arg(captured) == str(neigh)
 
 
 class TestPoolEnrichmentStats:

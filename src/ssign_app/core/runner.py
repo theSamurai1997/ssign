@@ -235,6 +235,7 @@ class PipelineConfig:
     dlp_whole_genome: bool = False  # Run on all proteins, not just neighborhood
     dse_whole_genome: bool = False
     sp_whole_genome: bool = False
+    plme_whole_genome: bool = False
 
     # --- Enrichment stats (opt-in) ------------------------------------------
     # When True, sample a small random pool of non-SS-neighborhood proteins
@@ -2024,11 +2025,20 @@ class PipelineRunner:
 
             weights_dir = stage_directory_tree_to_local_ssd_if_remote(weights_dir, cache)
 
+        # Mirror _step_signalp: PLM-E runs on the SS neighborhood only by
+        # default. Whole-proteome mode is opt-in via plme_whole_genome.
+        # PLM-E is deliberately NOT run on the dlp_dse_input concat — the
+        # null pool feeds only DLP+DSE (see PipelineConfig comment).
+        if self.config.plme_whole_genome:
+            input_proteins = self.files.get("proteins", "")
+        else:
+            input_proteins = self.files.get("neighborhood_proteins", self.files.get("proteins", ""))
+
         out_dir = self._wf(f"{self.config.sample_id}_plm_effector")
         os.makedirs(out_dir, exist_ok=True)
         args = [
             "--input",
-            self.files.get("proteins", ""),
+            input_proteins,
             "--weights-dir",
             weights_dir,
             "--effector-types",
