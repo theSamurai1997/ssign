@@ -23,10 +23,41 @@ test -f "$PBS_SCRIPT" || { echo "FATAL: $PBS_SCRIPT not found"; exit 1; }
 if [ "$#" -gt 0 ]; then
     GPU_TYPES=("$@")
 else
-    # Auto-detect: every distinct gpu_type advertised by pbsnodes.
-    mapfile -t GPU_TYPES < <(pbsnodes -a 2>/dev/null \
-        | awk -F' = ' '/gpu_type/ {print $2}' \
-        | sort -u)
+    # Auto-detect every distinct gpu_type advertised by usable nodes.
+    # Two filters worth keeping:
+    #   - Restrict to state=free|job-busy — `pbsnodes -a` includes
+    #     down/offline nodes, and submitting to a gpu_type whose only
+    #     node is down leaves the job queued forever (no error from
+    #     qsub).
+    #   - Drop blank values (`gpu_type =` with nothing after) so the
+    #     loop below never tries `gpu_type=` which qsub rejects.
+    # Awk emits per node at end-of-block so the state/gpu_type ordering
+    # within a node doesn't matter (PBS Pro varies it).
+    mapfile -t GPU_TYPES < <(
+        pbsnodes -a 2>/dev/null \
+        | awk '
+            function emit() {
+                # A PBS Pro node state is a comma-separated set like
+                # "free", "job-busy", "job-busy,resv-exclusive", or
+                # "down,offline". Any "down"/"offline"/"stale"/
+                # "state-unknown" marker means jobs sent there won't
+                # start; treat the gpu_type as unusable in that case.
+                if (gpu != "" && state != "" && state !~ /down|offline|stale|state-unknown/)
+                    print gpu;
+                gpu = ""; state = "";
+            }
+            /^[^ \t]/ { emit() }
+            /^[ \t]+state *=/    { state = $0 }
+            /resources_available\.gpu_type *=/ {
+                split($0, parts, /= */);
+                v = parts[2];
+                gsub(/^[ \t]+|[ \t]+$/, "", v);
+                gpu = v;
+            }
+            END { emit() }
+        ' \
+        | sort -u
+    )
 fi
 
 if [ "${#GPU_TYPES[@]}" -eq 0 ]; then
