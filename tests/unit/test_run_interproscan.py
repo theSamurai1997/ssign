@@ -335,3 +335,74 @@ class TestRunLocalInterproscanFailureSurface:
                 output_dir=str(tmp_path),
             )
         assert str(tmp_path / "interproscan_failure.log") in str(exc.value)
+
+
+class TestJavaOptsHeapAutoScale:
+    """IPS hard-codes -Xmx15G in its bundled launcher (verified against
+    upstream interproscan.sh) and does NOT read $JAVA_OPTS. The JVM
+    always reads $_JAVA_OPTIONS regardless of launcher script, and the
+    last -Xmx wins, so the wrapper exports _JAVA_OPTIONS instead. This
+    pins the auto-scale: (effective_ram_gb - 2) * 0.5, clamped to [4, 64].
+    """
+
+    def _capture_env(self, captured):
+
+        class _Result:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        def fake_run(cmd, **kwargs):
+            captured["env"] = kwargs.get("env", {})
+            return _Result()
+
+        return fake_run
+
+    def _heap_arg(self, env):
+        opts = env.get("_JAVA_OPTIONS", "")
+        for token in opts.split():
+            if token.startswith("-Xmx"):
+                return token
+        return None
+
+    def _run_and_capture(self, tmp_path, ram_gb, monkeypatch):
+        import subprocess
+
+        from run_interproscan import run_local_interproscan
+
+        captured: dict = {}
+        monkeypatch.setattr("run_interproscan._resolve_interproscan_binary", lambda d: "/fake/interproscan.sh")
+        monkeypatch.setattr("ssign_lib.resources.effective_ram_gb", lambda: ram_gb)
+        monkeypatch.setattr(subprocess, "run", self._capture_env(captured))
+        # Stub the results.tsv that the wrapper reads back after subprocess.
+        (tmp_path / "results.tsv").write_text("")
+
+        try:
+            run_local_interproscan(
+                query_fasta=str(tmp_path / "in.faa"),
+                install_dir="/fake",
+                output_dir=str(tmp_path),
+            )
+        except Exception:
+            pass  # wrapper may parse results.tsv after subprocess; we only need env.
+
+        # Brittle-test guard: if the JAVA_OPTIONS export ever moves to
+        # AFTER subprocess.run (refactor accident), `captured` is empty
+        # and the assertions below would also be swallowed. Fail loudly here.
+        assert "env" in captured, "subprocess.run was never called; JAVA_OPTIONS branch never ran"
+        return captured["env"]
+
+    def test_heap_scales_with_detected_ram(self, tmp_path, monkeypatch):
+        env = self._run_and_capture(tmp_path, 80.0, monkeypatch)
+        # (80 - 2) * 0.5 = 39 → in-range
+        assert self._heap_arg(env) == "-Xmx39g"
+
+    def test_heap_floor_4gb(self, tmp_path, monkeypatch):
+        env = self._run_and_capture(tmp_path, 2.0, monkeypatch)
+        # (2 - 2) * 0.5 = 0 → floor at 4 GB
+        assert self._heap_arg(env) == "-Xmx4g"
+
+    def test_heap_ceiling_64gb(self, tmp_path, monkeypatch):
+        env = self._run_and_capture(tmp_path, 512.0, monkeypatch)
+        # (512 - 2) * 0.5 = 255 → ceiling at 64
+        assert self._heap_arg(env) == "-Xmx64g"

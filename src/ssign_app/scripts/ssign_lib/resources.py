@@ -117,6 +117,58 @@ def resolve_threads(n: int | None) -> int:
     return max(1, effective_cpu_count())
 
 
+# Set by PipelineRunner before launching the DLP/DSE/SignalP parallel
+# group so each wrapper subprocess can self-divide the CPU budget.
+# Unset means "running standalone" — the wrapper uses the full
+# effective_cpu_count.
+_PARALLEL_GROUP_SIZE_ENV = "SSIGN_PARALLEL_GROUP_SIZE"
+
+
+def parallel_share_cpus() -> int:
+    """Return this subprocess's CPU share when it's inside a parallel group.
+
+    Reads SSIGN_PARALLEL_GROUP_SIZE (set by the runner before launching
+    the prediction group) and returns `effective_cpu_count() // N`,
+    clamped to >=1. When the env var is unset or invalid, returns the
+    full count — standalone invocations of the wrapper aren't penalised.
+    """
+    raw = os.environ.get(_PARALLEL_GROUP_SIZE_ENV)
+    cpus = effective_cpu_count()
+    if not raw:
+        return max(1, cpus)
+    try:
+        n = int(raw)
+    except ValueError:
+        return max(1, cpus)
+    if n <= 1:
+        return max(1, cpus)
+    return max(1, cpus // n)
+
+
+from contextlib import contextmanager  # noqa: E402
+
+
+@contextmanager
+def parallel_group(n: int):
+    """Mark this process region as a parallel group of size `n`.
+
+    Sets SSIGN_PARALLEL_GROUP_SIZE for the duration of the `with` block
+    so subprocess children (the prediction tool wrappers) read the
+    right value via `parallel_share_cpus()`, then restores the prior
+    value on exit even if the body raises. Replaces the 6-line manual
+    save/set/pop dance in the runner's parallel-group launch.
+    """
+    prev = os.environ.get(_PARALLEL_GROUP_SIZE_ENV)
+    os.environ[_PARALLEL_GROUP_SIZE_ENV] = str(n)
+    try:
+        yield
+    finally:
+        if prev is None:
+            os.environ.pop(_PARALLEL_GROUP_SIZE_ENV, None)
+        else:
+            os.environ[_PARALLEL_GROUP_SIZE_ENV] = prev
+
+
 def _parse_size_to_gb(value: str) -> float | None:
     """Parse a size string like '32gb', '128GiB', '4096mb' → GB (decimal)."""
     m = re.match(r"\s*([\d.]+)\s*([kmgt]i?b?)?\s*$", value.lower())

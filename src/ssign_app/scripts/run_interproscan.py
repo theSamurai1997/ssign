@@ -131,8 +131,31 @@ def run_local_interproscan(
     # FRAGILE: needs interproscan.sh — either at $install_dir/, via
     # $SSIGN_INTERPROSCAN_PATH, or on PATH.
     # If this breaks: install InterProScan from https://www.ebi.ac.uk/interpro/download/
+
+    # Java heap auto-scale: IPS's interproscan.sh hard-codes -Xmx
+    # (currently -Xmx15G) and does NOT read $JAVA_OPTS — confirmed
+    # against the upstream launcher (ebi-pf-team/interproscan, the
+    # bundled support-mini-x86-32/interproscan.sh). _JAVA_OPTIONS is the
+    # one env var the JVM ALWAYS reads regardless of launcher script; it
+    # prints a "Picked up _JAVA_OPTIONS" stderr notice and the last -Xmx
+    # wins, so our value overrides the launcher's hard-coded one.
+    #
+    # Formula: (effective_ram_gb - 2) * 0.5. Reserves 2 GB for OS / IPS
+    # Perl helpers / file cache, then halves the rest (the JVM also
+    # needs metaspace and Code Cache on top of the heap). Clamped to
+    # [4, 64] GB so a 256 GB box doesn't ask for 192 GB and a 16 GB
+    # laptop doesn't crash because IPS asked for 12.
+    from ssign_lib.resources import effective_ram_gb
+
+    env = os.environ.copy()
+    heap_gb = max(4, min(64, int((effective_ram_gb() - 2) * 0.5)))
+    java_opt = f"-Xmx{heap_gb}g"
+    existing = env.get("_JAVA_OPTIONS", "")
+    env["_JAVA_OPTIONS"] = f"{existing} {java_opt}".strip() if existing else java_opt
+    logger.info("InterProScan _JAVA_OPTIONS=%s", env["_JAVA_OPTIONS"])
+
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=TOOL_TIMEOUT_S)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=TOOL_TIMEOUT_S, env=env)
     except FileNotFoundError as e:
         raise RuntimeError(
             f"InterProScan (interproscan.sh) not found: {e}\n"

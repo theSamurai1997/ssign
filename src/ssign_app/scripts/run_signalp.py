@@ -38,7 +38,7 @@ from ssign_lib.constants import (  # noqa: E402
     TOOL_TIMEOUT_S,
 )
 from ssign_lib.fasta_io import count_sequences  # noqa: E402
-from ssign_lib.resources import effective_cpu_count as _effective_cpus  # noqa: E402
+from ssign_lib.resources import effective_cpu_count as _effective_cpus  # noqa: E402,F401
 from ssign_lib.retry import retry_with_backoff  # noqa: E402
 from ssign_lib.subprocess_diag import dump_failure_log  # noqa: E402
 
@@ -79,13 +79,12 @@ def run_local_signalp(input_fasta, signalp_path, output_dir):
         "txt",
         "--mode",
         "fast",
-        # Cap threads — upstream default of 8 oversubscribes on small
-        # machines (and on multi-genome runs where each PipelineRunner
-        # would spawn its own 8-thread pool). effective_cpu_count
-        # respects cgroup CPU pinning (PBS/SLURM), os.cpu_count() does
-        # not — see ssign_lib/resources.py.
+        # Threads — divides the per-job allocation by the size of the
+        # parallel prediction group (DLP+DSE+SignalP) when the runner
+        # sets SSIGN_PARALLEL_GROUP_SIZE. Standalone invocations get the
+        # full effective_cpu_count. See ssign_lib/resources.py.
         "--torch_num_threads",
-        str(min(4, _effective_cpus())),
+        str(_parallel_share_cpus()),
     ]
 
     logger.info(f"Running local SignalP: {' '.join(cmd[:4])}...")

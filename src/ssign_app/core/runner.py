@@ -237,6 +237,13 @@ class PipelineConfig:
     sp_whole_genome: bool = False
     plme_whole_genome: bool = False
 
+    # Resource sampling — writes outdir/resources.csv during a run with
+    # system CPU/RAM/GPU/disk samples tagged with the active step. Disable
+    # if a tier-1 install is missing psutil or you don't want the
+    # background thread.
+    monitor_resources: bool = True
+    monitor_interval_s: float = 5.0
+
     # --- Enrichment stats (opt-in) ------------------------------------------
     # When True, sample a small random pool of non-SS-neighborhood proteins
     # per genome and pipe them through DLP + DSE alongside the neighborhood.
@@ -436,6 +443,7 @@ class StepResult:
     success: bool
     message: str
     output_files: dict = field(default_factory=dict)
+    duration_s: float = 0.0
 
 
 def run_script(
@@ -754,6 +762,20 @@ class PipelineRunner:
         # Create output directory
         os.makedirs(self.config.outdir, exist_ok=True)
 
+        # Spin up the in-process resource sampler. Writes resources.csv
+        # to outdir in real time (system CPU/RAM/GPU/disk, tagged with
+        # the active step). Daemon thread; sampling failures never crash
+        # the pipeline. Disable with `monitor_resources=False`.
+        self._sampler = None
+        if self.config.monitor_resources:
+            from ssign_app.core.resource_sampler import ResourceSampler
+
+            self._sampler = ResourceSampler(
+                out_path=os.path.join(self.config.outdir, "resources.csv"),
+                interval=self.config.monitor_interval_s,
+            )
+            self._sampler.start()
+
         # Try to resume from previous progress
         skip_steps = set()
         if resume:
@@ -941,16 +963,27 @@ class PipelineRunner:
                     f"[ssign] [{self.config.sample_id}] Starting parallel group: {step_names}",
                     flush=True,
                 )
+                if self._sampler is not None:
+                    self._sampler.set_step(f"parallel:{','.join(sorted(n for n, _, _, _ in steps_to_run))}")
 
-                with ThreadPoolExecutor(max_workers=len(steps_to_run)) as executor:
+                # Tell every wrapper subprocess how many siblings it's
+                # racing against. DLP/DSE/SignalP read SSIGN_PARALLEL_GROUP_SIZE
+                # via ssign_lib.resources.parallel_share_cpus() and divide
+                # the CPU budget evenly instead of each trying to use the
+                # whole allocation. The context manager restores the env
+                # var when the group exits (or raises).
+                from ssign_app.scripts.ssign_lib.resources import parallel_group
+
+                with parallel_group(len(steps_to_run)), ThreadPoolExecutor(max_workers=len(steps_to_run)) as executor:
                     futures = {}
                     for name, func, step_id, sc in steps_to_run:
-                        futures[executor.submit(func)] = (name, step_id, sc)
+                        futures[executor.submit(func)] = (name, step_id, sc, time.monotonic())
 
                     for future in as_completed(futures):
-                        name, step_id, sc = futures[future]
+                        name, step_id, sc, t_step_start = futures[future]
                         try:
                             result = future.result()
+                            result.duration_s = time.monotonic() - t_step_start
                             with self._state_lock:
                                 self.results.append(result)
                             pct = int(100 * sc / total)
@@ -976,7 +1009,14 @@ class PipelineRunner:
                                 flush=True,
                             )
                             with self._state_lock:
-                                self.results.append(StepResult(step_id, False, str(e)))
+                                self.results.append(
+                                    StepResult(
+                                        step_id,
+                                        False,
+                                        str(e),
+                                        duration_s=time.monotonic() - t_step_start,
+                                    )
+                                )
                             logger.exception(f"Step '{name}' raised exception")
                             if step_id in CORE_STEPS:
                                 core_failed = True
@@ -991,9 +1031,13 @@ class PipelineRunner:
                         f"[ssign] [{self.config.sample_id}] Starting step {sc}/{total}: {name} ({step_id})",
                         flush=True,
                     )
+                    if self._sampler is not None:
+                        self._sampler.set_step(f"{sc}/{total}:{step_id}")
 
+                    t_step = time.monotonic()
                     try:
                         result = func()
+                        result.duration_s = time.monotonic() - t_step
                         self.results.append(result)
                         self._save_progress()
                         print(
@@ -1018,7 +1062,7 @@ class PipelineRunner:
                             f"[ssign] [{self.config.sample_id}] EXCEPTION in step {sc}/{total}: {name} -> {e}",
                             flush=True,
                         )
-                        self.results.append(StepResult(step_id, False, str(e)))
+                        self.results.append(StepResult(step_id, False, str(e), duration_s=time.monotonic() - t_step))
                         self._save_progress()
                         logger.exception(f"Step '{name}' raised exception")
                         if step_id in CORE_STEPS:
@@ -1031,6 +1075,9 @@ class PipelineRunner:
         # progress bar hits 100 while files are still being written.
         self._copy_outputs()
         self._save_progress()
+        self._write_step_timings()
+        if self._sampler is not None:
+            self._sampler.stop()
         self.progress("Complete", 100, f"Pipeline finished in {self._elapsed_str()}")
 
         # On clean success, drop the temp work_dir. On failure, retain it so
@@ -1043,6 +1090,28 @@ class PipelineRunner:
                 logger.warning(f"Could not remove work_dir {self.work_dir}: {e}")
 
         return self.results
+
+    def _write_step_timings(self) -> None:
+        """Write per-step wallclock data to outdir/step_timings.csv.
+
+        Companion to resources.csv: that one is sampled over time;
+        step_timings is one row per step with start/duration. Together
+        they let the operator slice the per-second sampler data by step
+        without grep-tagging.
+        """
+        if not self.results:
+            return
+        import csv
+
+        out_path = os.path.join(self.config.outdir, "step_timings.csv")
+        try:
+            with open(out_path, "w", newline="") as fh:
+                w = csv.writer(fh)
+                w.writerow(["step", "success", "duration_s", "message"])
+                for r in self.results:
+                    w.writerow([r.name, int(r.success), f"{r.duration_s:.2f}", r.message[:200]])
+        except OSError as e:
+            logger.warning("could not write step_timings.csv: %s", e)
 
     def _wf(self, name):
         """Get work file path."""

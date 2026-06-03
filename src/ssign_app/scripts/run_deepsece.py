@@ -71,6 +71,24 @@ _COLUMN_MAP = {
 }
 
 
+def _select_device():
+    """Pick `torch.device("cuda")` when a GPU is visible, else CPU.
+
+    Mirrors run_deeplocpro._use_cuda_for_deeplocpro so DSE's GPU
+    detection has the same shape — and the same unit-test surface — as
+    DLP's. SSIGN_DEEPSECE_FORCE_CPU=1 forces CPU for environments where
+    DSE's ESM-1b initialisation needs to avoid the GPU.
+    """
+    import torch
+
+    if os.environ.get("SSIGN_DEEPSECE_FORCE_CPU", "").lower() in ("1", "true", "yes"):
+        return torch.device("cpu")
+    try:
+        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    except Exception:
+        return torch.device("cpu")
+
+
 def _validate_checkpoint(path):
     """Check that a downloaded checkpoint file is not truncated."""
     if not os.path.exists(path):
@@ -287,11 +305,10 @@ def run_deepsece(input_fasta, output_dir, checkpoint_path=None, batch_size=1):
     checkpoint = _ensure_checkpoint(checkpoint_path)
 
     # Device setup
-    if torch.cuda.is_available():
-        device = torch.device("cuda")
+    device = _select_device()
+    if device.type == "cuda":
         logger.info(f"Running DeepSecE on GPU: {torch.cuda.get_device_name(0)}")
     else:
-        device = torch.device("cpu")
         logger.info("Running DeepSecE on CPU (this may be slow for large datasets)")
 
     # Build and load model
@@ -502,6 +519,18 @@ def main():
     parser.add_argument("--output", required=True)
     parser.add_argument("--checkpoint", default="", help="Path to checkpoint.pt")
     args = parser.parse_args()
+
+    # DSE uses PyTorch internally with no thread-count flag; cap via
+    # torch.set_num_threads + OMP/MKL so it doesn't oversubscribe when
+    # running concurrently with DLP and SignalP in the parallel
+    # prediction group. parallel_share_cpus returns the full allocation
+    # when DSE runs standalone.
+    from ssign_lib.resources import parallel_share_cpus
+
+    _cap = parallel_share_cpus()
+    os.environ["OMP_NUM_THREADS"] = str(_cap)
+    os.environ["MKL_NUM_THREADS"] = str(_cap)
+    torch.set_num_threads(_cap)
 
     with tempfile.TemporaryDirectory() as tmpdir:
         results_path = run_deepsece(

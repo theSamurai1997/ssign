@@ -905,6 +905,43 @@ class TestStepSampleNullProteins:
         assert "missing" in result.message.lower()
 
 
+class TestWriteStepTimings:
+    """`_write_step_timings` produces outdir/step_timings.csv after every
+    run. Companion to resources.csv (sampler thread output) so the user
+    can see per-tool wallclocks without grepping the log."""
+
+    def test_writes_one_row_per_step_with_duration(self, tmp_dir):
+        c = PipelineConfig(outdir=tmp_dir, sample_id="x")
+        r = PipelineRunner(c)
+        r.results = [
+            StepResult("macsyfinder", True, "ok", duration_s=82.0),
+            StepResult("deeplocpro", True, "DLP complete", duration_s=111.4),
+            StepResult("eggnog", False, "emapper.py missing", duration_s=0.5),
+        ]
+        r._write_step_timings()
+
+        path = os.path.join(tmp_dir, "step_timings.csv")
+        assert os.path.exists(path)
+        with open(path) as fh:
+            import csv as _csv
+
+            rows = list(_csv.DictReader(fh))
+        assert len(rows) == 3
+        assert {r["step"] for r in rows} == {"macsyfinder", "deeplocpro", "eggnog"}
+        eggnog = next(r for r in rows if r["step"] == "eggnog")
+        assert eggnog["success"] == "0"
+        assert eggnog["message"].startswith("emapper.py")
+        macsy = next(r for r in rows if r["step"] == "macsyfinder")
+        assert macsy["duration_s"] == "82.00"
+
+    def test_skips_when_results_empty(self, tmp_dir):
+        c = PipelineConfig(outdir=tmp_dir, sample_id="x")
+        r = PipelineRunner(c)
+        r.results = []
+        r._write_step_timings()
+        assert not os.path.exists(os.path.join(tmp_dir, "step_timings.csv"))
+
+
 class TestResolveStepInputFasta:
     """Centralises FASTA selection for the four prediction steps so they
     cannot drift. DLP/DSE see the null-pool concat when enrichment-stats

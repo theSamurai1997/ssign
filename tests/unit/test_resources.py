@@ -83,6 +83,82 @@ class TestResolveThreads:
         assert resolve_threads(-3) == 1
 
 
+class TestParallelShareCpus:
+    """When SSIGN_PARALLEL_GROUP_SIZE is set (by the runner before
+    launching the DLP+DSE+SignalP parallel group), each wrapper should
+    take 1/N of the effective CPU budget instead of fighting over the
+    full allocation. Unset = standalone wrapper invocation; full budget."""
+
+    def test_unset_returns_full_cpu_count(self, monkeypatch):
+        from ssign_lib.resources import parallel_share_cpus
+
+        monkeypatch.delenv("SSIGN_PARALLEL_GROUP_SIZE", raising=False)
+        monkeypatch.setattr("ssign_lib.resources.effective_cpu_count", lambda: 16)
+        assert parallel_share_cpus() == 16
+
+    def test_group_of_3_splits_evenly(self, monkeypatch):
+        from ssign_lib.resources import parallel_share_cpus
+
+        monkeypatch.setenv("SSIGN_PARALLEL_GROUP_SIZE", "3")
+        monkeypatch.setattr("ssign_lib.resources.effective_cpu_count", lambda: 16)
+        # 16 // 3 == 5; each of DLP/DSE/SignalP gets 5 cores
+        assert parallel_share_cpus() == 5
+
+    def test_group_of_1_returns_full_count(self, monkeypatch):
+        from ssign_lib.resources import parallel_share_cpus
+
+        monkeypatch.setenv("SSIGN_PARALLEL_GROUP_SIZE", "1")
+        monkeypatch.setattr("ssign_lib.resources.effective_cpu_count", lambda: 16)
+        assert parallel_share_cpus() == 16
+
+    def test_low_cpu_count_clamps_to_one(self, monkeypatch):
+        from ssign_lib.resources import parallel_share_cpus
+
+        monkeypatch.setenv("SSIGN_PARALLEL_GROUP_SIZE", "3")
+        monkeypatch.setattr("ssign_lib.resources.effective_cpu_count", lambda: 2)
+        # 2 // 3 == 0, must clamp up to 1
+        assert parallel_share_cpus() == 1
+
+    def test_garbage_value_returns_full_count(self, monkeypatch):
+        from ssign_lib.resources import parallel_share_cpus
+
+        monkeypatch.setenv("SSIGN_PARALLEL_GROUP_SIZE", "not-an-int")
+        monkeypatch.setattr("ssign_lib.resources.effective_cpu_count", lambda: 16)
+        assert parallel_share_cpus() == 16
+
+
+class TestParallelGroupContext:
+    """parallel_group() context-manager-ifies the SSIGN_PARALLEL_GROUP_SIZE
+    env-var save/set/restore dance the runner used to do inline. It must
+    restore the prior value (even None → unset) on exit, including when
+    the body raises."""
+
+    def test_sets_var_inside_restores_on_exit(self, monkeypatch):
+        from ssign_lib.resources import parallel_group
+
+        monkeypatch.delenv("SSIGN_PARALLEL_GROUP_SIZE", raising=False)
+        with parallel_group(3):
+            assert os.environ["SSIGN_PARALLEL_GROUP_SIZE"] == "3"
+        assert "SSIGN_PARALLEL_GROUP_SIZE" not in os.environ
+
+    def test_restores_prior_value(self, monkeypatch):
+        from ssign_lib.resources import parallel_group
+
+        monkeypatch.setenv("SSIGN_PARALLEL_GROUP_SIZE", "OLD")
+        with parallel_group(5):
+            assert os.environ["SSIGN_PARALLEL_GROUP_SIZE"] == "5"
+        assert os.environ["SSIGN_PARALLEL_GROUP_SIZE"] == "OLD"
+
+    def test_restores_on_exception(self, monkeypatch):
+        from ssign_lib.resources import parallel_group
+
+        monkeypatch.delenv("SSIGN_PARALLEL_GROUP_SIZE", raising=False)
+        with pytest.raises(RuntimeError):
+            with parallel_group(2):
+                raise RuntimeError("simulated step failure")
+        assert "SSIGN_PARALLEL_GROUP_SIZE" not in os.environ
+
+
 class TestProbeCudaDevice:
     """Single source of truth for "is there a CUDA GPU and how big is its VRAM"."""
 

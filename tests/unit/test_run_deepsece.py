@@ -295,3 +295,33 @@ class TestEnsureCheckpoint:
 
         with pytest.raises(RuntimeError, match="Could not download DeepSecE checkpoint"):
             _ensure_checkpoint()
+
+
+class TestSelectDevice:
+    """`_select_device` picks `cuda` when available, `cpu` otherwise.
+    Mirror of TestUseCudaForDeeplocpro — pins the same invariant so a
+    silent GPU miss is caught immediately instead of after a long CPU run."""
+
+    def test_returns_cuda_when_available(self, monkeypatch):
+        import torch
+        from run_deepsece import _select_device
+
+        monkeypatch.delenv("SSIGN_DEEPSECE_FORCE_CPU", raising=False)
+        monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
+        assert _select_device().type == "cuda"
+
+    def test_returns_cpu_when_no_cuda(self, monkeypatch):
+        import torch
+        from run_deepsece import _select_device
+
+        monkeypatch.delenv("SSIGN_DEEPSECE_FORCE_CPU", raising=False)
+        monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+        assert _select_device().type == "cpu"
+
+    def test_force_cpu_env_var_overrides_cuda(self, monkeypatch):
+        import torch
+        from run_deepsece import _select_device
+
+        monkeypatch.setenv("SSIGN_DEEPSECE_FORCE_CPU", "1")
+        monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
+        assert _select_device().type == "cpu"

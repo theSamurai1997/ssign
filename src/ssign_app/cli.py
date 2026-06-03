@@ -294,6 +294,18 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
         default=False,
         help="Run PLM-Effector on every protein, not just the SS neighborhood.",
     )
+    g.add_argument(
+        "--monitor-resources",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Write outdir/resources.csv + step_timings.csv during a run. On by default.",
+    )
+    g.add_argument(
+        "--monitor-interval-s",
+        type=float,
+        default=5.0,
+        help="Sampling interval for resources.csv (seconds, default 5).",
+    )
 
     # ── Phase 5: Annotation tools ───────────────────────────────────────
     g = p.add_argument_group("BLASTp")
@@ -491,6 +503,8 @@ def _config_from_args(args: argparse.Namespace) -> "PipelineConfig":
         "dse_whole_genome": args.dse_whole_genome,
         "sp_whole_genome": args.sp_whole_genome,
         "plme_whole_genome": args.plme_whole_genome,
+        "monitor_resources": args.monitor_resources,
+        "monitor_interval_s": args.monitor_interval_s,
         "enrichment_stats": args.enrichment_stats,
         "n_null_proteins": args.n_null_proteins,
         "null_seed": args.null_seed,

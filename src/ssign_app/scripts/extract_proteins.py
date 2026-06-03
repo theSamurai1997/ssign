@@ -159,8 +159,18 @@ def extract_from_fasta_contigs(fasta_path: str, sample_id: str):
 
     Accepts .fasta, .fna, .fa files containing genomic DNA sequences.
     Uses Pyrodigal (Python bindings for Prodigal) for gene prediction.
+
+    Per-contig gene-finding is fanned out across a thread pool sized by
+    `effective_cpu_count()`. Pyrodigal's API has no jobs parameter
+    (https://github.com/althonos/pyrodigal — GeneFinder.find_genes is
+    re-entrant and thread-safe; parallelism is caller-side). On a draft
+    assembly with 100+ contigs this is the difference between sub-second
+    and several-minute ORF calling.
     """
+    from concurrent.futures import ThreadPoolExecutor
+
     import pyrodigal
+    from ssign_lib.resources import effective_cpu_count
 
     # Load contigs
     contigs = []
@@ -179,9 +189,15 @@ def extract_from_fasta_contigs(fasta_path: str, sample_id: str):
         training_seq = "".join(seq for _, seq in contigs)
         orf_finder.train(training_seq.encode())
 
+    # Fan out: run find_genes on each contig concurrently, then iterate
+    # results in input order so locus_tag numbering stays deterministic
+    # regardless of which contig's prediction finished first.
+    n_workers = min(len(contigs), max(1, effective_cpu_count()))
+    with ThreadPoolExecutor(max_workers=n_workers) as pool:
+        gene_lists = list(pool.map(lambda c: orf_finder.find_genes(c[1].encode()), contigs))
+
     gene_counter = 0
-    for contig_id, contig_seq in contigs:
-        genes = orf_finder.find_genes(contig_seq.encode())
+    for (contig_id, _seq), genes in zip(contigs, gene_lists):
         for gene in genes:
             gene_counter += 1
             locus_tag = f"{sample_id}_{gene_counter:05d}"
