@@ -1507,21 +1507,38 @@ class PipelineRunner:
 
     # ── Phase 3: Prediction ──
 
+    def _resolve_step_input_fasta(self, whole_genome: bool, *, include_null_concat: bool = False) -> str:
+        """Pick the input FASTA path for a prediction step.
+
+        - whole_genome=True forces the full proteome.
+        - include_null_concat=True tells the helper to consume the null
+          pool concat (neighborhood + null sample) when --enrichment-stats
+          is on. Set this for steps cheap enough to score the null pool
+          (DLP, DSE); leave False for expensive ones (SignalP, PLM-E).
+
+        Falls back to full proteome only when no neighborhood file is
+        staged (e.g. MacSyFinder found no systems). Raises RuntimeError
+        if neither neighborhood nor proteins are staged — that means
+        input-processing never ran and the caller has no business
+        launching a subprocess with --input "".
+        """
+        proteins = self.files.get("proteins", "")
+        if whole_genome:
+            if not proteins:
+                raise RuntimeError("No proteins FASTA staged; input-processing step must run first")
+            return proteins
+        if include_null_concat:
+            chosen = self.files.get("dlp_dse_input") or self.files.get("neighborhood_proteins") or proteins
+        else:
+            chosen = self.files.get("neighborhood_proteins") or proteins
+        if not chosen:
+            raise RuntimeError("No neighborhood or proteins FASTA staged; input-processing step must run first")
+        return chosen
+
     def _step_deeplocpro(self) -> StepResult:
         output = self._wf(f"{self.config.sample_id}_deeplocpro.tsv")
 
-        # Use neighborhood proteins (focused) unless whole-genome mode is on.
-        # When --enrichment-stats is on, dlp_dse_input is the concat of the
-        # neighborhood + null sample so the null background gets predicted in
-        # the same tool invocation.
-        if self.config.dlp_whole_genome:
-            input_proteins = self.files.get("proteins", "")
-        else:
-            input_proteins = (
-                self.files.get("dlp_dse_input")
-                or self.files.get("neighborhood_proteins")
-                or self.files.get("proteins", "")
-            )
+        input_proteins = self._resolve_step_input_fasta(self.config.dlp_whole_genome, include_null_concat=True)
 
         args = [
             "--input",
@@ -1564,16 +1581,7 @@ class PipelineRunner:
     def _step_deepsece(self) -> StepResult:
         output = self._wf(f"{self.config.sample_id}_deepsece.tsv")
 
-        # Mirrors _step_deeplocpro's enrichment-stats handling: prefer the
-        # concat (neighborhood + null) when --enrichment-stats is on.
-        if self.config.dse_whole_genome:
-            input_proteins = self.files.get("proteins", "")
-        else:
-            input_proteins = (
-                self.files.get("dlp_dse_input")
-                or self.files.get("neighborhood_proteins")
-                or self.files.get("proteins", "")
-            )
+        input_proteins = self._resolve_step_input_fasta(self.config.dse_whole_genome, include_null_concat=True)
 
         rc, stdout, stderr = run_script(
             "run_deepsece.py",
@@ -1596,10 +1604,7 @@ class PipelineRunner:
     def _step_signalp(self) -> StepResult:
         output = self._wf(f"{self.config.sample_id}_signalp.tsv")
 
-        if self.config.sp_whole_genome:
-            input_proteins = self.files.get("proteins", "")
-        else:
-            input_proteins = self.files.get("neighborhood_proteins", self.files.get("proteins", ""))
+        input_proteins = self._resolve_step_input_fasta(self.config.sp_whole_genome)
 
         args = [
             "--input",
@@ -2080,14 +2085,7 @@ class PipelineRunner:
 
             weights_dir = stage_directory_tree_to_local_ssd_if_remote(weights_dir, cache)
 
-        # Mirror _step_signalp: PLM-E runs on the SS neighborhood only by
-        # default. Whole-proteome mode is opt-in via plme_whole_genome.
-        # PLM-E is deliberately NOT run on the dlp_dse_input concat — the
-        # null pool feeds only DLP+DSE (see PipelineConfig comment).
-        if self.config.plme_whole_genome:
-            input_proteins = self.files.get("proteins", "")
-        else:
-            input_proteins = self.files.get("neighborhood_proteins", self.files.get("proteins", ""))
+        input_proteins = self._resolve_step_input_fasta(self.config.plme_whole_genome)
 
         out_dir = self._wf(f"{self.config.sample_id}_plm_effector")
         os.makedirs(out_dir, exist_ok=True)

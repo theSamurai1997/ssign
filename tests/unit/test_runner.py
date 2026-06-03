@@ -905,6 +905,53 @@ class TestStepSampleNullProteins:
         assert "missing" in result.message.lower()
 
 
+class TestResolveStepInputFasta:
+    """Centralises FASTA selection for the four prediction steps so they
+    cannot drift. DLP/DSE see the null-pool concat when enrichment-stats
+    is on; SignalP/PLM-E never do. Whole-genome mode forces the full
+    proteome regardless."""
+
+    def _runner(self, tmp_dir, files):
+        c = PipelineConfig(outdir=tmp_dir, sample_id="x")
+        r = PipelineRunner(c)
+        r.files = files
+        return r
+
+    def test_whole_genome_forces_full_proteome(self, tmp_dir):
+        r = self._runner(tmp_dir, {"proteins": "/p", "neighborhood_proteins": "/n", "dlp_dse_input": "/c"})
+        assert r._resolve_step_input_fasta(whole_genome=True) == "/p"
+        assert r._resolve_step_input_fasta(whole_genome=True, include_null_concat=True) == "/p"
+
+    def test_default_returns_neighborhood(self, tmp_dir):
+        r = self._runner(tmp_dir, {"proteins": "/p", "neighborhood_proteins": "/n"})
+        assert r._resolve_step_input_fasta(whole_genome=False) == "/n"
+
+    def test_null_concat_preferred_for_dlp_dse(self, tmp_dir):
+        r = self._runner(tmp_dir, {"proteins": "/p", "neighborhood_proteins": "/n", "dlp_dse_input": "/c"})
+        assert r._resolve_step_input_fasta(whole_genome=False, include_null_concat=True) == "/c"
+
+    def test_null_concat_ignored_for_signalp_plme(self, tmp_dir):
+        # PLM-E and SignalP pass include_null_concat=False because their
+        # models are too expensive to run on the null pool.
+        r = self._runner(tmp_dir, {"proteins": "/p", "neighborhood_proteins": "/n", "dlp_dse_input": "/c"})
+        assert r._resolve_step_input_fasta(whole_genome=False, include_null_concat=False) == "/n"
+
+    def test_falls_back_to_full_proteome_when_no_neighborhood(self, tmp_dir):
+        # MacSyFinder found no systems → no neighborhood FASTA staged.
+        r = self._runner(tmp_dir, {"proteins": "/p"})
+        assert r._resolve_step_input_fasta(whole_genome=False) == "/p"
+        assert r._resolve_step_input_fasta(whole_genome=False, include_null_concat=True) == "/p"
+
+    def test_raises_when_nothing_staged(self, tmp_dir):
+        # No silent --input "" — surface "input-processing never ran"
+        # before launching a subprocess that would crash on it anyway.
+        r = self._runner(tmp_dir, {})
+        with pytest.raises(RuntimeError, match="input-processing"):
+            r._resolve_step_input_fasta(whole_genome=False)
+        with pytest.raises(RuntimeError, match="input-processing"):
+            r._resolve_step_input_fasta(whole_genome=True)
+
+
 class TestStepPlmEffectorInput:
     """`_step_plm_effector` must read the SS neighborhood by default and
     only fall back to the full proteome when plme_whole_genome=True. The
