@@ -1,33 +1,52 @@
 #!/bin/bash
-# K-12 tier-2 validation PBS script for Imperial CX3 L40S nodes.
+# ssign tier-2 validation PBS script for Imperial CX3 GPU nodes.
 #
-# Submits ssign run against ssign-tutorial/ecoli_k12.gbff with the
-# extended tier. Used for benchmarking changes that affect runtime or
-# substrate-set output. Edit `INPUT_GBFF` and `RUN_DIR` below as needed.
+# Defaults to ssign-tutorial/ecoli_k12.gbff at the extended tier and a
+# 4 h walltime — the common case. Override INPUT_GBFF for other test
+# genomes; override walltime on the qsub command line when including
+# pLM-BLAST (which can take 2-4 h on autotransporter-heavy genomes).
 #
 # Usage:
-#   git pull   # make sure you have the latest copy of this script
+#   # Standard K-12 race across GPU types (current default):
 #   qsub scripts/cx3/run_k12_validation.pbs
 #
-# Walltime is 4h: pre-fix runs reached 2h walltime kill on PBS 2918063
-# under oversubscription. Post-fix expected ~60-90m. 4h is comfortable
-# headroom that still keeps queue priority high.
+#   # Override genome:
+#   qsub -v INPUT_GBFF=$HOME/ssign-tutorial/pseudomonas_pao1.gbff \
+#        scripts/cx3/run_k12_validation.pbs
+#
+#   # Overnight run with longer walltime so pLM-BLAST finishes:
+#   qsub -l walltime=16:00:00 \
+#        -v INPUT_GBFF=$HOME/ssign-tutorial/salmonella_tymph.gbff \
+#        scripts/cx3/run_k12_validation.pbs
+#
+# Pre-fix runs (before 82cece9 CPU-share fix) hit 2 h walltime kill
+# under oversubscription. Post-fix the prediction half finishes in
+# ~60-90 m; annotation (esp. pLM-BLAST) may take an additional 2-4 h on
+# autotransporter-heavy genomes — see task #46/#4.
 
 #PBS -l select=1:ncpus=16:mem=80gb:ngpus=1:gpu_type=L40S
 #PBS -l walltime=04:00:00
-#PBS -N ssign_k12_full
+#PBS -N ssign_validation
 #PBS -j oe
-#PBS -o ssign_k12_full.log
+#PBS -o ssign_validation.log
 #PBS -S /bin/bash
 
 set -eo pipefail
 
-INPUT_GBFF="$HOME/ssign-tutorial/ecoli_k12.gbff"
+# INPUT_GBFF can be overridden via `-v INPUT_GBFF=/path/to/genome.gbff`.
+# Default keeps the historical K-12 behaviour.
+: "${INPUT_GBFF:=$HOME/ssign-tutorial/ecoli_k12.gbff}"
+test -f "$INPUT_GBFF" || { echo "FATAL: INPUT_GBFF not found at $INPUT_GBFF"; exit 1; }
+
+# Derive a sample tag from the genome filename so RUN_DIR doesn't clobber
+# when racing different genomes in parallel.
+SAMPLE_TAG="$(basename "$INPUT_GBFF" | sed 's/\.[^.]*$//')"
+
 # GPU_TYPE is set via `-v GPU_TYPE=L40S` on the qsub command line when
 # submitting multiple jobs to compare GPU types in parallel. The default
 # matches the #PBS gpu_type=L40S directive above.
 : "${GPU_TYPE:=L40S}"
-RUN_DIR="$HOME/runs/k12_${GPU_TYPE}_$(date +%Y%m%d_%H%M%S)"
+RUN_DIR="$HOME/runs/${SAMPLE_TAG}_${GPU_TYPE}_$(date +%Y%m%d_%H%M%S)"
 VENV="$HOME/blastp_t5a/ssign/.venv"
 
 mkdir -p "$RUN_DIR" && cd "$RUN_DIR"
