@@ -1,0 +1,63 @@
+#!/bin/bash
+# K-12 tier-2 validation PBS script for Imperial CX3 L40S nodes.
+#
+# Submits ssign run against ssign-tutorial/ecoli_k12.gbff with the
+# extended tier. Used for benchmarking changes that affect runtime or
+# substrate-set output. Edit `INPUT_GBFF` and `RUN_DIR` below as needed.
+#
+# Usage:
+#   git pull   # make sure you have the latest copy of this script
+#   qsub scripts/cx3/run_k12_validation.pbs
+#
+# Walltime is 2h: previous runs took ~75m before the 2026-06 perf fixes
+# (PLM-E neighborhood + parallel CPU split + IPS heap), expected ~20m now.
+
+#PBS -l select=1:ncpus=16:mem=80gb:ngpus=1:gpu_type=L40S
+#PBS -l walltime=02:00:00
+#PBS -N ssign_k12_full
+#PBS -j oe
+#PBS -o ssign_k12_full.log
+#PBS -S /bin/bash
+
+set -eo pipefail
+
+INPUT_GBFF="$HOME/ssign-tutorial/ecoli_k12.gbff"
+RUN_DIR="$HOME/runs/k12_$(date +%Y%m%d_%H%M%S)"
+VENV="$HOME/blastp_t5a/ssign/.venv"
+
+mkdir -p "$RUN_DIR" && cd "$RUN_DIR"
+
+echo "===== JOB START $(date -Is) | $(hostname) | $PBS_JOBID ====="
+nvidia-smi || { echo "FATAL: no GPU"; exit 1; }
+
+source ~/.bashrc 2>/dev/null || true
+module load Java/11.0.25
+java -version 2>&1
+
+source "$VENV/bin/activate"
+which ssign
+
+# bakta-deps conda env on PATH for tRNAscan-SE, etc.
+export PATH="$PATH:$HOME/.conda/envs/bakta-deps/bin"
+
+# pLM-BLAST script path. Set on 2026-06-03 install.
+export SSIGN_PLMBLAST_SCRIPT="$HOME/tools/pLM-BLAST/scripts/plmblast.py"
+test -f "$SSIGN_PLMBLAST_SCRIPT" || { echo "FATAL: SSIGN_PLMBLAST_SCRIPT not found at $SSIGN_PLMBLAST_SCRIPT"; exit 1; }
+
+echo "----- tools -----"
+for c in hmmsearch macsyfinder signalp6 deeplocpro emapper.py bakta hhblits tRNAscan-SE java; do
+  if command -v "$c" >/dev/null; then
+    echo "  $c -> $(command -v "$c")"
+  else
+    echo "  $c MISSING"
+  fi
+done
+
+echo "===== ssign run START $(date -Is) ====="
+ssign run "$INPUT_GBFF" \
+  --outdir "$RUN_DIR/results" \
+  --tier extended \
+  2>&1 | tee "$RUN_DIR/ssign.run.log"
+SSIGN_RC=${PIPESTATUS[0]}
+echo "===== ssign run END (rc=$SSIGN_RC) $(date -Is) ====="
+exit $SSIGN_RC
