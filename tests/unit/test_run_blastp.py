@@ -14,7 +14,6 @@ The `run_local_blastp` subprocess path requires NCBI BLAST+ on PATH and
 is exercised by tests/integration/.
 """
 
-
 import pytest
 from _helpers import BLAST_OUTFMT_COLS, make_blast_outfmt_row
 from run_blastp import (
@@ -211,3 +210,51 @@ class TestOutfmtPinning:
         # silently drops every row.
         assert len(BLAST_OUTFMT.split()) - 1 == 15
         assert len(BLAST_OUTFMT_COLS) == 15
+
+
+class TestRunLocalBlastpThreadDefault:
+    """`run_local_blastp(..., num_threads=None)` must auto-detect from
+    `effective_cpu_count()`. Argparse default already did this; the
+    Python-API signature pinned 4 and starved direct callers."""
+
+    def _stub_subprocess_run(self, captured):
+        class _Done:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        def _fake(cmd, **kwargs):
+            captured.append(list(cmd))
+            return _Done()
+
+        return _fake
+
+    def test_num_threads_none_resolves_to_effective_cpu_count(self, monkeypatch, tmp_path):
+        import subprocess
+
+        from run_blastp import run_local_blastp
+        from ssign_lib.resources import effective_cpu_count as _cpu
+
+        captured = []
+        monkeypatch.setattr(subprocess, "run", self._stub_subprocess_run(captured))
+
+        run_local_blastp(str(tmp_path / "q.faa"), "/db", 1e-5, "", num_threads=None)
+
+        assert len(captured) == 1
+        cmd = captured[0]
+        i = cmd.index("-num_threads")
+        assert cmd[i + 1] == str(_cpu())
+
+    def test_explicit_num_threads_passes_through(self, monkeypatch, tmp_path):
+        import subprocess
+
+        from run_blastp import run_local_blastp
+
+        captured = []
+        monkeypatch.setattr(subprocess, "run", self._stub_subprocess_run(captured))
+
+        run_local_blastp(str(tmp_path / "q.faa"), "/db", 1e-5, "", num_threads=7)
+
+        cmd = captured[0]
+        i = cmd.index("-num_threads")
+        assert cmd[i + 1] == "7"

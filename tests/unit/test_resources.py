@@ -61,6 +61,80 @@ class TestEffectiveCpuCount:
         assert effective_cpu_count() >= 1
 
 
+class TestResolveThreads:
+    """Standard "None → effective_cpu_count(), else passthrough" shape used
+    by every tool wrapper that accepts a `threads` argument."""
+
+    def test_none_resolves_to_effective_cpu_count(self, monkeypatch):
+        from ssign_lib.resources import resolve_threads
+
+        monkeypatch.setattr("ssign_lib.resources.effective_cpu_count", lambda: 12)
+        assert resolve_threads(None) == 12
+
+    def test_explicit_int_passes_through(self):
+        from ssign_lib.resources import resolve_threads
+
+        assert resolve_threads(7) == 7
+
+    def test_zero_or_negative_clamps_to_one(self):
+        from ssign_lib.resources import resolve_threads
+
+        assert resolve_threads(0) == 1
+        assert resolve_threads(-3) == 1
+
+
+class TestProbeCudaDevice:
+    """Single source of truth for "is there a CUDA GPU and how big is its VRAM"."""
+
+    def _patch_torch(self, monkeypatch, *, has_torch=True, available=True, total_bytes=48 * 1024**3, name="FAKE"):
+        import sys
+        import types
+
+        if not has_torch:
+            monkeypatch.setitem(sys.modules, "torch", None)
+            return
+        fake = types.SimpleNamespace()
+        fake.cuda = types.SimpleNamespace(
+            is_available=lambda: available,
+            get_device_name=lambda i: name,
+            get_device_properties=lambda i: types.SimpleNamespace(total_memory=total_bytes),
+        )
+        monkeypatch.setitem(sys.modules, "torch", fake)
+
+    def test_returns_name_and_gib_when_cuda_visible(self, monkeypatch):
+        from ssign_lib.resources import probe_cuda_device
+
+        self._patch_torch(monkeypatch, available=True, total_bytes=24 * 1024**3, name="RTX 4090")
+        name, gib = probe_cuda_device()
+        assert name == "RTX 4090"
+        assert abs(gib - 24.0) < 0.01
+
+    def test_returns_none_pair_when_cuda_unavailable(self, monkeypatch):
+        from ssign_lib.resources import probe_cuda_device
+
+        self._patch_torch(monkeypatch, available=False)
+        assert probe_cuda_device() == (None, None)
+
+    def test_returns_none_pair_when_properties_raise(self, monkeypatch):
+        # Driver/runtime mismatch can throw on get_device_properties.
+        import sys
+        import types
+
+        def _boom(i):
+            raise RuntimeError("CUDA driver too old")
+
+        fake = types.SimpleNamespace()
+        fake.cuda = types.SimpleNamespace(
+            is_available=lambda: True,
+            get_device_name=lambda i: "X",
+            get_device_properties=_boom,
+        )
+        monkeypatch.setitem(sys.modules, "torch", fake)
+        from ssign_lib.resources import probe_cuda_device
+
+        assert probe_cuda_device() == (None, None)
+
+
 class TestEffectiveRamGb:
     """Lookup priority: env override < SLURM < PBS qstat < cgroup < psutil. Returns MIN."""
 
@@ -277,6 +351,7 @@ class TestAutoBatchSizeFromVram:
         fake_torch = types.SimpleNamespace()
         fake_torch.cuda = types.SimpleNamespace(
             is_available=lambda: available,
+            get_device_name=lambda i: "FAKE-GPU",
             get_device_properties=lambda i: types.SimpleNamespace(total_memory=total_bytes),
         )
         monkeypatch.setitem(sys.modules, "torch", fake_torch)

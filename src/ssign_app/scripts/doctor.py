@@ -199,6 +199,49 @@ def check_weights(w: ModelWeights, data_root: str, db_root: str) -> CheckResult:
 # ---------------------------------------------------------------------------
 
 
+def _format_gpu(name: str | None, total_gib: float | None) -> str:
+    """Render `probe_cuda_device()`'s return as a one-line label."""
+    if name is None or total_gib is None:
+        return "none (no CUDA device or torch not installed)"
+    return f"{name}, {total_gib:.1f} GiB VRAM"
+
+
+def report_resources(stream) -> None:
+    """Print detected CPU / RAM / GPU + the auto-scaled values ssign will use.
+
+    Informational only — never contributes to `failures`. The aim is to
+    let HPC users confirm at a glance that ssign sees the full PBS/SLURM
+    allocation (one of the most common silent-throttle bugs).
+    """
+    # Lazy import: lets the monkeypatch.setattr in tests resolve to the
+    # patched names per-call, and keeps psutil/torch out of doctor's
+    # module-load path so `ssign doctor --imports-only` stays cheap.
+    from ssign_app.scripts.ssign_lib.resources import (
+        auto_batch_size_from_vram,
+        effective_cpu_count,
+        effective_ram_gb,
+        host_ram_gb,
+        probe_cuda_device,
+    )
+
+    cpu = effective_cpu_count()
+    host_cpu = os.cpu_count() or 0
+    ram = effective_ram_gb()
+    host_ram = host_ram_gb()
+    gpu_label = _format_gpu(*probe_cuda_device())
+    plme_batch = auto_batch_size_from_vram()
+
+    section = "Resources"
+    print(f"\n{section}  (informational)", file=stream)
+    print("─" * len(section), file=stream)
+    print(f"  CPU      effective: {cpu}  (host: {host_cpu})", file=stream)
+    if cpu < host_cpu:
+        print(f"           note: scheduler is restricting ssign to {cpu}/{host_cpu} cores", file=stream)
+    print(f"  RAM      effective: {ram:.1f} GB  (host: {host_ram:.1f} GB)", file=stream)
+    print(f"  GPU      {gpu_label}", file=stream)
+    print(f"  PLM-E    auto batch size: {plme_batch}  (override with --plme-batch-size N)", file=stream)
+
+
 def _render(section: str, results: list[CheckResult], stream) -> tuple[int, int]:
     ok_count = sum(1 for r in results if r.ok)
     total = len(results)
@@ -248,6 +291,8 @@ def run(
     py_results = [check_python_dep(d) for d in deps_for_tier(tier)]
     ok, total = _render("Python packages", py_results, stream)
     failures += total - ok
+
+    report_resources(stream)
 
     if imports_only:
         print(f"\nResult: {failures} failures (imports-only).", file=stream)

@@ -34,7 +34,7 @@ if _scripts_dir not in sys.path:
     sys.path.insert(0, _scripts_dir)
 from ssign_lib.constants import TOOL_TIMEOUT_S  # noqa: E402
 from ssign_lib.fasta_io import write_fasta  # noqa: E402  # used in extract_proteins_for_substrates
-from ssign_lib.resources import effective_cpu_count  # noqa: E402
+from ssign_lib.resources import effective_cpu_count, resolve_threads  # noqa: E402,F401
 from ssign_lib.subprocess_diag import dump_failure_log  # noqa: E402
 
 # Bakta TSV column names (tab-separated, with header)
@@ -94,8 +94,7 @@ def run_bakta(contigs_fasta, db_path, sample_id, output_dir, threads=None, local
     Returns:
         tuple: (proteins_faa_path, tsv_path)
     """
-    if threads is None:
-        threads = max(1, effective_cpu_count())
+    threads = resolve_threads(threads)
     if local_cache_dir:
         from ssign_lib.resources import stage_directory_tree_to_local_ssd_if_remote
 

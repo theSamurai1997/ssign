@@ -23,7 +23,7 @@ if _scripts_dir not in sys.path:
 from dedup_sequences import deduplicate_dict, expand_results_dict
 from ssign_lib.constants import TOOL_TIMEOUT_S
 from ssign_lib.fasta_io import read_fasta
-from ssign_lib.resources import effective_cpu_count
+from ssign_lib.resources import effective_cpu_count, resolve_threads  # noqa: F401
 from ssign_lib.subprocess_diag import dump_failure_log
 from ssign_lib.substrates import load_substrate_ids
 
@@ -106,8 +106,7 @@ def run_local_interproscan(
     workers regardless of node CPU count), which silently throttles
     runs on 16+ core nodes.
     """
-    if cpu is None:
-        cpu = max(1, effective_cpu_count())
+    cpu = resolve_threads(cpu)
     output_file = os.path.join(output_dir, "results.tsv")
     binary = _resolve_interproscan_binary(install_dir)
     cmd = [

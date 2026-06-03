@@ -32,7 +32,7 @@ _scripts_dir = os.path.dirname(os.path.abspath(__file__))
 if _scripts_dir not in sys.path:
     sys.path.insert(0, _scripts_dir)
 from ssign_lib.constants import TOOL_TIMEOUT_S  # noqa: E402
-from ssign_lib.resources import effective_cpu_count  # noqa: E402
+from ssign_lib.resources import effective_cpu_count, resolve_threads  # noqa: E402,F401
 from ssign_lib.subprocess_diag import dump_failure_log  # noqa: E402
 from ssign_lib.substrates import (  # noqa: E402
     load_substrate_ids,
@@ -214,13 +214,17 @@ def run_emapper(
     db_path,
     sample_id,
     output_dir,
-    threads=4,
+    threads=None,
     tax_scope="2",
     sensmode="sensitive",
     dbmem=None,
     local_cache_dir=None,
 ):
     """Run emapper.py on a protein FASTA file.
+
+    `threads=None` (default) auto-detects from `effective_cpu_count()`.
+    Argparse default already used this; the Python-API signature pinned
+    4 and starved direct callers on multi-core machines.
 
     `tax_scope` restricts which orthologous groups are reported (post-
     filter on DIAMOND seed-ortholog hits) — ssign is gram-negative-
@@ -244,6 +248,7 @@ def run_emapper(
     Returns:
         str: path to the `.emapper.annotations` file written by emapper.
     """
+    threads = resolve_threads(threads)
     effective_db_path = db_path
     if local_cache_dir:
         free_gb = shutil.disk_usage(local_cache_dir).free / 2**30

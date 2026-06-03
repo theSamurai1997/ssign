@@ -48,6 +48,28 @@ _AUTO_BATCH_TIERS = (
 )
 
 
+def probe_cuda_device() -> tuple[str | None, float | None]:
+    """Return (device name, total VRAM GiB) for CUDA device 0, or (None, None).
+
+    Lazy-imports torch so callers in tiers that don't ship torch (e.g.
+    base) don't pay the import cost. Swallows the usual failure modes
+    (no torch, no CUDA, driver mismatch) by returning the sentinel pair.
+    """
+    try:
+        import torch
+    except ImportError:
+        return (None, None)
+    if not torch.cuda.is_available():
+        return (None, None)
+    try:
+        name = torch.cuda.get_device_name(0)
+        total_gib = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+    except Exception as e:
+        logger.warning("Could not read GPU properties: %s", e)
+        return (None, None)
+    return (name, total_gib)
+
+
 def auto_batch_size_from_vram(default_when_no_gpu: int = 4) -> int:
     """Pick a PLM-E batch size from the active CUDA device's total VRAM.
 
@@ -55,23 +77,14 @@ def auto_batch_size_from_vram(default_when_no_gpu: int = 4) -> int:
     device is visible or torch isn't importable; callers can override
     via an explicit ``--batch-size N``.
     """
-    try:
-        import torch
-    except ImportError:
+    _name, total_gib = probe_cuda_device()
+    if total_gib is None:
         return default_when_no_gpu
-    if not torch.cuda.is_available():
-        return default_when_no_gpu
-    try:
-        total_bytes = torch.cuda.get_device_properties(0).total_memory
-    except Exception as e:
-        logger.warning("Could not read GPU memory for auto-batch sizing: %s", e)
-        return default_when_no_gpu
-    total_gb = total_bytes / (1024**3)
     for min_gb, batch in _AUTO_BATCH_TIERS:
-        if total_gb >= min_gb:
+        if total_gib >= min_gb:
             logger.info(
                 "PLM-E auto-batch: detected %.1f GB VRAM, choosing batch_size=%d",
-                total_gb,
+                total_gib,
                 batch,
             )
             return batch
@@ -90,6 +103,18 @@ def effective_cpu_count() -> int:
         except OSError:
             pass
     return os.cpu_count() or 4
+
+
+def resolve_threads(n: int | None) -> int:
+    """Pick a thread count: ``n`` when provided, else ``effective_cpu_count()``.
+
+    Standard shape for tool wrappers' ``threads`` argument so they all
+    auto-scale to the scheduler's allocation when called with None.
+    Always returns at least 1 even if cgroup math degenerates.
+    """
+    if n is not None:
+        return max(1, n)
+    return max(1, effective_cpu_count())
 
 
 def _parse_size_to_gb(value: str) -> float | None:
@@ -146,6 +171,22 @@ def _cgroup_mem_gb() -> float | None:
     return None
 
 
+def host_ram_gb() -> float:
+    """Total physical RAM on the host (psutil), or 0.0 if unreadable.
+
+    Distinct from `effective_ram_gb()`, which returns the smaller of the
+    scheduler allocation and the host total. doctor uses both so users
+    can see the gap (the most common "scheduler is silently throttling
+    me" signal on shared HPC nodes).
+    """
+    try:
+        import psutil
+
+        return psutil.virtual_memory().total / 2**30
+    except Exception:
+        return 0.0
+
+
 def effective_ram_gb() -> float:
     """Smallest of every job-allocation signal we can find, falling back to host.
 
@@ -176,12 +217,9 @@ def effective_ram_gb() -> float:
     if cg is not None:
         candidates.append(cg)
 
-    try:
-        import psutil
-
-        candidates.append(psutil.virtual_memory().total / 2**30)
-    except Exception:
-        pass
+    host = host_ram_gb()
+    if host > 0:
+        candidates.append(host)
 
     return min(c for c in candidates if c > 0) if candidates else 0.0
 

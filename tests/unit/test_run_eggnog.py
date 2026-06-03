@@ -372,3 +372,58 @@ class TestWriteSubstratesOnlyFasta:
         assert n == 0
         assert os.path.exists(out)
         assert os.path.getsize(out) == 0
+
+
+class TestRunEmapperThreadDefault:
+    """`run_emapper(..., threads=None)` must auto-detect from
+    `effective_cpu_count()`. Argparse default already did this; the
+    Python-API signature pinned 4 and starved direct callers on
+    multi-core machines."""
+
+    def _stub_subprocess_run(self, captured):
+        class _Done:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        def _fake(cmd, **kwargs):
+            captured.append(list(cmd))
+            return _Done()
+
+        return _fake
+
+    def _touch_annotations(self, tmp_path, sample_id):
+        # run_emapper reads back the .emapper.annotations file after
+        # subprocess returns; stub it so the wrapper doesn't FileNotFoundError.
+        open(os.path.join(tmp_path, f"{sample_id}.emapper.annotations"), "w").close()
+
+    def test_threads_none_resolves_to_effective_cpu_count(self, monkeypatch, tmp_path):
+        import subprocess
+
+        from run_eggnog import run_emapper
+        from ssign_lib.resources import effective_cpu_count as _cpu
+
+        captured = []
+        monkeypatch.setattr(subprocess, "run", self._stub_subprocess_run(captured))
+        self._touch_annotations(tmp_path, "s")
+        # Force dbmem=False so the cmd path doesn't depend on host RAM.
+        run_emapper(str(tmp_path / "p.faa"), "/db", "s", str(tmp_path), threads=None, dbmem=False)
+
+        assert len(captured) == 1
+        cmd = captured[0]
+        i = cmd.index("--cpu")
+        assert cmd[i + 1] == str(_cpu())
+
+    def test_explicit_threads_passes_through(self, monkeypatch, tmp_path):
+        import subprocess
+
+        from run_eggnog import run_emapper
+
+        captured = []
+        monkeypatch.setattr(subprocess, "run", self._stub_subprocess_run(captured))
+        self._touch_annotations(tmp_path, "s")
+        run_emapper(str(tmp_path / "p.faa"), "/db", "s", str(tmp_path), threads=7, dbmem=False)
+
+        cmd = captured[0]
+        i = cmd.index("--cpu")
+        assert cmd[i + 1] == "7"
