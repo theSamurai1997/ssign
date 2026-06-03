@@ -31,6 +31,7 @@ from ssign_app.scripts.ssign_lib.dependency_manifest import (
     binaries_for_tier,
     databases_for_tier,
     deps_for_tier,
+    find_db_by_env_var,
     weights_for_tier,
 )
 
@@ -99,7 +100,7 @@ def check_python_dep(dep: PythonDep) -> CheckResult:
 # ---------------------------------------------------------------------------
 
 
-def check_external_binary(b: ExternalBinary) -> CheckResult:
+def check_external_binary(b: ExternalBinary, db_root: str = "") -> CheckResult:
     found = shutil.which(b.binary)
     if found:
         return CheckResult(name=b.name, ok=True, detail=found)
@@ -112,6 +113,19 @@ def check_external_binary(b: ExternalBinary) -> CheckResult:
             candidate = os.path.join(install_dir, b.binary)
             if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
                 return CheckResult(name=b.name, ok=True, detail=candidate)
+    # Final fallback: mirror what the runner does at execution time.
+    # If a DatabasePath shares this binary's install_dir_env (e.g.
+    # SSIGN_INTERPROSCAN_PATH on both the InterProScan ExternalBinary
+    # and the InterProScan DB DatabasePath), use the DB's resolve_path
+    # to find the install via the fetch_databases.sh layout.
+    if b.install_dir_env and db_root:
+        dbp = find_db_by_env_var(b.install_dir_env)
+        if dbp is not None:
+            install_dir = dbp.resolve_path(db_root)
+            if install_dir:
+                candidate = os.path.join(install_dir, b.binary)
+                if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+                    return CheckResult(name=b.name, ok=True, detail=candidate)
     detail = f"`{b.binary}` not on PATH"
     if b.install_dir_env:
         detail += f" (and ${b.install_dir_env} unset or doesn't contain it)"
@@ -298,7 +312,7 @@ def run(
         print(f"\nResult: {failures} failures (imports-only).", file=stream)
         return 1 if failures else 0
 
-    bin_results = [check_external_binary(b) for b in binaries_for_tier(tier)]
+    bin_results = [check_external_binary(b, db_root=db_root) for b in binaries_for_tier(tier)]
     ok, total = _render("External binaries", bin_results, stream)
     # optional-missing was already counted as ok=True in check_external_binary
     failures += sum(1 for r in bin_results if not r.ok)

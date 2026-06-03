@@ -58,3 +58,121 @@ class TestReportResources:
         buf = io.StringIO()
         doctor.report_resources(buf)
         assert "scheduler is restricting" not in buf.getvalue()
+
+
+class TestBinaryTierMapping:
+    """HH-suite + BLAST+ are only needed at the full install tier (full
+    HH-suite databases and BLAST nr ship there). Doctor used to flag
+    them as missing at extended-tier, causing false FAILs for the most
+    common ssign install on HPC. Pin the tier mapping."""
+
+    def test_hhsuite_and_blast_are_full_tier_only(self):
+        from ssign_app.scripts.ssign_lib.dependency_manifest import (
+            EXTERNAL_BINARIES,
+            binaries_for_tier,
+        )
+
+        by_name = {b.name: b for b in EXTERNAL_BINARIES}
+        # The two HH-suite binaries and BLAST+ all require their full-tier
+        # databases to do anything useful, so they live at tier="full".
+        for name in ("HH-suite — hhsearch", "HH-suite — hhblits", "BLAST+"):
+            assert by_name[name].tier == "full", f"{name} should be full-tier"
+
+        # At extended tier, none of the three appear in the required list.
+        extended_names = {b.name for b in binaries_for_tier("extended")}
+        assert "HH-suite — hhsearch" not in extended_names
+        assert "HH-suite — hhblits" not in extended_names
+        assert "BLAST+" not in extended_names
+
+        # At full tier they DO appear (otherwise we've broken full-tier doctor).
+        full_names = {b.name for b in binaries_for_tier("full")}
+        assert "HH-suite — hhsearch" in full_names
+        assert "HH-suite — hhblits" in full_names
+        assert "BLAST+" in full_names
+
+
+class TestManifestEnvVarPairing:
+    """When an ExternalBinary's install_dir_env matches a DatabasePath's
+    env_var, the doctor's DB-root fallback uses the DB to locate the
+    binary. A silent rename of either side breaks that fallback with no
+    test failure. Pin every paired env var so a rename has to update
+    both sides (or explicitly drop the pairing in this test)."""
+
+    def test_known_paired_env_vars_stay_paired(self):
+        from ssign_app.scripts.ssign_lib.dependency_manifest import (
+            EXTERNAL_BINARIES,
+            find_db_by_env_var,
+        )
+
+        # The pairings we actually rely on. Add to this list when a new
+        # binary↔DB pairing is introduced; the test then guards both
+        # sides.
+        EXPECTED_PAIRINGS = {
+            "InterProScan": "SSIGN_INTERPROSCAN_PATH",
+        }
+        for binary_name, env_var in EXPECTED_PAIRINGS.items():
+            binary = next(b for b in EXTERNAL_BINARIES if b.name == binary_name)
+            assert binary.install_dir_env == env_var, (
+                f"{binary_name} expected install_dir_env={env_var!r}, got {binary.install_dir_env!r}"
+            )
+            dbp = find_db_by_env_var(env_var)
+            assert dbp is not None, (
+                f"no DatabasePath has env_var={env_var!r}; doctor's DB-root "
+                f"fallback for {binary_name} silently won't fire"
+            )
+
+
+class TestCheckExternalBinaryDbRootFallback:
+    """When a binary's `install_dir_env` is unset at doctor-invocation
+    time but the matching DatabasePath resolves under db_root (e.g.
+    SSIGN_INTERPROSCAN_PATH not exported in the current shell, but the
+    install lives under <db_root>/interproscan/interproscan-*/),
+    doctor should still find the binary instead of false-flagging it
+    as missing. Mirrors what the runner does at execution time."""
+
+    def _ips_binary(self):
+        from ssign_app.scripts.ssign_lib.dependency_manifest import EXTERNAL_BINARIES
+
+        return next(b for b in EXTERNAL_BINARIES if b.name == "InterProScan")
+
+    def test_resolves_via_db_root_when_env_var_unset(self, tmp_path, monkeypatch):
+        from ssign_app.scripts.doctor import check_external_binary
+
+        # Build an IPS-like layout under tmp_path acting as db_root:
+        #   <db_root>/interproscan/interproscan-5.77-108.0/
+        #       interproscan.sh             (executable stub)
+        #       interproscan.properties     (sentinel for resolve_path)
+        ips_dir = tmp_path / "interproscan" / "interproscan-5.77-108.0"
+        ips_dir.mkdir(parents=True)
+        (ips_dir / "interproscan.properties").write_text("")
+        bin_path = ips_dir / "interproscan.sh"
+        bin_path.write_text("#!/bin/sh\nexit 0\n")
+        bin_path.chmod(0o755)
+
+        monkeypatch.delenv("SSIGN_INTERPROSCAN_PATH", raising=False)
+        monkeypatch.setenv("PATH", "")  # ensure shutil.which misses
+
+        result = check_external_binary(self._ips_binary(), db_root=str(tmp_path))
+        assert result.ok, f"expected DB-root fallback to find IPS; got {result.detail}"
+        assert str(bin_path) in result.detail
+
+    def test_still_fails_when_neither_env_nor_db_root_has_it(self, tmp_path, monkeypatch):
+        from ssign_app.scripts.doctor import check_external_binary
+
+        monkeypatch.delenv("SSIGN_INTERPROSCAN_PATH", raising=False)
+        monkeypatch.setenv("PATH", "")
+
+        result = check_external_binary(self._ips_binary(), db_root=str(tmp_path))
+        assert not result.ok
+        assert "not on PATH" in result.detail
+
+    def test_db_root_unset_doesnt_crash(self, monkeypatch):
+        # Empty db_root (default) must not raise when looking up the
+        # manifest — exercises the `if b.install_dir_env and db_root`
+        # guard in check_external_binary.
+        from ssign_app.scripts.doctor import check_external_binary
+
+        monkeypatch.delenv("SSIGN_INTERPROSCAN_PATH", raising=False)
+        monkeypatch.setenv("PATH", "")
+        result = check_external_binary(self._ips_binary())
+        assert not result.ok

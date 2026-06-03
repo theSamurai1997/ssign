@@ -233,9 +233,24 @@ EXTERNAL_BINARIES: tuple[ExternalBinary, ...] = (
         "emapper.py",
         "separate conda env required (biopython conflict with bakta) — see docs/how-to/install.md § EggNOG",
     ),
-    ExternalBinary("HH-suite — hhsearch", "hhsearch", "module load HH-suite, or conda install -c bioconda hhsuite"),
-    ExternalBinary("HH-suite — hhblits", "hhblits", "module load HH-suite, or conda install -c bioconda hhsuite"),
-    ExternalBinary("BLAST+", "blastp", "module load BLAST+, or apt install ncbi-blast+"),
+    ExternalBinary(
+        "HH-suite — hhsearch",
+        "hhsearch",
+        "module load HH-suite, or conda install -c bioconda hhsuite",
+        tier="full",
+    ),
+    ExternalBinary(
+        "HH-suite — hhblits",
+        "hhblits",
+        "module load HH-suite, or conda install -c bioconda hhsuite",
+        tier="full",
+    ),
+    ExternalBinary(
+        "BLAST+",
+        "blastp",
+        "module load BLAST+, or apt install ncbi-blast+",
+        tier="full",
+    ),
     ExternalBinary(
         "InterProScan",
         "interproscan.sh",
@@ -386,3 +401,17 @@ def databases_for_tier(tier: Tier) -> tuple[DatabasePath, ...]:
 
 def weights_for_tier(tier: Tier) -> tuple[ModelWeights, ...]:
     return _filter_by_tier(MODEL_WEIGHTS, tier)
+
+
+def find_db_by_env_var(env_var: str) -> Optional[DatabasePath]:
+    """Return the DatabasePath whose env_var matches, or None.
+
+    Used by doctor and runner to resolve a binary's install dir from
+    its `install_dir_env` when the user hasn't exported it: if the same
+    env var name appears on a DatabasePath, the DB's `resolve_path` can
+    find the install via the fetch_databases.sh layout. Single helper
+    so both call sites can't drift.
+    """
+    if not env_var:
+        return None
+    return next((d for d in DATABASE_PATHS if d.env_var == env_var), None)
