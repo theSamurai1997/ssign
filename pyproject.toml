@@ -236,12 +236,13 @@ module = [
     "dedup_sequences",
     "DeepSecE.*",
     "esm",
+    "extract_neighborhood",
     "goatools.*",
     "macsylib.*",
     "macsypy.*",
     "matplotlib.*",
     "obonet",
-    "pyhmmer.*",
+    "psutil",
     "pyrodigal",
     "scipy.*",
     "seaborn",
@@ -250,6 +251,16 @@ module = [
     "taxopy",
     "torch.*",
 ]
+ignore_missing_imports = true
+
+# pyhmmer ships .pyi stubs that occasionally contain syntax errors at
+# upstream-release time (e.g. plan7.pyi:406 in pyhmmer 0.10.x has an
+# `Expected an indented block` error). `ignore_missing_imports` does
+# not help because the stub IS found — it's just unparseable. Skip
+# following into pyhmmer entirely; call sites get typed as Any.
+[[tool.mypy.overrides]]
+module = ["pyhmmer.*"]
+follow_imports = "skip"
 ignore_missing_imports = true
 
 [tool.ruff]
