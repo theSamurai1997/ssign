@@ -19,6 +19,10 @@ Tracks items skipped during tasks. One bullet per item: what, why, trigger to re
 
 - **Migrate `run_deepsece.py` to `weights_only=True` + `add_safe_globals`.** DeepSecE's checkpoint is a state_dict (already loaded via `model.load_state_dict(...)`), not a whole-module pickle like PLM-Effector's, so it's a safe candidate for the stricter loader PyTorch 2.6 introduced. PLM-E itself can't migrate (whole-module saves; would need an upstream refactor). Revisit: any time a new ssign dep bumps torch and `weights_only=False` triggers a deprecation warning.
 
+## Annotation parallel-group scheduling
+
+- **Wave-scheduling or finish-and-redistribute** (deferred 2026-06-03). After fixing the 3-4x oversubscription bug (commit `82cece9`), each annotation tool now gets `effective_cpu_count / N` cores in the parallel group. Remaining inefficiency: when one tool (e.g. IPS at 36m) finishes before the others (EggNOG, pLM-BLAST), the cores it released sit idle because the surviving tools were started with a fixed thread count and can't add workers mid-run. Three options considered: (1) two-wave scheduling (fast tools then slow tools), (2) restart-survivors-with-more-threads (throws away expensive embed/diamond work), (3) leave as-is. Going with (3) for now. **Trigger to revisit:** once we have step_timings.csv from a few post-fix runs across different genome sizes — if there's a consistent 10-20%+ wallclock floor that's clearly tail-tool dominated, the wave-scheduling experiment becomes worth it.
+
 ## EggNOG
 
 - **`--dbmem` blocked on GPU node** (task #2). EggNOG cache may still hang on SQLite mmap even with cache pre-warmed; `--dbmem` would fix that but needs 50 GB RAM. GPU nodes are capped at 32 GB. Workaround: run EggNOG step on a 64 GB CPU-only node, rejoin outputs. Revisit: once cross-type caching run completes and we attempt a full tier-2 again.

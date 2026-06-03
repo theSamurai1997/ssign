@@ -937,11 +937,11 @@ class PipelineRunner:
                         pct,
                         f"Skipped (already done) | {self._elapsed_str()} elapsed",
                     )
-                    self.results.append(StepResult(step_id, True, "Resumed (already completed)"))
+                    self._record_result(StepResult(step_id, True, "Resumed (already completed)"))
                     continue
 
                 if core_failed:
-                    self.results.append(StepResult(step_id, False, "Skipped (earlier core step failed)"))
+                    self._record_result(StepResult(step_id, False, "Skipped (earlier core step failed)"))
                     continue
 
                 steps_to_run.append((name, func, step_id, step_counter))
@@ -987,7 +987,7 @@ class PipelineRunner:
                             result = future.result()
                             result.duration_s = time.monotonic() - t_step_start
                             with self._state_lock:
-                                self.results.append(result)
+                                self._record_result(result)
                             pct = int(100 * sc / total)
                             print(
                                 f"[ssign] [{self.config.sample_id}] Finished (parallel): {name} -> "
@@ -1011,7 +1011,7 @@ class PipelineRunner:
                                 flush=True,
                             )
                             with self._state_lock:
-                                self.results.append(
+                                self._record_result(
                                     StepResult(
                                         step_id,
                                         False,
@@ -1040,7 +1040,7 @@ class PipelineRunner:
                     try:
                         result = func()
                         result.duration_s = time.monotonic() - t_step
-                        self.results.append(result)
+                        self._record_result(result)
                         self._save_progress()
                         print(
                             f"[ssign] [{self.config.sample_id}] Finished step {sc}/{total}: "
@@ -1064,7 +1064,7 @@ class PipelineRunner:
                             f"[ssign] [{self.config.sample_id}] EXCEPTION in step {sc}/{total}: {name} -> {e}",
                             flush=True,
                         )
-                        self.results.append(StepResult(step_id, False, str(e), duration_s=time.monotonic() - t_step))
+                        self._record_result(StepResult(step_id, False, str(e), duration_s=time.monotonic() - t_step))
                         self._save_progress()
                         logger.exception(f"Step '{name}' raised exception")
                         if step_id in CORE_STEPS:
@@ -1075,9 +1075,10 @@ class PipelineRunner:
 
         # Copy final outputs to outdir BEFORE reporting 100% — otherwise the
         # progress bar hits 100 while files are still being written.
+        # step_timings.csv is up-to-date already; _record_result wrote it
+        # incrementally as each step finished.
         self._copy_outputs()
         self._save_progress()
-        self._write_step_timings()
         if self._sampler is not None:
             self._sampler.stop()
         self.progress("Complete", 100, f"Pipeline finished in {self._elapsed_str()}")
@@ -1093,6 +1094,18 @@ class PipelineRunner:
 
         return self.results
 
+    def _record_result(self, result: "StepResult") -> None:
+        """Append a step result and flush step_timings.csv to disk.
+
+        Callers in the parallel group hold ``self._state_lock`` already;
+        callers in the sequential path are single-threaded. Either way
+        the append + write pair must not be split across an OS-level
+        kill, which is why every site uses this helper instead of the
+        bare append.
+        """
+        self.results.append(result)
+        self._write_step_timings()
+
     def _write_step_timings(self) -> None:
         """Write per-step wallclock data to outdir/step_timings.csv.
 
@@ -1100,18 +1113,27 @@ class PipelineRunner:
         step_timings is one row per step with start/duration. Together
         they let the operator slice the per-second sampler data by step
         without grep-tagging.
+
+        Called after every step finishes (not just at pipeline end) so
+        a mid-pipeline crash or PBS walltime kill still leaves timings
+        for the steps that did complete. Writes via temp-file +
+        os.replace so a kill mid-write can't leave a corrupt CSV.
+        Caller holds self._state_lock when writing from inside a
+        parallel-group, so two threads can't race here.
         """
         if not self.results:
             return
         import csv
 
         out_path = os.path.join(self.config.outdir, "step_timings.csv")
+        tmp_path = f"{out_path}.tmp.{os.getpid()}"
         try:
-            with open(out_path, "w", newline="") as fh:
+            with open(tmp_path, "w", newline="") as fh:
                 w = csv.writer(fh)
                 w.writerow(["step", "success", "duration_s", "message"])
                 for r in self.results:
                     w.writerow([r.name, int(r.success), f"{r.duration_s:.2f}", r.message[:200]])
+            os.replace(tmp_path, out_path)
         except OSError as e:
             logger.warning("could not write step_timings.csv: %s", e)
 

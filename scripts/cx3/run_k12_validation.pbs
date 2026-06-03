@@ -9,11 +9,12 @@
 #   git pull   # make sure you have the latest copy of this script
 #   qsub scripts/cx3/run_k12_validation.pbs
 #
-# Walltime is 2h: previous runs took ~75m before the 2026-06 perf fixes
-# (PLM-E neighborhood + parallel CPU split + IPS heap), expected ~20m now.
+# Walltime is 4h: pre-fix runs reached 2h walltime kill on PBS 2918063
+# under oversubscription. Post-fix expected ~60-90m. 4h is comfortable
+# headroom that still keeps queue priority high.
 
 #PBS -l select=1:ncpus=16:mem=80gb:ngpus=1:gpu_type=L40S
-#PBS -l walltime=02:00:00
+#PBS -l walltime=04:00:00
 #PBS -N ssign_k12_full
 #PBS -j oe
 #PBS -o ssign_k12_full.log

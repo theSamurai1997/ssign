@@ -941,6 +941,40 @@ class TestWriteStepTimings:
         r._write_step_timings()
         assert not os.path.exists(os.path.join(tmp_dir, "step_timings.csv"))
 
+    def test_incremental_write_survives_midpipeline_kill(self, tmp_dir):
+        # If the pipeline is killed (SIGKILL, OOM, PBS walltime) before the
+        # last step finishes, per-step writes leave complete timing data
+        # for every step that did complete instead of an empty file.
+        c = PipelineConfig(outdir=tmp_dir, sample_id="x")
+        r = PipelineRunner(c)
+        path = os.path.join(tmp_dir, "step_timings.csv")
+        completed = [
+            StepResult("detect_format", True, "ok", duration_s=0.5),
+            StepResult("extract_proteins", True, "ok", duration_s=12.0),
+            StepResult("macsyfinder", True, "ok", duration_s=82.0),
+        ]
+        for step in completed:
+            r._record_result(step)
+        assert os.path.exists(path)
+        with open(path) as fh:
+            import csv as _csv
+
+            rows = list(_csv.DictReader(fh))
+        assert [row["step"] for row in rows] == ["detect_format", "extract_proteins", "macsyfinder"]
+
+    def test_atomic_replace_leaves_no_tmp_files(self, tmp_dir):
+        # PBS walltime kills the process with SIGKILL — any in-flight
+        # write should not leave a partially-written step_timings.csv.
+        # write-then-os.replace guarantees the file is either pre-write
+        # state or fully-new state, never half-written. After a write,
+        # the .tmp.<pid> sidecar must be gone.
+        c = PipelineConfig(outdir=tmp_dir, sample_id="x")
+        r = PipelineRunner(c)
+        r.results = [StepResult("step1", True, "ok", duration_s=1.0)]
+        r._write_step_timings()
+        leftover = [p for p in os.listdir(tmp_dir) if p.startswith("step_timings.csv.tmp")]
+        assert leftover == []
+
 
 class TestResolveStepInputFasta:
     """Centralises FASTA selection for the four prediction steps so they
