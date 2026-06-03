@@ -23,7 +23,7 @@ if _scripts_dir not in sys.path:
 from dedup_sequences import deduplicate_dict, expand_results_dict
 from ssign_lib.constants import TOOL_TIMEOUT_S
 from ssign_lib.fasta_io import read_fasta
-from ssign_lib.resources import effective_cpu_count, resolve_threads  # noqa: F401
+from ssign_lib.resources import resolve_threads
 from ssign_lib.subprocess_diag import dump_failure_log
 from ssign_lib.substrates import load_substrate_ids
 
@@ -263,11 +263,12 @@ def main():
     parser.add_argument(
         "--cpu",
         type=int,
-        default=effective_cpu_count(),
+        default=None,
         help=(
-            "Worker count for InterProScan (-cpu N). Defaults to the host's "
-            "os.cpu_count() so HPC nodes saturate. Drop to 1-2 on shared "
-            "machines where IPS would otherwise compete with other work."
+            "Worker count for InterProScan (-cpu N). When omitted, resolves "
+            "to the scheduler-aware effective CPU count, divided by the "
+            "parallel-group size if the runner launched this wrapper inside "
+            "one. Pass an explicit value to override on shared machines."
         ),
     )
     parser.add_argument("--output", required=True)

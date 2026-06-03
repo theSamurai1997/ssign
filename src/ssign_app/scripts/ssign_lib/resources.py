@@ -106,15 +106,22 @@ def effective_cpu_count() -> int:
 
 
 def resolve_threads(n: int | None) -> int:
-    """Pick a thread count: ``n`` when provided, else ``effective_cpu_count()``.
+    """Pick a thread count: ``n`` when provided, else the parallel-group share.
 
     Standard shape for tool wrappers' ``threads`` argument so they all
     auto-scale to the scheduler's allocation when called with None.
+    Routes through ``parallel_share_cpus()`` so wrappers launched inside
+    a runner ``parallel_group(N)`` automatically divide the budget by N
+    instead of each grabbing the whole allocation (which causes 3-4x CPU
+    oversubscription on shared HPC nodes — observed live as cput=4h /
+    walltime=36m on the K-12 RTX6000 annotation stage). When the env
+    var is unset (standalone wrapper invocations, no parallel group),
+    the share helper returns the full ``effective_cpu_count()``.
     Always returns at least 1 even if cgroup math degenerates.
     """
     if n is not None:
         return max(1, n)
-    return max(1, effective_cpu_count())
+    return max(1, parallel_share_cpus())
 
 
 # Set by PipelineRunner before launching the DLP/DSE/SignalP parallel

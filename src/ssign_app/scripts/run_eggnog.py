@@ -32,7 +32,7 @@ _scripts_dir = os.path.dirname(os.path.abspath(__file__))
 if _scripts_dir not in sys.path:
     sys.path.insert(0, _scripts_dir)
 from ssign_lib.constants import TOOL_TIMEOUT_S  # noqa: E402
-from ssign_lib.resources import effective_cpu_count, resolve_threads  # noqa: E402,F401
+from ssign_lib.resources import resolve_threads  # noqa: E402
 from ssign_lib.subprocess_diag import dump_failure_log  # noqa: E402
 from ssign_lib.substrates import (  # noqa: E402
     load_substrate_ids,
@@ -222,7 +222,7 @@ def run_emapper(
 ):
     """Run emapper.py on a protein FASTA file.
 
-    `threads=None` (default) auto-detects from `effective_cpu_count()`.
+    `threads=None` (default) auto-detects from `resolve_threads()`.
     Argparse default already used this; the Python-API signature pinned
     4 and starved direct callers on multi-core machines.
 
@@ -390,7 +390,16 @@ def main():
     )
     parser.add_argument("--db", required=True, help="Path to EggNOG database directory")
     parser.add_argument("--sample", required=True, help="Sample identifier")
-    parser.add_argument("--threads", type=int, default=effective_cpu_count(), help="CPU threads")
+    parser.add_argument(
+        "--threads",
+        type=int,
+        default=None,
+        help=(
+            "CPU threads. When omitted, resolves to the scheduler-aware "
+            "effective CPU count, divided by the parallel-group size if "
+            "the runner launched this wrapper inside one."
+        ),
+    )
     parser.add_argument(
         "--tax-scope",
         default="2",

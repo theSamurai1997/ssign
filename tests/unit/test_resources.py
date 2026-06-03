@@ -69,6 +69,7 @@ class TestResolveThreads:
         from ssign_lib.resources import resolve_threads
 
         monkeypatch.setattr("ssign_lib.resources.effective_cpu_count", lambda: 12)
+        monkeypatch.delenv("SSIGN_PARALLEL_GROUP_SIZE", raising=False)
         assert resolve_threads(None) == 12
 
     def test_explicit_int_passes_through(self):
@@ -81,6 +82,27 @@ class TestResolveThreads:
 
         assert resolve_threads(0) == 1
         assert resolve_threads(-3) == 1
+
+    def test_none_honors_parallel_group_share(self, monkeypatch):
+        # The bug this guards against: K-12 RTX6000 annotation stage on CX3
+        # showed cput/walltime = 6.6x because IPS/EggNOG/pLM-BLAST each
+        # grabbed 16 cores on a 16-core box. resolve_threads(None) must
+        # divide by SSIGN_PARALLEL_GROUP_SIZE when set, not return the
+        # whole effective_cpu_count.
+        from ssign_lib.resources import resolve_threads
+
+        monkeypatch.setattr("ssign_lib.resources.effective_cpu_count", lambda: 16)
+        monkeypatch.setenv("SSIGN_PARALLEL_GROUP_SIZE", "4")
+        assert resolve_threads(None) == 4
+
+    def test_explicit_int_overrides_parallel_share(self, monkeypatch):
+        # User passing --threads N opts out of the auto-share; their value
+        # wins even inside a parallel group.
+        from ssign_lib.resources import resolve_threads
+
+        monkeypatch.setattr("ssign_lib.resources.effective_cpu_count", lambda: 16)
+        monkeypatch.setenv("SSIGN_PARALLEL_GROUP_SIZE", "4")
+        assert resolve_threads(8) == 8
 
 
 class TestParallelShareCpus:

@@ -967,11 +967,13 @@ class PipelineRunner:
                     self._sampler.set_step(f"parallel:{','.join(sorted(n for n, _, _, _ in steps_to_run))}")
 
                 # Tell every wrapper subprocess how many siblings it's
-                # racing against. DLP/DSE/SignalP read SSIGN_PARALLEL_GROUP_SIZE
-                # via ssign_lib.resources.parallel_share_cpus() and divide
-                # the CPU budget evenly instead of each trying to use the
-                # whole allocation. The context manager restores the env
-                # var when the group exits (or raises).
+                # racing against. Every wrapper that calls resolve_threads()
+                # (DLP/DSE/SignalP in the prediction group; IPS/EggNOG/
+                # BLASTp/pLM-BLAST in the annotation group) reads
+                # SSIGN_PARALLEL_GROUP_SIZE via parallel_share_cpus() and
+                # divides the CPU budget evenly instead of each grabbing
+                # the whole allocation. The context manager restores the
+                # env var when the group exits (or raises).
                 from ssign_app.scripts.ssign_lib.resources import parallel_group
 
                 with parallel_group(len(steps_to_run)), ThreadPoolExecutor(max_workers=len(steps_to_run)) as executor:

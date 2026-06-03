@@ -36,7 +36,7 @@ _scripts_dir = os.path.dirname(os.path.abspath(__file__))
 if _scripts_dir not in sys.path:
     sys.path.insert(0, _scripts_dir)
 from ssign_lib.constants import TOOL_TIMEOUT_S  # noqa: E402
-from ssign_lib.resources import effective_cpu_count  # noqa: E402
+from ssign_lib.resources import resolve_threads  # noqa: E402
 from ssign_lib.subprocess_diag import dump_failure_log  # noqa: E402
 from ssign_lib.substrates import (  # noqa: E402
     load_substrate_ids,
@@ -248,7 +248,7 @@ def run_plmblast(
     ecod_db: str,
     out_csv: str,
     cpc: int = 70,
-    threads: int = 4,
+    threads: int | None = None,
     failure_log_dir: str = "",
 ) -> str:
     """Run pLM-BLAST against ECOD70 and return the CSV output path.
@@ -257,6 +257,7 @@ def run_plmblast(
     pooled .pt file, then search the embedding DB. Embedding dominates
     wall time on CPU (~5-10 sec per 500-aa protein).
     """
+    threads = resolve_threads(threads)
     script = _resolve_plmblast_script()
     embed_script = _resolve_embeddings_script(script)
 
@@ -393,7 +394,17 @@ def main() -> int:
         default=70,
         help="pLM-BLAST -cpc cluster percent cutoff (default: 70)",
     )
-    parser.add_argument("--threads", type=int, default=effective_cpu_count(), help="CPU threads")
+    parser.add_argument(
+        "--threads",
+        type=int,
+        default=None,
+        help=(
+            "CPU threads (passed to plmblast.py -workers). When omitted, "
+            "resolves to the scheduler-aware effective CPU count, divided "
+            "by the parallel-group size if the runner launched this "
+            "wrapper inside one."
+        ),
+    )
     args = parser.parse_args()
 
     if not os.path.exists(args.substrates):

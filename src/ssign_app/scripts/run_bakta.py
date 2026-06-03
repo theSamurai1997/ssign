@@ -34,7 +34,7 @@ if _scripts_dir not in sys.path:
     sys.path.insert(0, _scripts_dir)
 from ssign_lib.constants import TOOL_TIMEOUT_S  # noqa: E402
 from ssign_lib.fasta_io import write_fasta  # noqa: E402  # used in extract_proteins_for_substrates
-from ssign_lib.resources import effective_cpu_count, resolve_threads  # noqa: E402,F401
+from ssign_lib.resources import resolve_threads  # noqa: E402
 from ssign_lib.subprocess_diag import dump_failure_log  # noqa: E402
 
 # Bakta TSV column names (tab-separated, with header)
@@ -77,7 +77,7 @@ _DBXREF_OUTPUT_KEYS = tuple(_DBXREF_PREFIX_TO_OUTPUT_KEY.values())
 def run_bakta(contigs_fasta, db_path, sample_id, output_dir, threads=None, local_cache_dir=None):
     """Run Bakta on a genome FASTA file.
 
-    `threads=None` (default) auto-detects from `effective_cpu_count()` so
+    `threads=None` (default) auto-detects from `resolve_threads()` so
     HPC allocations use every core they were given. Pass an explicit int
     to override (e.g., when the runner subdivides the budget across
     parallel genomes). Used to default to 4, which left 12 of 16 CX3
@@ -289,7 +289,16 @@ def main():
     parser.add_argument("--input", required=True, help="Input genome FASTA (contigs)")
     parser.add_argument("--db", required=True, help="Path to Bakta database")
     parser.add_argument("--sample", required=True, help="Sample identifier")
-    parser.add_argument("--threads", type=int, default=effective_cpu_count(), help="CPU threads")
+    parser.add_argument(
+        "--threads",
+        type=int,
+        default=None,
+        help=(
+            "CPU threads for Bakta. When omitted, resolves to the "
+            "scheduler-aware effective CPU count (Bakta runs as a "
+            "standalone step, so no parallel-group share applies)."
+        ),
+    )
     parser.add_argument(
         "--local-cache-dir",
         default=None,

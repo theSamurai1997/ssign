@@ -18,7 +18,7 @@ if _scripts_dir not in sys.path:
 from dedup_sequences import deduplicate_dict, expand_results_dict
 from ssign_lib.constants import TOOL_TIMEOUT_S
 from ssign_lib.fasta_io import read_fasta
-from ssign_lib.resources import effective_cpu_count, resolve_threads  # noqa: F401
+from ssign_lib.resources import resolve_threads
 from ssign_lib.subprocess_diag import dump_failure_log
 from ssign_lib.substrates import load_substrate_ids
 
@@ -49,7 +49,7 @@ _BLAST_MIN_FIELDS = 15  # all 15 outfmt fields must be present
 def run_local_blastp(query_fasta, db_path, evalue, exclude_taxid, num_threads=None, failure_log_dir=""):
     """Run local BLAST+ blastp and return parsed hits.
 
-    `num_threads=None` (default) auto-detects from `effective_cpu_count()`
+    `num_threads=None` (default) auto-detects from `resolve_threads()` —
     so HPC allocations use every core they were given. Argparse default
     already used this; the Python-API signature pinned 4 and starved
     direct callers (mostly tests) on multi-core machines.
@@ -189,8 +189,12 @@ def main():
     parser.add_argument(
         "--threads",
         type=int,
-        default=effective_cpu_count(),
-        help="Threads for blastp -num_threads (default: all CPUs)",
+        default=None,
+        help=(
+            "Threads for blastp -num_threads. When omitted, resolves to the "
+            "scheduler-aware effective CPU count, divided by the parallel-"
+            "group size if the runner launched this wrapper inside one."
+        ),
     )
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
