@@ -31,11 +31,12 @@ echo "===== JOB START $(date -Is) | $(hostname) | $PBS_JOBID ====="
 nvidia-smi || { echo "FATAL: no GPU"; exit 1; }
 
 source ~/.bashrc 2>/dev/null || true
-module load Java/11.0.25
+module load Java/11.0.25 || { echo "FATAL: Java/11.0.25 module unavailable. Check 'module avail Java'."; exit 1; }
 java -version 2>&1
 
 source "$VENV/bin/activate"
-which ssign
+command -v ssign >/dev/null || { echo "FATAL: ssign not on PATH after venv activation. Check $VENV/bin/ssign exists."; exit 1; }
+echo "  ssign -> $(command -v ssign)"
 
 # bakta-deps conda env on PATH for tRNAscan-SE, etc.
 export PATH="$PATH:$HOME/.conda/envs/bakta-deps/bin"

@@ -83,6 +83,11 @@ class DatabasePath:
     sentinel_file: str
     install_hint: str
     tier: Tier = "extended"
+    # Canonical tool this database belongs to (e.g. "HH-suite" for all
+    # three HH-suite DBs). Used by audit/reporting consumers to roll up
+    # per-tool sizes. Empty default means "uncategorised" — drives a
+    # test failure in test_audit_disk_sizes.
+    tool: str = ""
 
     def resolve_path(self, db_root: str, *extra_paths: str) -> Optional[str]:
         """Return the path the tool should consume, or None if not present.
@@ -136,6 +141,8 @@ class ModelWeights:
     install_hint: str
     tier: Tier = "base"
     under_db_root: bool = False
+    # See DatabasePath.tool.
+    tool: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -267,6 +274,7 @@ DATABASE_PATHS: tuple[DatabasePath, ...] = (
         "db*/version.json",
         "bash scripts/fetch_databases.sh --tier base",
         tier="extended",
+        tool="Bakta",
     ),
     DatabasePath(
         "EggNOG DB",
@@ -275,6 +283,7 @@ DATABASE_PATHS: tuple[DatabasePath, ...] = (
         "eggnog.db",
         "bash scripts/fetch_databases.sh --tier extended",
         tier="extended",
+        tool="EggNOG-mapper",
     ),
     DatabasePath(
         "InterProScan DB",
@@ -283,6 +292,7 @@ DATABASE_PATHS: tuple[DatabasePath, ...] = (
         "interproscan-*/interproscan.properties",
         "bash scripts/fetch_databases.sh --tier extended",
         tier="extended",
+        tool="InterProScan",
     ),
     DatabasePath(
         "HH-suite Pfam",
@@ -291,6 +301,7 @@ DATABASE_PATHS: tuple[DatabasePath, ...] = (
         "*/*_a3m.ffdata",
         "bash scripts/fetch_databases.sh --tier full",
         tier="full",
+        tool="HH-suite",
     ),
     DatabasePath(
         "HH-suite PDB70",
@@ -299,6 +310,7 @@ DATABASE_PATHS: tuple[DatabasePath, ...] = (
         "*_a3m.ffdata",
         "bash scripts/fetch_databases.sh --tier full",
         tier="full",
+        tool="HH-suite",
     ),
     DatabasePath(
         "HH-suite UniRef30",
@@ -307,6 +319,7 @@ DATABASE_PATHS: tuple[DatabasePath, ...] = (
         "*_a3m.ffdata",
         "bash scripts/fetch_databases.sh --tier full",
         tier="full",
+        tool="HH-suite",
     ),
     DatabasePath(
         "pLM-BLAST ECOD70",
@@ -315,6 +328,7 @@ DATABASE_PATHS: tuple[DatabasePath, ...] = (
         "*.emb",
         "bash scripts/fetch_databases.sh --tier extended",
         tier="extended",
+        tool="pLM-BLAST",
     ),
     DatabasePath(
         "BLAST NR",
@@ -323,6 +337,7 @@ DATABASE_PATHS: tuple[DatabasePath, ...] = (
         "nr.pdb",
         "bash scripts/fetch_databases.sh --tier full",
         tier="full",
+        tool="BLAST+",
     ),
 )
 
@@ -336,6 +351,7 @@ MODEL_WEIGHTS: tuple[ModelWeights, ...] = (
         "DeepSecE checkpoint",
         "models/deepsece_checkpoint.pt",
         "auto-downloaded on first run, or `bash scripts/fetch_weights.sh`",
+        tool="DeepSecE",
     ),
     ModelWeights(
         "PLM-Effector ensemble weights",
@@ -343,6 +359,7 @@ MODEL_WEIGHTS: tuple[ModelWeights, ...] = (
         "bash scripts/fetch_weights.sh (or scripts/fetch_databases.sh --tier extended)",
         tier="extended",
         under_db_root=True,
+        tool="PLM-Effector",
     ),
 )
 

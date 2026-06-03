@@ -2,8 +2,9 @@
 
 The script's main job is "walk the manifest, du each path, present
 three views". We don't test du itself (system tool); we pin the
-view-formatting logic + the manifest-categorisation completeness
-invariant (every manifest entry maps to a tool name).
+view-formatting logic + the manifest-field completeness invariant
+(every manifest entry has a non-empty `tool` field, which the audit
+relies on for its per-tool rollup).
 """
 
 import os
@@ -25,63 +26,73 @@ def audit():
     return importlib.import_module("audit_disk_sizes")
 
 
-class TestHumanise:
-    def test_bytes(self, audit):
-        assert audit._humanise(0) == "0 B"
-        assert audit._humanise(512) == "512 B"
+class TestHumaniseReexport:
+    """audit_disk_sizes pulls humanise_bytes from ssign_lib.resources;
+    this test just confirms the shared helper behaves the way the audit
+    output assumes."""
 
-    def test_kilo_mega_giga(self, audit):
-        assert audit._humanise(1024).startswith("1.0 KB")
-        assert audit._humanise(1024 * 1024).startswith("1.0 MB")
-        assert audit._humanise(1024**3).startswith("1.0 GB")
+    def test_imported_helper_handles_common_sizes(self):
+        from ssign_lib.resources import humanise_bytes
 
-    def test_terabyte_ceiling(self, audit):
-        assert audit._humanise(1024**4).endswith("TB")
+        assert humanise_bytes(0) == "0 B"
+        assert humanise_bytes(1024).startswith("1.0 KB")
+        assert humanise_bytes(1024 * 1024).startswith("1.0 MB")
+        assert humanise_bytes(1024**3).startswith("1.0 GB")
+        assert humanise_bytes(1024**4).endswith("TB")
 
 
-class TestToolMapCoverage:
-    """Every entry in the live manifest must map to a tool name in
-    _TOOL_FOR_ENTRY. Catches the case where someone adds a new database
-    or weights entry but forgets to update the audit categorisation."""
+class TestManifestToolFieldCoverage:
+    """Every database + weights entry in the live manifest must carry a
+    non-empty `tool` field. Catches the case where someone adds a new
+    entry but forgets to categorise it for audit/reporting consumers."""
 
-    def test_all_database_paths_categorised(self, audit):
+    def test_all_database_paths_have_tool(self):
         from ssign_lib.dependency_manifest import DATABASE_PATHS
 
-        uncategorised = [e.name for e in DATABASE_PATHS if e.name not in audit._TOOL_FOR_ENTRY]
-        assert not uncategorised, f"add to _TOOL_FOR_ENTRY: {uncategorised}"
+        missing = [e.name for e in DATABASE_PATHS if not e.tool]
+        assert not missing, f"set .tool on these DatabasePath entries: {missing}"
 
-    def test_all_model_weights_categorised(self, audit):
+    def test_all_model_weights_have_tool(self):
         from ssign_lib.dependency_manifest import MODEL_WEIGHTS
 
-        uncategorised = [e.name for e in MODEL_WEIGHTS if e.name not in audit._TOOL_FOR_ENTRY]
-        assert not uncategorised, f"add to _TOOL_FOR_ENTRY: {uncategorised}"
+        missing = [e.name for e in MODEL_WEIGHTS if not e.tool]
+        assert not missing, f"set .tool on these ModelWeights entries: {missing}"
 
 
 class TestPerTierRollup:
-    """Tier rollup is cumulative — extended includes base, full
-    includes both. Mirrors how a user actually plans an install."""
+    """Tier rollup is cumulative — extended includes base, full includes
+    both. Assertions parse the printed rows by tier label rather than
+    counting tokens so they don't break on padding changes."""
+
+    @staticmethod
+    def _tier_row(out: str, tier: str) -> str:
+        for line in out.splitlines():
+            stripped = line.strip()
+            if stripped.startswith(tier):
+                return stripped
+        raise AssertionError(f"no row for tier={tier!r} in:\n{out}")
 
     def test_base_only_counted_in_all_three(self, audit, capsys):
         m = audit.Measurement("X", "DeepSecE", "base", "/p", 100, "")
         audit._print_per_tier([m], sys.stdout)
         out = capsys.readouterr().out
-        # All three tiers should show 100 bytes.
-        assert out.count("100 B") == 3
+        for tier in ("base", "extended", "full"):
+            assert "100 B" in self._tier_row(out, tier)
 
     def test_extended_only_counted_in_extended_and_full(self, audit, capsys):
         m = audit.Measurement("X", "Bakta", "extended", "/p", 100, "")
         audit._print_per_tier([m], sys.stdout)
         out = capsys.readouterr().out
-        # 100 B appears in extended + full rows; base row is "0 B".
-        assert "0 B" in out
-        assert out.count("100 B") == 2
+        assert "0 B" in self._tier_row(out, "base")
+        assert "100 B" in self._tier_row(out, "extended")
+        assert "100 B" in self._tier_row(out, "full")
 
     def test_missing_entries_ignored(self, audit, capsys):
         m = audit.Measurement("X", "Bakta", "extended", None, 0, "not fetched")
         audit._print_per_tier([m], sys.stdout)
         out = capsys.readouterr().out
-        # All tiers are 0 B; entry isn't fetched so nothing gets summed.
-        assert out.count("0 B") == 3
+        for tier in ("base", "extended", "full"):
+            assert "0 B" in self._tier_row(out, tier)
 
 
 class TestPerToolRollup:
@@ -108,3 +119,29 @@ class TestMarkdownEmit:
         assert "| Tool | Tier | Size |" in out
         assert "| Bakta | extended |" in out
         assert "| BLAST+ | full |" in out
+
+
+class TestDuPortableFlag:
+    """`du -sk` (POSIX kilobyte summary) is what the script uses, NOT
+    `du -sb` (GNU-only). Pinning this so a future "let's go back to -b
+    for byte precision" regression doesn't silently break the macOS run."""
+
+    def test_du_command_uses_sk_not_sb(self, audit, monkeypatch, tmp_path):
+        # Stub subprocess.run, capture the argv.
+        captured = {}
+
+        class _Result:
+            returncode = 0
+            stdout = "1024\t/path\n"
+            stderr = ""
+
+        def fake_run(cmd, **kwargs):
+            captured["cmd"] = list(cmd)
+            return _Result()
+
+        monkeypatch.setattr("subprocess.run", fake_run)
+        size, note = audit._du_bytes(str(tmp_path))
+        assert captured["cmd"][:2] == ["du", "-sk"]
+        # 1024 KB -> 1 MB
+        assert size == 1024 * 1024
+        assert note == ""

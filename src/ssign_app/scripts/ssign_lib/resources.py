@@ -169,6 +169,21 @@ def parallel_group(n: int):
             os.environ[_PARALLEL_GROUP_SIZE_ENV] = prev
 
 
+def humanise_bytes(n: int) -> str:
+    """Pretty-print bytes as B / KB / MB / GB / TB.
+
+    Uses 1024-base (`KiB` math, `KB` label — matches `du -h` and
+    `ls -lh` convention). Caps at TB; PB+ values render as e.g.
+    ``"1024.0 TB"`` rather than introducing a new unit row.
+    """
+    f: float = float(n)
+    for unit in ("B", "KB", "MB", "GB"):
+        if f < 1024:
+            return f"{int(f)} B" if unit == "B" else f"{f:.1f} {unit}"
+        f /= 1024
+    return f"{f:.1f} TB"
+
+
 def _parse_size_to_gb(value: str) -> float | None:
     """Parse a size string like '32gb', '128GiB', '4096mb' → GB (decimal)."""
     m = re.match(r"\s*([\d.]+)\s*([kmgt]i?b?)?\s*$", value.lower())
