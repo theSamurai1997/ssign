@@ -315,7 +315,8 @@ def main():
 
     n_flagged = sum(1 for s in substrates if s["t5_quality_flag"])
     logger.info(
-        "Found %d T5SS self-substrates in %s (%d flagged: barrel-only / OMP / unclassified / no-signalp / no-sec-signal)",
+        "Found %d T5SS self-substrates in %s "
+        "(%d flagged: barrel-only / OMP / unclassified / no-signalp / no-sec-signal)",
         len(substrates),
         args.sample,
         n_flagged,

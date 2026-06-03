@@ -237,11 +237,14 @@ class TestEffectiveRamGb:
     """Lookup priority: env override < SLURM < PBS qstat < cgroup < psutil. Returns MIN."""
 
     def test_env_override_wins_when_smallest(self, monkeypatch):
-        monkeypatch.setenv("SSIGN_MAX_RAM_GB", "16")
+        # 1 GB is guaranteed smaller than any CI runner or dev-host total
+        # RAM. Earlier this test set 16 GB and asserted exact equality —
+        # GitHub runners report ~15.61 GB total (OS overhead), so psutil
+        # won the min and the test failed.
+        monkeypatch.setenv("SSIGN_MAX_RAM_GB", "1")
         monkeypatch.delenv("SLURM_MEM_PER_NODE", raising=False)
         monkeypatch.delenv("PBS_JOBID", raising=False)
-        # psutil host total will be much larger; min wins.
-        assert effective_ram_gb() == pytest.approx(16.0)
+        assert effective_ram_gb() == pytest.approx(1.0)
 
     def test_slurm_alloc_is_parsed_in_mb(self, monkeypatch):
         monkeypatch.delenv("SSIGN_MAX_RAM_GB", raising=False)

@@ -207,7 +207,10 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
         "--run-bakta",
         action=argparse.BooleanOptionalAction,
         default=True,
-        help="Run Bakta on FASTA contigs input (default: True per plan A.6). GenBank input is governed by --use-input-annotations instead.",
+        help=(
+            "Run Bakta on FASTA contigs input (default: True per plan A.6). "
+            "GenBank input is governed by --use-input-annotations instead."
+        ),
     )
     g.add_argument("--bakta-db", default="", help="Path to Bakta database (required for Bakta runs).")
     g.add_argument(
