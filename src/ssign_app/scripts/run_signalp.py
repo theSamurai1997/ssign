@@ -38,7 +38,7 @@ from ssign_lib.constants import (  # noqa: E402
     TOOL_TIMEOUT_S,
 )
 from ssign_lib.fasta_io import count_sequences  # noqa: E402
-from ssign_lib.resources import effective_cpu_count as _effective_cpus  # noqa: E402,F401
+from ssign_lib.resources import parallel_share_cpus  # noqa: E402
 from ssign_lib.retry import retry_with_backoff  # noqa: E402
 from ssign_lib.subprocess_diag import dump_failure_log  # noqa: E402
 
@@ -84,7 +84,7 @@ def run_local_signalp(input_fasta, signalp_path, output_dir):
         # sets SSIGN_PARALLEL_GROUP_SIZE. Standalone invocations get the
         # full effective_cpu_count. See ssign_lib/resources.py.
         "--torch_num_threads",
-        str(_parallel_share_cpus()),
+        str(parallel_share_cpus()),
     ]
 
     logger.info(f"Running local SignalP: {' '.join(cmd[:4])}...")

@@ -525,6 +525,7 @@ def main():
     # running concurrently with DLP and SignalP in the parallel
     # prediction group. parallel_share_cpus returns the full allocation
     # when DSE runs standalone.
+    import torch
     from ssign_lib.resources import parallel_share_cpus
 
     _cap = parallel_share_cpus()
