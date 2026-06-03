@@ -22,7 +22,11 @@
 set -eo pipefail
 
 INPUT_GBFF="$HOME/ssign-tutorial/ecoli_k12.gbff"
-RUN_DIR="$HOME/runs/k12_$(date +%Y%m%d_%H%M%S)"
+# GPU_TYPE is set via `-v GPU_TYPE=L40S` on the qsub command line when
+# submitting multiple jobs to compare GPU types in parallel. The default
+# matches the #PBS gpu_type=L40S directive above.
+: "${GPU_TYPE:=L40S}"
+RUN_DIR="$HOME/runs/k12_${GPU_TYPE}_$(date +%Y%m%d_%H%M%S)"
 VENV="$HOME/blastp_t5a/ssign/.venv"
 
 mkdir -p "$RUN_DIR" && cd "$RUN_DIR"
