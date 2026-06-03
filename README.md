@@ -3,6 +3,8 @@
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Status: Beta](https://img.shields.io/badge/status-beta-orange)](#roadmap-to-v100)
+[![Tests](https://github.com/billerbeck-lab/ssign/actions/workflows/test.yml/badge.svg)](https://github.com/billerbeck-lab/ssign/actions/workflows/test.yml)
+[![Lint](https://github.com/billerbeck-lab/ssign/actions/workflows/lint.yml/badge.svg)](https://github.com/billerbeck-lab/ssign/actions/workflows/lint.yml)
 
 ssign detects secretion systems in Gram-negative bacterial genomes, identifies
 the proteins they secrete, and annotates those proteins with functional and
@@ -12,6 +14,29 @@ structural information from the major bioinformatics databases. Built for the
 **Version `0.9.0` (pre-publication baseline).** The next release (`1.0.0`)
 is the publication version: fully offline-capable, SHA-pinned Docker image,
 Zenodo-DOI'd. See [Roadmap to v1.0.0](#roadmap-to-v100).
+
+---
+
+## Statement of need
+
+Identifying which proteins a bacterium secretes — and through which of its
+secretion systems — is a recurring need across pathogen biology, microbial
+ecology, and synthetic-biology strain engineering. Doing this well requires
+combining at least three independent pieces of evidence: (1) which secretion
+systems the genome encodes, (2) which proteins look like secretion substrates,
+and (3) whether the candidates sit near a relevant system in genomic space.
+Each piece has well-established tools (MacSyFinder + TXSScan for systems;
+DeepLocPro, DeepSecE, SignalP, PLM-Effector for secretion prediction; BLAST,
+HH-suite, InterProScan, Bakta, EggNOG for functional annotation), but stitching
+them together is a manual, error-prone task that gets re-done in every lab.
+
+ssign exists to make that pipeline a single command. It runs the tools above,
+cross-validates their predictions, filters by per-component genomic proximity
+(rather than the looser system-span used by earlier pipelines), and produces
+a ranked, evidence-linked list of candidate secreted proteins plus an HTML
+report. It is targeted at biologists who want to interrogate a Gram-negative
+genome without writing glue code, and at HPC users who need the same workflow
+to run reproducibly on batches of hundreds of genomes.
 
 ---
 
@@ -292,11 +317,29 @@ uses alongside ssign.
 
 ---
 
+## AI usage disclosure
+
+Parts of the ssign codebase, documentation, and tests were drafted with the
+assistance of large language models (Anthropic's Claude family) acting as a
+pair-programming and review tool. All AI-assisted output was reviewed,
+edited, and verified by the human authors before being committed. In
+particular: code changes were validated against the test suite
+(`pytest tests/unit/` and the integration suite) and, for pipeline-affecting
+changes, against real-genome validation runs documented in
+`memory/calibration/`. Scientific claims, default thresholds, and biological
+rationale were verified against primary literature cited in this README and
+in `docs/explanation/design_decisions.md`.
+
+---
+
 ## Contributing
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for how to file issues, propose
 features, and submit pull requests. Contributions welcome, especially for
 documentation and new tool integrations.
+
+A [Code of Conduct](CODE_OF_CONDUCT.md) applies to all project spaces.
+Security issues should be reported privately per [SECURITY.md](SECURITY.md).
 
 ---
 

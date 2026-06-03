@@ -41,7 +41,7 @@ contact:
     email: "s.billerbeck@imperial.ac.uk"
     affiliation: "Department of Bioengineering, Imperial College London"
     orcid: "https://orcid.org/0000-0002-3092-578X"
-version: "0.9.0-prerefactor"
+version: "0.9.0"
 date-released: "2026-04-22"
 repository-code: "https://github.com/billerbeck-lab/ssign"
 url: "https://github.com/billerbeck-lab/ssign"
