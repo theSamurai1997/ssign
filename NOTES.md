@@ -11,11 +11,9 @@ Tracks items skipped during tasks. One bullet per item: what, why, trigger to re
 - **Ensemble model checkpoint cache** (task #16). `run_ensemble` now called 85× instead of 5×; re-reads ~150 MB of small files per call. Page cache makes real cost ~150 MB total, so lower priority than the raw number suggests. Revisit: if PLM-E step wallclock is still the long pole after `0445d94` cross-type caching is validated.
 - **FP16/BF16 + `--batch-size 32`**. Could drop PLM-E ~74m → ~12-15m on whole-genome runs. Needs validation that FP16 doesn't shift predictions. Now low priority: PLM-E runs on the SS neighborhood (~128 proteins) by default, so absolute wallclock is small. Only revisit if `--plme-whole-genome` becomes a common workflow.
 
-## CX3 install fixes (user actions still needed before next tier-2 run)
+## Disk sizes (measured 2026-06-03 on CX3, scripts/audit_disk_sizes.py)
 
-- `source ~/blastp_t5a/ssign/.venv/bin/activate && pip install --no-deps eggnog-mapper`
-- `git clone https://github.com/labstructbioinf/pLM-BLAST.git ~/tools/pLM-BLAST && export SSIGN_PLMBLAST_SCRIPT=~/tools/pLM-BLAST/scripts/plmblast.py` (add the export to `~/.bashrc` AND the PBS script).
-- Runner now hard-fails at pre-flight if either is missing for an enabled step, so a missed install no longer wastes ~1h of HPC time.
+- **base 2 GB / extended 140 GB / full 1.3 TB**. BLAST nr is the long pole at 802 GB; users without nr-cross-genome BLASTp save 1.2 TB by staying on extended. UniRef30 dominates HH-suite at 261 GB. Several install.md per-tool estimates were ~50% off (EggNOG 25→47, IPS 24→35, PLM-E 18→26, HH-suite 55→340). Updated in docs/how-to/install.md.
 
 ## Torch.load safety
 

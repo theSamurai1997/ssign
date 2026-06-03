@@ -21,6 +21,18 @@ After pip install, fetch the matching database bundle:
 bash scripts/fetch_databases.sh --tier base       # or: extended / full
 ```
 
+### Database tier sizes
+
+Real on-disk numbers, measured 2026-06-03 against the fetched databases on Imperial CX3 (`scripts/audit_disk_sizes.py`). Cumulative — each row includes everything from the rows above it:
+
+| Tier | Cumulative size | Adds |
+|---|---|---|
+| base | ~2 GB | DeepSecE checkpoint |
+| extended | ~140 GB | + Bakta light DB (4 GB), EggNOG (47 GB), InterProScan (35 GB), pLM-BLAST ECOD70 (24 GB), PLM-Effector weights (26 GB) |
+| full | ~1.3 TB | + HH-suite Pfam + PDB70 + UniRef30 (340 GB total), BLAST nr (802 GB) |
+
+BLAST nr is the long pole for full-tier disk; if you don't need cross-genome BLASTp, sticking with extended saves ~1.2 TB.
+
 If a tier doesn't fit your storage budget, pick individual tools below.
 
 ## Verify the install
@@ -104,7 +116,7 @@ mamba create -n bakta-deps -c bioconda bakta -y
 export PATH=~/.conda/envs/bakta-deps/bin:$PATH
 ```
 
-Then download the light database (~2 GB):
+Then download the light database (~4 GB extracted):
 
 ```bash
 bakta_db download --output ~/bakta_db --type light
@@ -160,7 +172,7 @@ emapper.py --version
 > `emapper.py` is missing and `--skip-eggnog` is not set, so a missing
 > install no longer wastes a 1-hour PBS allocation.
 
-Fetch the database (~25 GB extracted):
+Fetch the database (~47 GB extracted):
 
 ```bash
 scripts/fetch_databases.sh --tier extended --target ~/.ssign/databases
@@ -211,7 +223,7 @@ InterProScan (EBI) scans proteins against a panel of member databases
 to annotate domains, family memberships, and GO terms. ssign uses it to
 add domain-level annotation to substrate proteins. Java required.
 
-The bundle is large (~24 GB extracted) but installs as a single tarball:
+The bundle is large (~35 GB extracted) but installs as a single tarball:
 
 ```bash
 # 1. Java 11+ on PATH (Ubuntu / Debian):
@@ -271,7 +283,7 @@ wget https://wwwuser.gwdg.de/~compbiol/uniclust/2023_02/UniRef30_2023_02_hhsuite
 tar -xzf UniRef30_2023_02_hhsuite.tar.gz && rm UniRef30_2023_02_hhsuite.tar.gz
 ```
 
-Total disk after extraction: ~55 GB. Tell ssign where to find them:
+Total disk after extraction: ~340 GB (Pfam 8 GB + PDB70 70 GB + UniRef30 261 GB). Tell ssign where to find them:
 
 ```bash
 export SSIGN_HHSUITE_PFAM=$HHSUITE_DBS/pfam
@@ -335,7 +347,8 @@ is 10+ hours just for embedding.
 
 PLM-Effector source code is shipped with ssign under `src/ssign_app/scripts/plm_effector/`.
 The trained weights (~1.7 GB) and four pretrained protein language models
-(~17 GB) are fetched by `scripts/fetch_databases.sh` at every tier:
+(~24 GB) are fetched by `scripts/fetch_databases.sh` at every tier
+(~26 GB total on disk):
 
 ```bash
 scripts/fetch_databases.sh --tier base --target ~/.ssign/databases
