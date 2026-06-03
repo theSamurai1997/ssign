@@ -169,9 +169,7 @@ class TestParseDbxrefs:
     def test_uniref_and_uniparc_surfaced(self):
         """UniRef + UniParc are surfaced for provenance (most-populated
         cross-references in Bakta light-DB output)."""
-        result = parse_dbxrefs(
-            "UniRef:UniRef50_X1, UniParc:UPI000123"
-        )
+        result = parse_dbxrefs("UniRef:UniRef50_X1, UniParc:UPI000123")
         assert result["uniref_ids"] == ["UniRef50_X1"]
         assert result["uniparc_ids"] == ["UPI000123"]
 
@@ -257,3 +255,63 @@ class TestWriteProteinsFasta:
         assert n == 3
         with open(out) as f:
             assert ">MISSING" not in f.read()
+
+
+class TestRunBaktaThreadDefault:
+    """`run_bakta(..., threads=None)` must auto-detect from
+    `effective_cpu_count()`. Used to default to 4, which left 12 of 16
+    CX3 cores idle for the ~5 min Bakta phase. The argparse default at
+    run_bakta.py main() was already effective_cpu_count(); this pins the
+    Python-API path too."""
+
+    def _stub_subprocess_run(self, captured):
+        class _Done:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        def _fake(cmd, **kwargs):
+            captured.append(list(cmd))
+            return _Done()
+
+        return _fake
+
+    def _patch_bakta_outputs(self, monkeypatch, tmp_dir, sample_id):
+        # run_bakta() returns paths to bakta's .faa / .tsv. The subprocess
+        # is stubbed so those files never get written — create empty ones
+        # so the post-subprocess existence assertions don't fire.
+        for ext in (".faa", ".tsv"):
+            with open(os.path.join(tmp_dir, sample_id + ext), "w"):
+                pass
+
+    def test_threads_none_resolves_to_effective_cpu_count(self, tmp_dir, monkeypatch):
+        import subprocess
+
+        from run_bakta import run_bakta as _run
+        from ssign_lib.resources import effective_cpu_count as _cpu
+
+        captured = []
+        monkeypatch.setattr(subprocess, "run", self._stub_subprocess_run(captured))
+        self._patch_bakta_outputs(monkeypatch, tmp_dir, "s")
+
+        _run(os.path.join(tmp_dir, "in.fa"), "/db", "s", tmp_dir, threads=None)
+
+        assert len(captured) == 1
+        cmd = captured[0]
+        i = cmd.index("--threads")
+        assert cmd[i + 1] == str(_cpu())
+
+    def test_explicit_threads_passes_through(self, tmp_dir, monkeypatch):
+        import subprocess
+
+        from run_bakta import run_bakta as _run
+
+        captured = []
+        monkeypatch.setattr(subprocess, "run", self._stub_subprocess_run(captured))
+        self._patch_bakta_outputs(monkeypatch, tmp_dir, "s")
+
+        _run(os.path.join(tmp_dir, "in.fa"), "/db", "s", tmp_dir, threads=7)
+
+        cmd = captured[0]
+        i = cmd.index("--threads")
+        assert cmd[i + 1] == "7"

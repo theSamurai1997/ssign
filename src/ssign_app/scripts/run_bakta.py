@@ -74,8 +74,14 @@ _DBXREF_PREFIX_TO_OUTPUT_KEY = {
 _DBXREF_OUTPUT_KEYS = tuple(_DBXREF_PREFIX_TO_OUTPUT_KEY.values())
 
 
-def run_bakta(contigs_fasta, db_path, sample_id, output_dir, threads=4, local_cache_dir=None):
+def run_bakta(contigs_fasta, db_path, sample_id, output_dir, threads=None, local_cache_dir=None):
     """Run Bakta on a genome FASTA file.
+
+    `threads=None` (default) auto-detects from `effective_cpu_count()` so
+    HPC allocations use every core they were given. Pass an explicit int
+    to override (e.g., when the runner subdivides the budget across
+    parallel genomes). Used to default to 4, which left 12 of 16 CX3
+    cores idle for the ~5 min Bakta phase.
 
     `local_cache_dir`, when set and the DB is on a remote filesystem
     (gpfs/nfs/lustre), rsyncs the full Bakta DB tree to that directory
@@ -88,6 +94,8 @@ def run_bakta(contigs_fasta, db_path, sample_id, output_dir, threads=4, local_ca
     Returns:
         tuple: (proteins_faa_path, tsv_path)
     """
+    if threads is None:
+        threads = max(1, effective_cpu_count())
     if local_cache_dir:
         from ssign_lib.resources import stage_directory_tree_to_local_ssd_if_remote
 
