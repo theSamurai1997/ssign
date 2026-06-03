@@ -73,26 +73,36 @@ _COL_TSTART = "tstart"
 _COL_TEND = "tend"
 
 
-def _resolve_plmblast_script() -> str:
-    """Locate the `plmblast.py` script pLM-BLAST ships.
+def find_plmblast_script() -> str | None:
+    """Return the resolved path to pLM-BLAST's `plmblast.py`, or None.
 
-    Resolution order:
-      1. `SSIGN_PLMBLAST_SCRIPT` env var (explicit override).
-      2. `plmblast.py` / `plmblast` on PATH (entry point installed by pip).
-      3. Fall back to assuming `plmblast.py` — the subprocess call will
-         raise with install hints if it's not found.
+    Resolution order (same as `_resolve_plmblast_script` below, but
+    non-raising so callers can use it as a pre-flight availability check):
+      1. `SSIGN_PLMBLAST_SCRIPT` env var.
+      2. `plmblast.py` / `plmblast` on PATH.
     """
     override = os.environ.get("SSIGN_PLMBLAST_SCRIPT")
-    if override:
-        if not os.path.exists(override):
-            raise RuntimeError(f"SSIGN_PLMBLAST_SCRIPT points at a missing file: {override}")
+    if override and os.path.isfile(override):
         return override
-
     for candidate in ("plmblast.py", "plmblast"):
         found = shutil.which(candidate)
         if found:
             return found
+    return None
 
+
+def _resolve_plmblast_script() -> str:
+    """Locate the `plmblast.py` script pLM-BLAST ships.
+
+    Raises RuntimeError with install hints if not found. For a non-raising
+    availability check use `find_plmblast_script()`.
+    """
+    override = os.environ.get("SSIGN_PLMBLAST_SCRIPT")
+    if override and not os.path.exists(override):
+        raise RuntimeError(f"SSIGN_PLMBLAST_SCRIPT points at a missing file: {override}")
+    found = find_plmblast_script()
+    if found:
+        return found
     return "plmblast.py"
 
 
@@ -116,6 +126,19 @@ def _use_cuda_for_embedding() -> bool:
 
 def _resolve_embeddings_script(plmblast_script: str) -> str:
     """Locate pLM-BLAST's `embeddings.py` (one level above `scripts/plmblast.py`)."""
+    # `_resolve_plmblast_script` returns the literal "plmblast.py" when
+    # neither SSIGN_PLMBLAST_SCRIPT nor a PATH entry resolves. Catch that
+    # here so we emit a clear "not installed" error instead of a
+    # misleading "embeddings.py not found at <cwd>/.." message.
+    if plmblast_script == "plmblast.py" and not os.path.isabs(plmblast_script):
+        raise RuntimeError(
+            "pLM-BLAST is not installed: plmblast.py is not on PATH and "
+            "SSIGN_PLMBLAST_SCRIPT is not set.\n"
+            "  Install:\n"
+            "    git clone https://github.com/labstructbioinf/pLM-BLAST.git ~/tools/pLM-BLAST\n"
+            "    export SSIGN_PLMBLAST_SCRIPT=~/tools/pLM-BLAST/scripts/plmblast.py\n"
+            "  Or pass --skip-plmblast to disable this step."
+        )
     repo_root = os.path.dirname(os.path.dirname(os.path.abspath(plmblast_script)))
     candidate = os.path.join(repo_root, "embeddings.py")
     if os.path.exists(candidate):

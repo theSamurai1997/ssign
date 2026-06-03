@@ -668,6 +668,48 @@ class PipelineRunner:
 
         return warnings
 
+    def check_required_executables(self) -> list[str]:
+        """Pre-flight gate for optional tools that have no pip-extra.
+
+        EggNOG-mapper and pLM-BLAST are deliberately outside ssign's pip
+        extras (biopython hard-pin clash; alntools not on PyPI) so they
+        are easy to forget to install. Their per-step crashes surface
+        late: in the June 2026 K-12 PBS run, EggNOG crashed 56 minutes
+        in. Catching the missing binary here aborts before any work.
+
+        Returns a list of fatal error messages. An empty list means
+        every enabled optional step has its binary on PATH.
+        """
+        errors = []
+
+        # Match the conda-env auto-discovery already used for signalp6 /
+        # deeplocpro — users who follow the docs' "conda install -n
+        # bakta-deps -c bioconda eggnog-mapper" path get a binary that
+        # isn't on PATH unless they activate the env first.
+        if not self.config.skip_eggnog and not (shutil.which("emapper.py") or _find_in_conda_envs("emapper.py")):
+            errors.append(
+                "emapper.py not found on PATH or in any conda env (needed for EggNOG-mapper).\n"
+                "  Install (recommended, avoids biopython pin clash):\n"
+                "    pip install --no-deps eggnog-mapper\n"
+                "  Or via conda:\n"
+                "    conda install -c bioconda eggnog-mapper\n"
+                "  Or pass --skip-eggnog to disable this step."
+            )
+
+        if not self.config.skip_plmblast:
+            from ssign_app.scripts.run_plm_blast import find_plmblast_script
+
+            if not find_plmblast_script():
+                errors.append(
+                    "plmblast.py not found on PATH and SSIGN_PLMBLAST_SCRIPT "
+                    "is unset (needed for pLM-BLAST).\n"
+                    "  Install: git clone https://github.com/labstructbioinf/pLM-BLAST.git\n"
+                    "  Then: export SSIGN_PLMBLAST_SCRIPT=/path/to/pLM-BLAST/scripts/plmblast.py\n"
+                    "  Or pass --skip-plmblast to disable this step."
+                )
+
+        return errors
+
     def _elapsed_str(self) -> str:
         """Format elapsed time since pipeline start."""
         if self.start_time is None:
@@ -684,6 +726,19 @@ class PipelineRunner:
         in the output directory).
         """
         self.start_time = time.monotonic()
+
+        # Pre-flight: hard-fail on missing optional binaries before any
+        # step runs. Catches the "forgot to install emapper.py / pLM-BLAST"
+        # class of bug that previously wasted ~1h of HPC time per genome.
+        dep_errors = self.check_required_executables()
+        if dep_errors:
+            for e in dep_errors:
+                logger.error(f"Pre-flight: {e}")
+            raise RuntimeError(
+                "Required tool(s) for enabled optional steps are missing. "
+                "Install them or pass the matching --skip-* flag. "
+                f"{len(dep_errors)} issue(s) — see log for install instructions."
+            )
 
         # Pre-flight dependency check
         dep_warnings = self.check_dependencies()

@@ -995,6 +995,50 @@ class TestStepPlmEffectorInput:
         assert self._input_arg(captured) == str(neigh)
 
 
+class TestCheckRequiredExecutables:
+    """Pre-flight gate that hard-fails on missing emapper.py / plmblast.py
+    for enabled steps. Added 2026-06-02 after a CX3 PBS job wasted 56
+    minutes before crashing on the missing emapper.py binary."""
+
+    def test_passes_when_steps_skipped(self, tmp_dir, monkeypatch):
+        # No optional steps enabled → no required executables.
+        monkeypatch.setattr(shutil, "which", lambda _: None)
+        monkeypatch.delenv("SSIGN_PLMBLAST_SCRIPT", raising=False)
+        c = PipelineConfig(outdir=tmp_dir, sample_id="x", skip_eggnog=True, skip_plmblast=True)
+        r = PipelineRunner(c)
+        assert r.check_required_executables() == []
+
+    def test_flags_missing_emapper(self, tmp_dir, monkeypatch):
+        monkeypatch.setattr(shutil, "which", lambda _: None)
+        monkeypatch.delenv("SSIGN_PLMBLAST_SCRIPT", raising=False)
+        c = PipelineConfig(outdir=tmp_dir, sample_id="x", skip_eggnog=False, skip_plmblast=True)
+        r = PipelineRunner(c)
+        errors = r.check_required_executables()
+        assert len(errors) == 1
+        assert "emapper.py" in errors[0]
+        assert "pip install --no-deps eggnog-mapper" in errors[0]
+
+    def test_flags_missing_plmblast(self, tmp_dir, monkeypatch):
+        monkeypatch.setattr(shutil, "which", lambda _: None)
+        monkeypatch.delenv("SSIGN_PLMBLAST_SCRIPT", raising=False)
+        c = PipelineConfig(outdir=tmp_dir, sample_id="x", skip_eggnog=True, skip_plmblast=False)
+        r = PipelineRunner(c)
+        errors = r.check_required_executables()
+        assert len(errors) == 1
+        assert "plmblast.py" in errors[0]
+        assert "SSIGN_PLMBLAST_SCRIPT" in errors[0]
+
+    def test_plmblast_env_var_satisfies_check(self, tmp_dir, monkeypatch, tmp_path):
+        # Existing file at SSIGN_PLMBLAST_SCRIPT is enough — even without PATH.
+        monkeypatch.setattr(shutil, "which", lambda _: None)
+        fake_script = tmp_path / "plmblast.py"
+        fake_script.write_text("# stub")
+        monkeypatch.setenv("SSIGN_PLMBLAST_SCRIPT", str(fake_script))
+        c = PipelineConfig(outdir=tmp_dir, sample_id="x", skip_eggnog=True, skip_plmblast=False)
+        r = PipelineRunner(c)
+        assert r.check_required_executables() == []
+
+
 class TestPoolEnrichmentStats:
     """Cross-genome pooling: sum M and k across genomes per (broad_type, tool),
     weighted-average p_bg by n_null, re-run binomial test, BH FDR on pooled."""

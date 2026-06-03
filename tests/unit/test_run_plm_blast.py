@@ -180,3 +180,52 @@ class TestUseCudaForEmbedding:
         monkeypatch.delenv("SSIGN_PLMBLAST_FORCE_CPU", raising=False)
         monkeypatch.setattr(builtins, "__import__", fake_import)
         assert _use_cuda_for_embedding() is False
+
+
+class TestResolveEmbeddingsScriptErrors:
+    """When `_resolve_plmblast_script` returns the bare-name fallback
+    "plmblast.py", `_resolve_embeddings_script` used to compute
+    `dirname(dirname(abspath("plmblast.py")))` against cwd and emit a
+    "embeddings.py not found at <cwd>/.." message that looked like a
+    path-config bug. Real cause: pLM-BLAST not installed. Test pins the
+    clearer error message."""
+
+    def test_bare_name_fallback_raises_install_error(self):
+        import pytest
+        from run_plm_blast import _resolve_embeddings_script
+
+        with pytest.raises(RuntimeError) as exc:
+            _resolve_embeddings_script("plmblast.py")
+        msg = str(exc.value)
+        assert "not installed" in msg
+        assert "SSIGN_PLMBLAST_SCRIPT" in msg
+        assert "git clone" in msg
+        # Old misleading text must NOT appear.
+        assert "embeddings.py not found next to" not in msg
+
+    def test_real_path_with_missing_embeddings_raises_incomplete_install(self, tmp_path):
+        # Simulate a partial clone: scripts/plmblast.py exists, but
+        # embeddings.py one level up does not.
+        import pytest
+        from run_plm_blast import _resolve_embeddings_script
+
+        scripts_dir = tmp_path / "pLM-BLAST" / "scripts"
+        scripts_dir.mkdir(parents=True)
+        fake_plmblast = scripts_dir / "plmblast.py"
+        fake_plmblast.write_text("# stub")
+
+        with pytest.raises(RuntimeError) as exc:
+            _resolve_embeddings_script(str(fake_plmblast))
+        assert "embeddings.py not found next to" in str(exc.value)
+
+    def test_real_path_with_embeddings_returns_it(self, tmp_path):
+        from run_plm_blast import _resolve_embeddings_script
+
+        repo = tmp_path / "pLM-BLAST"
+        (repo / "scripts").mkdir(parents=True)
+        fake_plmblast = repo / "scripts" / "plmblast.py"
+        fake_plmblast.write_text("# stub")
+        fake_embed = repo / "embeddings.py"
+        fake_embed.write_text("# stub")
+
+        assert _resolve_embeddings_script(str(fake_plmblast)) == str(fake_embed)
