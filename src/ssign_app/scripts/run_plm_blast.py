@@ -373,7 +373,12 @@ def parse_plmblast_csv(csv_path: str):
     """
     entries = []
     with open(csv_path) as f:
-        reader = csv.DictReader(f)
+        # pLM-BLAST emits ``;``-separated rows (verified upstream 2026-06-04
+        # against ECOD30; header is ``qid;score;ident;similarity;sid;...``).
+        # Reading with the csv default (``,``) silently collapses every row
+        # into one field and drops every hit — the failure mode that hit
+        # task #80 in spirit, masked there by an earlier staging crash.
+        reader = csv.DictReader(f, delimiter=";")
         for row in reader:
             query_id = row.get(_COL_QUERY, "").strip()
             if not query_id:

@@ -19,20 +19,21 @@ from run_plm_blast import (
     write_substrates_only_fasta,
 )
 
-# Representative pLM-BLAST CSV fixture. Real output columns verified on
-# first integration run — swap in the actual captured output as a fixture
-# once we run pLM-BLAST against the T1SS fixture on CX3.
+# Representative pLM-BLAST CSV fixture. Upstream emits ``;``-separated
+# rows (verified 2026-06-04 against ECOD30; header is
+# ``qid;score;ident;similarity;sid;qstart;qend;qseq;con;tseq;tstart;tend;tlen;qlen;match_len;sdesc``).
+# This fixture keeps the minimal column set the wrapper actually reads.
 _PLMBLAST_FIXTURE = (
-    "qid,sid,sdesc,score,qstart,qend,tstart,tend\n"
-    "GENE_00001,ecod_1a2bA1,Autotransporter beta-domain,0.912,10,145,5,140\n"
-    "GENE_00001,ecod_3c4dB2,Hemolysin secretion ATP-binding,0.871,20,150,10,140\n"
-    "GENE_00003,ecod_5e6fC1,TolC-like outer membrane channel,0.789,1,200,1,199\n"
+    "qid;sid;sdesc;score;qstart;qend;tstart;tend\n"
+    "GENE_00001;ecod_1a2bA1;Autotransporter beta-domain;0.912;10;145;5;140\n"
+    "GENE_00001;ecod_3c4dB2;Hemolysin secretion ATP-binding;0.871;20;150;10;140\n"
+    "GENE_00003;ecod_5e6fC1;TolC-like outer membrane channel;0.789;1;200;1;199\n"
 )
 
 # Pre-fix fixture (no sdesc column) — upstream emits this when the DB has
 # no description column. Guards the empty-description fallback so we
 # don't crash on DBs without metadata.
-_PLMBLAST_FIXTURE_NO_SDESC = "qid,sid,score,qstart,qend,tstart,tend\nGENE_00001,ecod_1a2bA1,0.912,10,145,5,140\n"
+_PLMBLAST_FIXTURE_NO_SDESC = "qid;sid;score;qstart;qend;tstart;tend\nGENE_00001;ecod_1a2bA1;0.912;10;145;5;140\n"
 
 
 class TestParsePlmblastCsv:
@@ -71,7 +72,7 @@ class TestParsePlmblastCsv:
         path = os.path.join(tmp_dir, "plm_blast.csv")
         with open(path, "w") as f:
             f.write(
-                "qid,sid,score,qstart,qend,tstart,tend\n,ecod_empty,0.5,1,10,1,10\nGENE_X,ecod_real,0.9,1,100,1,100\n"
+                "qid;sid;score;qstart;qend;tstart;tend\n;ecod_empty;0.5;1;10;1;10\nGENE_X;ecod_real;0.9;1;100;1;100\n"
             )
 
         entries = parse_plmblast_csv(path)
@@ -81,7 +82,7 @@ class TestParsePlmblastCsv:
     def test_empty_csv_returns_empty_list(self, tmp_dir):
         path = os.path.join(tmp_dir, "plm_blast.csv")
         with open(path, "w") as f:
-            f.write("qid,sid,score,qstart,qend,tstart,tend\n")
+            f.write("qid;sid;score;qstart;qend;tstart;tend\n")
 
         assert parse_plmblast_csv(path) == []
 
