@@ -785,29 +785,52 @@ class PipelineRunner:
         if not self.work_dir:
             self.work_dir = tempfile.mkdtemp(prefix="ssign_")
 
-        # ── Build pipeline stages ──
-        # Stages are either a single step (sequential) or a list of steps
-        # that can run in parallel. Parallel steps must write to different
-        # keys in self.files and not depend on each other.
-        #
-        # Dependency graph:
-        #   detect_format → extract_proteins → macsyfinder → validate →
-        #   extract_neighborhood →
-        #     [deeplocpro || deepsece || signalp]  ← PARALLEL GROUP 1
-        #   → cross_validate → proximity → t5ss → filtering →
-        #     [blastp || hhsuite || interproscan || protparam]  ← PARALLEL GROUP 2
-        #   → integrate → orthologs → enrichment → report → figures
+        stages = self._build_stages()
 
-        # Prediction tools (parallel group 1) — equal secretion predictors
-        # per cross_validate 3.2.b. SignalP runs with them but is recorded
-        # evidence-only in the cross-validation step.
-        #
-        # PLM-Effector is deliberately NOT in this group: it loads 3-4
-        # PLMs (~6 GB resident each), and on a memory-constrained
-        # allocation (e.g. 32 GB PBS job) the parallel group's shared
-        # memory ceiling kills its first model load while DLP/DSE/SignalP
-        # are still resident. Running it sequentially after this group
-        # finishes lets it reclaim the full per-job RAM budget.
+        core_failed = self._execute_stages(stages, skip_steps)
+
+        # Copy final outputs to outdir BEFORE reporting 100% — otherwise the
+        # progress bar hits 100 while files are still being written.
+        # step_timings.csv is up-to-date already; _record_result wrote it
+        # incrementally as each step finished.
+        self._copy_outputs()
+        self._save_progress()
+        if self._sampler is not None:
+            self._sampler.stop()
+        self.progress("Complete", 100, f"Pipeline finished in {self._elapsed_str()}")
+
+        # On clean success, drop the temp work_dir. On failure, retain it so
+        # the user can `--resume` after fixing the underlying issue.
+        if not core_failed and self.work_dir and os.path.isdir(self.work_dir):
+            try:
+                shutil.rmtree(self.work_dir)
+                logger.info(f"Cleaned up work directory: {self.work_dir}")
+            except OSError as e:
+                logger.warning(f"Could not remove work_dir {self.work_dir}: {e}")
+
+        return self.results
+
+    def _build_stages(self) -> list:
+        """Return the ordered pipeline stages list.
+
+        Each element is either a ``(name, callable)`` tuple (sequential
+        step) or a list of such tuples (parallel group). Steps disabled
+        in ``self.config`` (skip_*) are omitted.
+
+        Dependency graph:
+          detect_format → extract_proteins → macsyfinder → validate →
+          extract_neighborhood →
+            [deeplocpro || deepsece || signalp]  ← PARALLEL GROUP 1
+          → plm_effector →
+          → cross_validate → proximity → t5ss → filtering →
+            [blastp || hhsuite || interproscan || plm_blast || protparam]  ← PARALLEL GROUP 2
+          → integrate → orthologs → enrichment → report → figures
+
+        PLM-Effector is deliberately serial after parallel group 1: it
+        loads 3-4 PLMs (~6 GB resident each), and on a memory-constrained
+        allocation the parallel group's shared memory ceiling kills its
+        first model load while DLP/DSE/SignalP are still resident.
+        """
         prediction_steps = []
         if not self.config.skip_deeplocpro:
             prediction_steps.append(("Predicting localization (DeepLocPro)", self._step_deeplocpro))
@@ -816,7 +839,6 @@ class PipelineRunner:
         if not self.config.skip_signalp:
             prediction_steps.append(("Predicting signal peptides (SignalP)", self._step_signalp))
 
-        # Annotation tools (parallel group 2)
         # HHpred listed first so it starts immediately — it's the bottleneck
         annotation_steps = []
         if not self.config.skip_hhsuite:
@@ -832,9 +854,6 @@ class PipelineRunner:
         if not self.config.skip_protparam:
             annotation_steps.append(("Computing physicochemical properties", self._step_protparam))
 
-        # Full pipeline as stages: each stage is either:
-        #   ("name", func)         — single sequential step
-        #   [("name", func), ...]  — parallel group
         stages = [
             ("Detecting input format", self._step_detect_format),
             ("Extracting proteins", self._step_extract_proteins),
@@ -848,10 +867,7 @@ class PipelineRunner:
         # neighborhood_proteins (the null sample isn't routed to them).
         if self.config.enrichment_stats:
             stages.append(("Sampling null proteins for enrichment stats", self._step_sample_null_proteins))
-        stages.append(prediction_steps)  # PARALLEL: deeplocpro + deepsece + signalp
-        # PLM-Effector runs sequentially AFTER the prediction parallel group:
-        # it spawns subprocess-per-PLM internally (~6 GB peak), and on a
-        # 32 GB allocation it must not share the budget with DLP/DSE/SignalP.
+        stages.append(prediction_steps)
         if not self.config.skip_plm_effector:
             stages.append(("Predicting effectors (PLM-Effector, 5 types)", self._step_plm_effector))
         stages.extend(
@@ -860,7 +876,7 @@ class PipelineRunner:
                 ("Running proximity analysis", self._step_proximity),
                 ("Handling T5SS autotransporters", self._step_t5ss),
                 ("Filtering systems", self._step_filtering),
-                annotation_steps,  # PARALLEL: blastp + hhsuite + interproscan + protparam
+                annotation_steps,
                 ("Integrating annotations", self._step_integrate),
                 ("Assigning ortholog groups", self._step_orthologs),
                 ("Running enrichment analysis", self._step_enrichment),
@@ -868,8 +884,20 @@ class PipelineRunner:
                 ("Generating figures", self._step_figures),
             ]
         )
+        return stages
 
-        # Flatten for counting and core-step tracking
+    def _execute_stages(self, stages: list, skip_steps: set) -> bool:
+        """Execute the given stages list. Returns True iff a core step failed.
+
+        Steps in ``skip_steps`` are recorded as resumed without re-running,
+        EXCEPT downstream steps (integrate/orthologs/enrichment/report/
+        figures) which are forced to re-run if any upstream step in this
+        stages list ran (their outputs depend on upstream results).
+
+        Progress percentages are relative to the passed stages list. For
+        single-genome runs this is the full pipeline; for multi-genome
+        callers a slice represents one phase.
+        """
         all_steps = []
         for stage in stages:
             if isinstance(stage, list):
@@ -1073,26 +1101,7 @@ class PipelineRunner:
         if n_skipped:
             logger.info(f"Resumed: skipped {n_skipped} previously completed steps")
 
-        # Copy final outputs to outdir BEFORE reporting 100% — otherwise the
-        # progress bar hits 100 while files are still being written.
-        # step_timings.csv is up-to-date already; _record_result wrote it
-        # incrementally as each step finished.
-        self._copy_outputs()
-        self._save_progress()
-        if self._sampler is not None:
-            self._sampler.stop()
-        self.progress("Complete", 100, f"Pipeline finished in {self._elapsed_str()}")
-
-        # On clean success, drop the temp work_dir. On failure, retain it so
-        # the user can `--resume` after fixing the underlying issue.
-        if not core_failed and self.work_dir and os.path.isdir(self.work_dir):
-            try:
-                shutil.rmtree(self.work_dir)
-                logger.info(f"Cleaned up work directory: {self.work_dir}")
-            except OSError as e:
-                logger.warning(f"Could not remove work_dir {self.work_dir}: {e}")
-
-        return self.results
+        return core_failed
 
     def _record_result(self, result: "StepResult") -> None:
         """Append a step result and flush step_timings.csv to disk.
