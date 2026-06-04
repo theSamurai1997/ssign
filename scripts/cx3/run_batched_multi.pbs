@@ -1,0 +1,66 @@
+#!/bin/bash
+# ssign multi-genome BATCHED-MODE PBS script.
+#
+# Runs ONE ssign invocation across N genomes inside a single PBS job so
+# predictions and annotations get pooled across genomes (MultiGenomeRunner).
+# Different from run_serial_genomes.pbs, which runs ssign N times back-to-back.
+#
+# Usage:
+#   qsub -v "INPUT_GBFFS=$HOME/ssign-tutorial/ecoli_k12.gbff:$HOME/ssign-tutorial/pseudomonas_pao1.gbff" \
+#        -l select=1:ncpus=64:mem=120gb:ngpus=1:gpu_type=L40S \
+#        scripts/cx3/run_batched_multi.pbs
+#
+# Per-genome outputs land in $RUN_DIR/<sample_id>/; a top-level
+# combined_summary.tsv aggregates all substrates with a source_genome column.
+
+#PBS -l select=1:ncpus=64:mem=120gb:ngpus=1
+#PBS -l walltime=16:00:00
+#PBS -N ssign_batched
+#PBS -j oe
+#PBS -o ssign_batched.log
+#PBS -S /bin/bash
+
+set -eo pipefail
+
+: "${INPUT_GBFFS:?Pass via -v INPUT_GBFFS=path1:path2:path3 ... (colon-separated)}"
+IFS=':' read -ra GENOME_LIST <<<"$INPUT_GBFFS"
+for g in "${GENOME_LIST[@]}"; do
+    test -f "$g" || { echo "FATAL: input not found: $g"; exit 1; }
+done
+
+: "${GPU_TYPE:=L40S}"
+RUN_DIR="$HOME/runs/batched_${GPU_TYPE}_$(date +%Y%m%d_%H%M%S)"
+VENV="$HOME/blastp_t5a/ssign/.venv"
+
+mkdir -p "$RUN_DIR" && cd "$RUN_DIR"
+
+echo "===== BATCHED JOB START $(date -Is) | $(hostname) | $PBS_JOBID ====="
+echo "Processing ${#GENOME_LIST[@]} genome(s):"
+for g in "${GENOME_LIST[@]}"; do echo "  $g"; done
+
+nvidia-smi || { echo "FATAL: no GPU"; exit 1; }
+
+source ~/.bashrc 2>/dev/null || true
+module load Java/11.0.25 || { echo "FATAL: Java/11.0.25 module unavailable. Check 'module avail Java'."; exit 1; }
+
+source "$VENV/bin/activate"
+command -v ssign >/dev/null || { echo "FATAL: ssign not on PATH after venv activation."; exit 1; }
+echo "  ssign -> $(command -v ssign)"
+
+export PATH="$PATH:$HOME/.conda/envs/bakta-deps/bin"
+export SSIGN_PLMBLAST_SCRIPT="$HOME/tools/pLM-BLAST/scripts/plmblast.py"
+test -f "$SSIGN_PLMBLAST_SCRIPT" || { echo "FATAL: SSIGN_PLMBLAST_SCRIPT not found at $SSIGN_PLMBLAST_SCRIPT"; exit 1; }
+
+echo "===== ssign run START $(date -Is) ====="
+ssign run "${GENOME_LIST[@]}" \
+    --outdir "$RUN_DIR" \
+    --tier extended \
+    2>&1 | tee "$RUN_DIR/ssign.run.log"
+SSIGN_RC=${PIPESTATUS[0]}
+echo "===== ssign run END (rc=$SSIGN_RC) $(date -Is) ====="
+
+echo "===== Output layout ====="
+ls -la "$RUN_DIR"
+test -f "$RUN_DIR/combined_summary.tsv" && echo "combined_summary.tsv: $(wc -l < "$RUN_DIR/combined_summary.tsv") rows"
+
+exit $SSIGN_RC
