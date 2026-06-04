@@ -593,6 +593,11 @@ class PipelineRunner:
         self.work_dir = ""
         self.files = {}  # Track intermediate file paths
         self.start_time: float | None = None
+        # Lazily set in run() if monitor_resources is on. Initialised here
+        # so callers that drive _execute_stages directly (MultiGenomeRunner)
+        # don't AttributeError on the `if self._sampler is not None` checks
+        # inside the step loop.
+        self._sampler = None
         # Per-API semaphores for multi-genome concurrency control.
         # Keys: 'dtu', 'ncbi', 'mpi', 'ebi'. Values: threading.Semaphore
         self.api_sem = api_semaphores or {}
