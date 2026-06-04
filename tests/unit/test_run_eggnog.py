@@ -9,6 +9,8 @@ import os
 
 import pytest
 from run_eggnog import (
+    _autodetect_block_size,
+    _autodetect_index_chunks,
     _build_emapper_cmd,
     _split_rich_field,
     _stage_eggnog_db_to_local,
@@ -70,8 +72,70 @@ class TestBuildEmapperCmd:
             "--tax_scope",
             "--sensmode",
             "--override",
+            "--block_size",
+            "--index_chunks",
         ):
             assert flag in cmd, f"expected {flag} in cmd, got {cmd}"
+
+    def test_block_size_forced(self):
+        cmd = _build_emapper_cmd(**self._common_args(), block_size=6)
+        i = cmd.index("--block_size")
+        assert cmd[i + 1] == "6"
+
+    def test_index_chunks_forced(self):
+        cmd = _build_emapper_cmd(**self._common_args(), index_chunks=1)
+        i = cmd.index("--index_chunks")
+        assert cmd[i + 1] == "1"
+
+    def test_autodetect_emits_default_when_low_ram(self, monkeypatch):
+        """Below the index_chunks threshold and the block_size headroom,
+        autodetect should emit DIAMOND's own defaults (2 and 4)."""
+        monkeypatch.setattr("ssign_lib.resources.effective_ram_gb", lambda: 16)
+        cmd = _build_emapper_cmd(**self._common_args(), dbmem=False)
+        assert cmd[cmd.index("--block_size") + 1] == "2"
+        assert cmd[cmd.index("--index_chunks") + 1] == "4"
+
+
+class TestAutodetectBlockSize:
+    """Gating logic for the DIAMOND --block_size passthrough."""
+
+    def test_low_ram_keeps_default(self, monkeypatch):
+        monkeypatch.setattr("ssign_lib.resources.effective_ram_gb", lambda: 16)
+        # 16 GB - 16 reserved = 0 GB free → keep default of 2
+        assert _autodetect_block_size(dbmem=False) == 2
+
+    def test_dbmem_swallows_most_ram(self, monkeypatch):
+        # 50 GB - 44 reserved (dbmem) = 6 GB free → keep default of 2
+        monkeypatch.setattr("ssign_lib.resources.effective_ram_gb", lambda: 50)
+        assert _autodetect_block_size(dbmem=True) == 2
+
+    def test_high_ram_no_dbmem_bumps(self, monkeypatch):
+        # 64 GB - 16 reserved = 48 GB free → 48/6 = 8, capped at 8.
+        monkeypatch.setattr("ssign_lib.resources.effective_ram_gb", lambda: 64)
+        assert _autodetect_block_size(dbmem=False) == 8
+
+    def test_capped_at_8(self, monkeypatch):
+        monkeypatch.setattr("ssign_lib.resources.effective_ram_gb", lambda: 256)
+        assert _autodetect_block_size(dbmem=False) == 8
+
+    def test_dbmem_on_big_node(self, monkeypatch):
+        # 80 GB - 44 reserved = 36 GB free → 36/6 = 6.
+        monkeypatch.setattr("ssign_lib.resources.effective_ram_gb", lambda: 80)
+        assert _autodetect_block_size(dbmem=True) == 6
+
+
+class TestAutodetectIndexChunks:
+    def test_low_ram_keeps_default_4(self, monkeypatch):
+        monkeypatch.setattr("ssign_lib.resources.effective_ram_gb", lambda: 32)
+        assert _autodetect_index_chunks() == 4
+
+    def test_high_ram_drops_to_1(self, monkeypatch):
+        monkeypatch.setattr("ssign_lib.resources.effective_ram_gb", lambda: 64)
+        assert _autodetect_index_chunks() == 1
+
+    def test_threshold_inclusive(self, monkeypatch):
+        monkeypatch.setattr("ssign_lib.resources.effective_ram_gb", lambda: 60)
+        assert _autodetect_index_chunks() == 1
 
 
 # Representative emapper 2.1.x .annotations fixture. Lines starting with

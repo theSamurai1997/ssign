@@ -98,6 +98,21 @@ def _write_empty_output(out_path):
 # on-disk vs in-RAM (the lookups are point queries, not table scans).
 _EGGNOG_DBMEM_MIN_GB = 50
 
+# --block_size and --index_chunks are emapper.py passthroughs to DIAMOND.
+# Both are speed-vs-RAM tradeoffs: bigger block_size processes more queries
+# in parallel, smaller index_chunks holds the DB index in fewer (bigger)
+# passes. DIAMOND defaults of 2.0 / 4 are tuned for ~16 GB machines; on
+# 64-128 GB HPC nodes we can run much faster.
+_EGGNOG_BLOCKSIZE_DEFAULT = 2
+_EGGNOG_BLOCKSIZE_CAP = 8  # DIAMOND wiki: gains plateau past ~8
+# DIAMOND --block_size N ≈ 6×N GB resident; --dbmem reserves ~44 GB on top.
+_EGGNOG_GB_PER_BLOCKSIZE_UNIT = 6
+_EGGNOG_DBMEM_RESERVED_GB = 44
+# Headroom we leave for OS / other processes when --dbmem is off.
+_EGGNOG_NONDB_RESERVED_GB = 16
+# At ≥ 60 GB the search index fits in 1 chunk (DIAMOND -c1) instead of 4.
+_EGGNOG_INDEX_CHUNKS_MIN_RAM_GB = 60
+
 
 def _autodetect_dbmem() -> bool:
     """True only when the job has headroom for emapper's in-RAM SQLite copy.
@@ -110,6 +125,31 @@ def _autodetect_dbmem() -> bool:
     from ssign_lib.resources import effective_ram_gb
 
     return effective_ram_gb() >= _EGGNOG_DBMEM_MIN_GB
+
+
+def _autodetect_block_size(dbmem: bool) -> int:
+    """Pick DIAMOND --block_size to use the RAM the job actually has.
+
+    Reserves either ~44 GB (when --dbmem is loading the SQLite into RAM)
+    or ~16 GB (system headroom otherwise), then sizes the DIAMOND working
+    set against the remainder. Caps at 8 (DIAMOND gains plateau there).
+    """
+    from ssign_lib.resources import effective_ram_gb
+
+    reserved = _EGGNOG_DBMEM_RESERVED_GB if dbmem else _EGGNOG_NONDB_RESERVED_GB
+    free = effective_ram_gb() - reserved
+    if free <= _EGGNOG_BLOCKSIZE_DEFAULT * _EGGNOG_GB_PER_BLOCKSIZE_UNIT:
+        return _EGGNOG_BLOCKSIZE_DEFAULT
+    sized = int(free // _EGGNOG_GB_PER_BLOCKSIZE_UNIT)
+    return min(sized, _EGGNOG_BLOCKSIZE_CAP)
+
+
+def _autodetect_index_chunks() -> int:
+    """DIAMOND --index_chunks. Default 4 → 4 sequential DB-index passes.
+    On a 60+ GB job the index fits in 1 chunk (~25% faster overall)."""
+    from ssign_lib.resources import effective_ram_gb
+
+    return 1 if effective_ram_gb() >= _EGGNOG_INDEX_CHUNKS_MIN_RAM_GB else 4
 
 
 # Eggnog DB files emapper actually reads at run time. Listed exhaustively
@@ -165,14 +205,24 @@ def _build_emapper_cmd(
     tax_scope="2",
     sensmode="sensitive",
     dbmem=None,
+    block_size=None,
+    index_chunks=None,
 ):
     """Build the emapper.py argv list. Exposed for unit testing.
 
     `dbmem=None` auto-detects via host RAM (`_autodetect_dbmem`); pass
     True/False to force.
+
+    `block_size=None` and `index_chunks=None` auto-detect from RAM via
+    `_autodetect_block_size` / `_autodetect_index_chunks`. Pass an int
+    to force a specific value.
     """
     if dbmem is None:
         dbmem = _autodetect_dbmem()
+    if block_size is None:
+        block_size = _autodetect_block_size(dbmem)
+    if index_chunks is None:
+        index_chunks = _autodetect_index_chunks()
     cmd = [
         "emapper.py",
         "-i",
@@ -206,6 +256,10 @@ def _build_emapper_cmd(
         # where startup hangs silently for hours instead of running.
         # eggnog-mapper issue #267 / #277.
         cmd.append("--dbmem")
+    # Always emit so the runner log records the values actually used,
+    # not the DIAMOND defaults that may or may not match autodetect.
+    cmd.extend(["--block_size", str(block_size)])
+    cmd.extend(["--index_chunks", str(index_chunks)])
     return cmd
 
 
