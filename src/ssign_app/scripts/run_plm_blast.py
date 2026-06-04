@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 _scripts_dir = os.path.dirname(os.path.abspath(__file__))
 if _scripts_dir not in sys.path:
     sys.path.insert(0, _scripts_dir)
-from ssign_lib.constants import TOOL_TIMEOUT_S  # noqa: E402
+from ssign_lib.constants import PLMBLAST_TIMEOUT_S  # noqa: E402
 from ssign_lib.resources import resolve_threads  # noqa: E402
 from ssign_lib.subprocess_diag import dump_failure_log  # noqa: E402
 from ssign_lib.substrates import (  # noqa: E402
@@ -230,7 +230,7 @@ def _embed_query_fasta(
         logger.info("pLM-BLAST embedding: running on CPU (~100x slower than GPU)")
     logger.info(f"Embedding query: embeddings.py start {proteins_fasta} {pt_path} -embedder {embedder}")
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=TOOL_TIMEOUT_S)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=PLMBLAST_TIMEOUT_S)
     except FileNotFoundError as e:
         raise RuntimeError(
             f"pLM-BLAST embeddings.py not runnable: {e}\n"
@@ -326,7 +326,7 @@ def run_plmblast(
         # on PATH, or set SSIGN_PLMBLAST_SCRIPT to its absolute path.
         # If this breaks: pip install git+https://github.com/labstructbioinf/pLM-BLAST.git
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=TOOL_TIMEOUT_S, env=env)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=PLMBLAST_TIMEOUT_S, env=env)
         except FileNotFoundError as e:
             raise RuntimeError(
                 f"pLM-BLAST script not found: {e}\n"

@@ -34,6 +34,17 @@ BLASTP_MIN_QCOV = 80  # Minimum query coverage
 # are tighter because they fire per-protein, not per-batch.)
 TOOL_TIMEOUT_S = 14400  # 4h
 
+# --- pLM-BLAST ---
+# Per-batch timeout for the embedding + search subprocesses. pLM-BLAST
+# scales roughly linearly with query count at fixed cpc — empirically on
+# CX3 RTX6000 ~17 s per query at cpc=90, so a 184-substrate pooled run
+# (4-genome batched) takes ~50 min and a single PAO1 with ~92 substrates
+# took 85 min on 2026-06-04. A T1SS-rich or larger-N genome could push
+# over the 4 h generic TOOL_TIMEOUT_S, so this step gets its own 24 h cap.
+# If you see a real timeout: increase substrate filtering (--conf-threshold)
+# or split the run into smaller batches; don't keep bumping the cap.
+PLMBLAST_TIMEOUT_S = 86400  # 24h
+
 # --- HH-suite ---
 # HHR Prob (0-100) cutoff for keeping the top-1 hit per DB. Söding-lab
 # guidance: ≥95 near-certain homolog, ≥50 worth considering. ssign default
