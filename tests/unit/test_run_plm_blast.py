@@ -7,9 +7,11 @@ pure-Python helper that parses pLM-BLAST's CSV output.
 
 import os
 
+import pytest
 from run_plm_blast import (
     _OUTPUT_FIELDNAMES,
     _reduce_to_top1,
+    _stage_db_sidecar,
     _to_output_row,
     _use_cuda_for_embedding,
     load_substrate_ids,
@@ -452,3 +454,62 @@ class TestMainEndToEnd:
         gene1 = next(r for r in rows if r["locus_tag"] == "GENE_00001")
         assert gene1["ecod_top1_description"] == "Autotransporter beta-domain"
         assert gene1["ecod_top1_score"] == "0.912"
+
+
+@pytest.fixture
+def fake_staged_db(tmp_path):
+    """Build a fake `src_parent/{DB,DB.<ext>}` + `staged_parent/{DB}` layout.
+
+    Returns (src_db_path, staged_db_path) so individual tests just drop
+    sidecar files into `src_parent` and call `_stage_db_sidecar`."""
+    src_parent = tmp_path / "remote"
+    src_parent.mkdir()
+    (src_parent / "test_db").mkdir()
+    staged_parent = tmp_path / "staged"
+    staged_parent.mkdir()
+    (staged_parent / "test_db").mkdir()
+    return src_parent / "test_db", staged_parent / "test_db"
+
+
+class TestStageDbSidecar:
+    """Regression guard for the staging bug: when the wrapper copies the
+    ECOD DB tree to local SSD, it must also copy every sibling file
+    pLM-BLAST probes for — otherwise plmblast.py crashes loading the
+    DB index at the staged path. Production failure on 2026-06-04
+    across all 4 overnight genomes."""
+
+    @pytest.mark.parametrize("ext", [".csv", ".p", ".pkl", ".fas", ".fasta", ".pt"])
+    def test_each_supported_extension_gets_copied(self, fake_staged_db, ext):
+        src_db, staged_db = fake_staged_db
+        (src_db.parent / ("test_db" + ext)).write_bytes(b"sidecar contents")
+
+        _stage_db_sidecar(str(src_db), str(staged_db))
+
+        staged_sidecar = staged_db.parent / ("test_db" + ext)
+        assert staged_sidecar.exists()
+        assert staged_sidecar.read_bytes() == b"sidecar contents"
+
+    def test_copies_all_present_sidecars_not_just_first(self, fake_staged_db):
+        """plmblast.py probes for the metadata CSV AND for `.pt` (pooled
+        embedding) independently. Both must be staged if present."""
+        src_db, staged_db = fake_staged_db
+        (src_db.parent / "test_db.csv").write_text("metadata")
+        (src_db.parent / "test_db.pt").write_bytes(b"\x00embeddings\x00")
+
+        _stage_db_sidecar(str(src_db), str(staged_db))
+
+        assert (staged_db.parent / "test_db.csv").exists()
+        assert (staged_db.parent / "test_db.pt").exists()
+
+    def test_missing_sidecar_warns_but_does_not_crash(self, fake_staged_db, caplog):
+        """No sidecar at source → warn (so the user knows pLM-BLAST will
+        fail downstream) but don't raise (other annotation steps in the
+        same parallel group keep running)."""
+        import logging
+
+        src_db, staged_db = fake_staged_db
+
+        with caplog.at_level(logging.WARNING, logger="run_plm_blast"):
+            _stage_db_sidecar(str(src_db), str(staged_db))
+
+        assert any("No DB sidecar" in rec.message for rec in caplog.records)

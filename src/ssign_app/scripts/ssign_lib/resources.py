@@ -493,7 +493,7 @@ def stage_directory_tree_to_local_ssd_if_remote(
     os.makedirs(target_dir, exist_ok=True)
     # `-a` preserves perms/times so the next run's --size-only check
     # short-circuits. Trailing slash on src means "copy contents into".
-    logger.info(f"Staging Bakta DB tree from {src_dir} -> {target_dir} (may take ~1-3 min)")
+    logger.info(f"Staging DB tree from {src_dir} -> {target_dir} (may take ~1-3 min)")
     try:
         subprocess.run(
             ["rsync", "-a", "--size-only", f"{src_dir.rstrip('/')}/", f"{target_dir}/"],

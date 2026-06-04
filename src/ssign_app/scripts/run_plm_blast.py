@@ -82,6 +82,14 @@ def _write_empty_output(out_path):
 # run — see the TODO below if upstream renames columns. `sdesc` is added
 # by upstream `alntools/postprocess/format.py:prepare_output` when the DB
 # CSV has a `description` column (true for the public ECOD DB).
+# Sibling-file extensions plmblast.py probes for next to the DB directory.
+# `.csv/.p/.pkl/.fas/.fasta` are the metadata index (alntools/settings.py:EXTENSIONS,
+# `DataObject.from_dir` picks the first match); `.pt` is the optional pooled
+# embedding file `DataObject._find_datatype` probes independently. The
+# metadata file is required; `.pt` is optional but speeds up loading when
+# present. Both can co-exist, so we copy every match we find.
+_PLMBLAST_DB_SIDECAR_EXTS = (".csv", ".p", ".pkl", ".fas", ".fasta", ".pt")
+
 _COL_QUERY = "qid"
 _COL_TARGET = "sid"
 _COL_SDESC = "sdesc"
@@ -412,6 +420,34 @@ def _reduce_to_top1(entries):
     return list(best.values())
 
 
+def _stage_db_sidecar(src_db: str, staged_db: str) -> None:
+    """Copy every pLM-BLAST DB sibling file from src to staged.
+
+    pLM-BLAST stores its DB as a directory (`<DB>/`) plus one or more
+    sibling files (`<DB>.csv`, `<DB>.pt`, ...) at the same level. When
+    `stage_directory_tree_to_local_ssd_if_remote` copies the directory
+    to local SSD, the siblings are left behind on the network mount and
+    `DataObject.from_dir(staged_db)` crashes trying to read the metadata.
+    """
+    src_parent = os.path.dirname(src_db.rstrip("/"))
+    staged_parent = os.path.dirname(staged_db.rstrip("/"))
+    basename = os.path.basename(src_db.rstrip("/"))
+    copied = 0
+    for ext in _PLMBLAST_DB_SIDECAR_EXTS:
+        src_sidecar = os.path.join(src_parent, basename + ext)
+        if os.path.exists(src_sidecar):
+            dst_sidecar = os.path.join(staged_parent, basename + ext)
+            shutil.copy2(src_sidecar, dst_sidecar)
+            logger.info(f"Staged DB sidecar: {basename + ext} -> {staged_parent}")
+            copied += 1
+    if copied == 0:
+        exts = "/".join(_PLMBLAST_DB_SIDECAR_EXTS)
+        logger.warning(
+            f"No DB sidecar (expected one of {basename}{{{exts}}} in {src_parent}); "
+            f"plmblast.py will likely fail loading the DB index"
+        )
+
+
 def _to_output_row(entry: dict) -> dict:
     """Rename a parse_plmblast_csv entry to the ssign output schema."""
     return {
@@ -511,7 +547,10 @@ def main() -> int:
     if args.local_cache_dir:
         from ssign_lib.resources import stage_directory_tree_to_local_ssd_if_remote
 
-        args.ecod_db = stage_directory_tree_to_local_ssd_if_remote(args.ecod_db, args.local_cache_dir, min_free_gb=15.0)
+        src_db = args.ecod_db
+        args.ecod_db = stage_directory_tree_to_local_ssd_if_remote(src_db, args.local_cache_dir, min_free_gb=30.0)
+        if args.ecod_db != src_db:
+            _stage_db_sidecar(src_db, args.ecod_db)
 
     os.makedirs(os.path.dirname(os.path.abspath(args.out)) or ".", exist_ok=True)
 
