@@ -277,6 +277,11 @@ class PipelineConfig:
 
     skip_plmblast: Optional[bool] = None
     plmblast_db: str = ""
+    # pLM-BLAST cosine percentile cutoff. 90 is the Kaminski 2023 paper
+    # default — keeps top 10% of cosine pairs in pre-screening. Drop to
+    # 70-80 for more permissive matching on short proteins (<200 aa where
+    # cpc=90 often misses) at the cost of slower search.
+    plmblast_cpc: int = 90
 
     # Phase 3.2.d: EggNOG-mapper (annotation-tier). Tier-driven default:
     # off at base (no DB shipped), on at extended/full.
@@ -2157,6 +2162,8 @@ class PipelineRunner:
             output,
             "--threads",
             str(self.config.cpu_per_genome),
+            "--cpc",
+            str(self.config.plmblast_cpc),
         ]
         # Stage ECOD DB tree to local SSD on network filesystems (same
         # pattern as IPS / HH-suite / Bakta — see _step_interproscan).

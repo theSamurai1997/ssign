@@ -394,6 +394,17 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
         help="Skip pLM-BLAST step (overrides --tier default).",
     )
     g.add_argument("--plmblast-db", default="", help="Path to ECOD pLM-BLAST database (ECOD30 default).")
+    g.add_argument(
+        "--plmblast-cpc",
+        type=int,
+        default=90,
+        help=(
+            "pLM-BLAST cosine percentile cutoff (default: 90, the Kaminski 2023 "
+            "paper setting). Drop to 70-80 for more permissive matching on "
+            "short proteins (<200 aa, where cpc=90 often returns no hit) at the "
+            "cost of longer search wallclock."
+        ),
+    )
 
     g = p.add_argument_group("EggNOG-mapper")
     g.add_argument(
@@ -554,6 +565,7 @@ def _config_from_args(
         "interproscan_min_evalue": args.interproscan_min_evalue,
         "skip_plmblast": args.skip_plmblast,
         "plmblast_db": args.plmblast_db,
+        "plmblast_cpc": args.plmblast_cpc,
         "skip_eggnog": args.skip_eggnog,
         "eggnog_db": args.eggnog_db,
         "eggnog_dbmem": args.eggnog_dbmem,
