@@ -226,11 +226,43 @@ _already_done() {
     return 1
 }
 
+_external_db_exists() {
+    # Honor a user-set env var pointing at an externally-managed database.
+    # On shared HPC the user often has DBs at /rds/.../databases/ and only
+    # wants to fetch the subset they're missing; without this check the
+    # script tries to re-bootstrap everything under $TARGET and pulls in
+    # `_require_command` checks (e.g. bakta_db CLI) the user shouldn't
+    # need to satisfy when their DB is already populated elsewhere.
+    #
+    # Returns 0 (skip the fetch) iff the env var is set AND its dir
+    # contains the verification glob. Otherwise returns 1; a mismatched
+    # env var only warns — it doesn't abort — so the user can still get
+    # the normal fetch behaviour with a noisy hint.
+    #
+    # $1 = env var name (e.g. "BAKTA_DB")
+    # $2 = verification glob relative to the dir (e.g. "version.json")
+    local var_name="$1"
+    local check_glob="$2"
+    local path="${!var_name:-}"
+    [[ -z "$path" ]] && return 1
+    if [[ ! -d "$path" ]]; then
+        _log "Note: \$$var_name=$path is set but not a directory; ignoring and fetching to \$TARGET."
+        return 1
+    fi
+    if ! compgen -G "$path/$check_glob" >/dev/null; then
+        _log "Note: \$$var_name=$path is set but missing $check_glob; ignoring and fetching to \$TARGET."
+        return 1
+    fi
+    _log "Skipping (\$$var_name=$path already populated)"
+    return 0
+}
+
 fetch_taxdump() {
     _log "==> NCBI taxdump (~1.5 GB)"
     local dir="$TARGET/taxdump"
     local tarball="$dir/taxdump.tar.gz"
 
+    _external_db_exists SSIGN_TAXDUMP_DIR "nodes.dmp" && return 0
     _already_done "$dir" && return 0
 
     _run mkdir -p "$dir"
@@ -249,6 +281,11 @@ fetch_bakta() {
     local size_hint
     if [[ "$variant" == "light" ]]; then size_hint="~2 GB"; else size_hint="~84 GB"; fi
     _log "==> Bakta DB ($variant, $size_hint)"
+
+    # Check externally-managed DB before requiring bakta_db on PATH —
+    # users who already have a Bakta DB at $BAKTA_DB shouldn't need the
+    # bakta_db CLI installed just to run this fetcher for OTHER databases.
+    _external_db_exists BAKTA_DB "db*/version.json" && return 0
 
     _require_command bakta_db "pip install ssign[bakta]"
     # bakta_db's startup runs the same dependency check as `bakta` itself,
@@ -286,6 +323,8 @@ fetch_eggnog() {
     _log "==> EggNOG database (~25 GB extracted; emapperdb v5.0.2)"
     local dir="$TARGET/eggnog"
 
+    _external_db_exists EGGNOG_DATA_DIR "eggnog.db" && return 0
+
     if [[ -f "$dir/eggnog.db" && -f "$dir/eggnog.taxa.db" && -f "$dir/eggnog_proteins.dmnd" ]]; then
         _log "Skipping (eggnog.{db,taxa.db,_proteins.dmnd} already at $dir)"
         return 0
@@ -318,6 +357,7 @@ fetch_interproscan() {
     local tarball="$dir/interproscan-${IPS_VERSION}-64-bit.tar.gz"
     local extracted="$dir/interproscan-${IPS_VERSION}"
 
+    _external_db_exists SSIGN_INTERPROSCAN_PATH "interproscan.sh" && return 0
     _already_done "$extracted" && return 0
 
     _run mkdir -p "$dir"
@@ -371,6 +411,9 @@ fetch_ecod() {
     local tarball="$dir/ecod30db_20240417.tar.gz"
     local extracted="$dir/ECOD30"
 
+    # SSIGN_ECOD_DB is the parent dir holding ECOD30/ + the ECOD30.csv
+    # sidecar. The sibling .csv is required by pLM-BLAST's DataObject loader.
+    _external_db_exists SSIGN_ECOD_DB "ECOD30.csv" && return 0
     _already_done "$extracted" && return 0
 
     _run mkdir -p "$dir"
