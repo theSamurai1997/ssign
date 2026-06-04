@@ -131,12 +131,12 @@ for genome in "${GENOMES[@]}"; do
     tag=$(basename "$genome" | sed 's/\.[^.]*$//')
     for gpu in "${GPU_TYPES[@]}"; do
         if [ -z "$gpu" ]; then
-            select_spec="select=1:ncpus=16:mem=80gb:ngpus=1"
+            select_spec="select=1:ncpus=64:mem=120gb:ngpus=1"
             job_name="ssign_${tag}"
             env_vars="INPUT_GBFF=${genome}"
             label="any GPU"
         else
-            select_spec="select=1:ncpus=16:mem=80gb:ngpus=1:gpu_type=${gpu}"
+            select_spec="select=1:ncpus=64:mem=120gb:ngpus=1:gpu_type=${gpu}"
             job_name="ssign_${tag}_${gpu}"
             env_vars="GPU_TYPE=${gpu},INPUT_GBFF=${genome}"
             label="${gpu}"
