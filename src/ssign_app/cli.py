@@ -77,9 +77,12 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
         "run",
         help="Run the ssign pipeline non-interactively.",
         description=(
-            "Run ssign on one input genome (GenBank, GFF3, or FASTA). All "
-            "PipelineConfig fields are exposed as flags. For batch / "
-            "multi-genome runs, drive ssign from a shell loop or HPC array."
+            "Run ssign on one or more input genomes (GenBank, GFF3, or FASTA). "
+            "All PipelineConfig fields are exposed as flags. When N>1 genomes "
+            "are passed, ssign pools predictions over neighborhoods and "
+            "annotations over substrates so heavy startup costs (IPS JVM, "
+            "EggNOG DB load, pLM-BLAST embeddings, PLM-Effector models) are "
+            "paid once per batch rather than once per genome."
         ),
     )
 
@@ -87,17 +90,40 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
     g = p.add_argument_group("essentials")
     g.add_argument(
         "input_path",
-        help="Path to the input genome (GenBank .gbff/.gbk, GFF3 .gff, or FASTA).",
+        nargs="+",
+        help=(
+            "One or more input genomes (GenBank .gbff/.gbk, GFF3 .gff, or "
+            "FASTA). Pass multiple files to run them as a single batched job."
+        ),
     )
     g.add_argument(
         "--outdir",
         default="./results",
-        help="Output directory (default: ./results).",
+        help=(
+            "Output directory (default: ./results). For multi-genome runs, "
+            "per-genome outputs land in <outdir>/<sample_id>/ and a "
+            "combined_summary.tsv is written at the top level."
+        ),
     )
     g.add_argument(
         "--sample-id",
         default="",
-        help="Sample identifier used to prefix output files. Defaults to the input filename's stem.",
+        help=(
+            "Sample identifier used to prefix output files (single-genome only; "
+            "for multi-genome runs the sample_id is derived per-genome from "
+            "the input filename's stem)."
+        ),
+    )
+    g.add_argument(
+        "--combined-summary",
+        dest="combined_summary",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Write a top-level combined_summary.tsv aggregating all genomes' "
+            "substrates with a source_genome column (multi-genome only; "
+            "default on)."
+        ),
     )
     g.add_argument(
         "--original-filename",
@@ -466,23 +492,25 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
     )
 
 
-def _config_from_args(args: argparse.Namespace) -> "PipelineConfig":
-    """Map argparse Namespace to a PipelineConfig.
+def _config_from_args(
+    args: argparse.Namespace,
+    input_path: str,
+    sample_id: str,
+    outdir: str,
+) -> "PipelineConfig":
+    """Map argparse Namespace to a PipelineConfig for one genome.
 
-    Defaults are applied by argparse from PipelineConfig's documented defaults
-    above; we just translate the argparse names back to dataclass field names
-    (they match modulo `-` → `_`).
+    ``input_path``, ``sample_id``, and ``outdir`` are passed in explicitly so
+    the same args Namespace can build N configs (one per genome) in a
+    multi-genome run.
     """
     from ssign_app.core.runner import PipelineConfig
 
-    # sample_id default: derive from input filename if not supplied
-    sample_id = args.sample_id or os.path.splitext(os.path.basename(args.input_path))[0]
-
     cfg_kwargs = {
-        "input_path": args.input_path,
+        "input_path": input_path,
         "original_filename": args.original_filename,
         "sample_id": sample_id,
-        "outdir": args.outdir,
+        "outdir": outdir,
         "tier": args.tier,
         "wholeness_threshold": args.wholeness_threshold,
         "excluded_systems": list(args.excluded_systems),
@@ -559,39 +587,110 @@ def _run_pipeline(args: argparse.Namespace) -> int:
     """Execute the `ssign run` subcommand. Returns the process exit code."""
     from ssign_app.core.runner import PipelineRunner
 
-    if not os.path.exists(args.input_path):
-        print(f"Error: input file not found: {args.input_path}", file=sys.stderr)
-        return 2
-
-    config = _config_from_args(args)
+    inputs: list[str] = list(args.input_path)
+    for p in inputs:
+        if not os.path.exists(p):
+            print(f"Error: input file not found: {p}", file=sys.stderr)
+            return 2
 
     def _terminal_progress(step: str, pct: int, msg: str) -> None:
         print(f"  [{pct:3d}%] {step} — {msg}", flush=True)
 
-    runner = PipelineRunner(config, progress_callback=_terminal_progress)
-    print(f"ssign — running on {config.input_path}", flush=True)
-    print(f"   outdir: {config.outdir}", flush=True)
-    print(f"   sample_id: {config.sample_id}", flush=True)
+    if len(inputs) == 1:
+        input_path = inputs[0]
+        sample_id = args.sample_id or os.path.splitext(os.path.basename(input_path))[0]
+        config = _config_from_args(args, input_path, sample_id, args.outdir)
+
+        runner = PipelineRunner(config, progress_callback=_terminal_progress)
+        print(f"ssign — running on {config.input_path}", flush=True)
+        print(f"   outdir: {config.outdir}", flush=True)
+        print(f"   sample_id: {config.sample_id}", flush=True)
+        print(flush=True)
+
+        try:
+            results = runner.run(resume=args.resume)
+        except KeyboardInterrupt:
+            print("\nInterrupted.", file=sys.stderr)
+            return 130
+
+        return _report_single_genome(results)
+
+    # Multi-genome path
+    if args.sample_id:
+        print(
+            "Error: --sample-id is only valid for single-genome runs; "
+            "per-genome sample_ids are derived from input filenames in "
+            "multi-genome runs.",
+            file=sys.stderr,
+        )
+        return 2
+
+    from ssign_app.core.multi_runner import MultiGenomeRunner
+
+    top_outdir = args.outdir
+    configs = []
+    seen_sids: set[str] = set()
+    for input_path in inputs:
+        sid = os.path.splitext(os.path.basename(input_path))[0]
+        if sid in seen_sids:
+            print(
+                f"Error: duplicate sample_id {sid!r} derived from input "
+                f"filenames; rename inputs so their basenames are distinct.",
+                file=sys.stderr,
+            )
+            return 2
+        seen_sids.add(sid)
+        per_genome_outdir = os.path.join(top_outdir, sid)
+        configs.append(_config_from_args(args, input_path, sid, per_genome_outdir))
+
+    runner = MultiGenomeRunner(
+        configs,
+        progress_callback=_terminal_progress,
+        write_combined_summary=args.combined_summary,
+    )
+    print(f"ssign — running on {len(inputs)} genome(s) (batched)", flush=True)
+    print(f"   outdir: {top_outdir}", flush=True)
+    print(f"   sample_ids: {', '.join(c.sample_id for c in configs)}", flush=True)
     print(flush=True)
 
     try:
-        results = runner.run(resume=args.resume)
+        results_by_sid = runner.run(resume=args.resume)
     except KeyboardInterrupt:
         print("\nInterrupted.", file=sys.stderr)
         return 130
 
+    return _report_multi_genome(results_by_sid)
+
+
+def _report_single_genome(results) -> int:
     n_success = sum(1 for r in results if r.success)
     n_total = len(results)
     print(flush=True)
     if n_success == n_total:
         print(f"Pipeline complete: {n_success}/{n_total} steps succeeded.", flush=True)
         return 0
-
     print(f"Pipeline finished with issues: {n_success}/{n_total} steps succeeded.", file=sys.stderr)
     for r in results:
         if not r.success:
             print(f"  - FAILED: {r.name} — {r.message[:200]}", file=sys.stderr)
     return 1
+
+
+def _report_multi_genome(results_by_sid: dict) -> int:
+    print(flush=True)
+    any_failed = False
+    for sid, results in results_by_sid.items():
+        n_success = sum(1 for r in results if r.success)
+        n_total = len(results)
+        if n_success == n_total:
+            print(f"  {sid}: {n_success}/{n_total} steps succeeded", flush=True)
+        else:
+            any_failed = True
+            print(f"  {sid}: {n_success}/{n_total} steps succeeded (FAILED)", file=sys.stderr)
+            for r in results:
+                if not r.success:
+                    print(f"      - {r.name} — {r.message[:200]}", file=sys.stderr)
+    return 1 if any_failed else 0
 
 
 # ---------------------------------------------------------------------------
