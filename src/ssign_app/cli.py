@@ -367,7 +367,7 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
         default=None,
         help="Skip pLM-BLAST step (overrides --tier default).",
     )
-    g.add_argument("--plmblast-db", default="", help="Path to ECOD70 pLM-BLAST database.")
+    g.add_argument("--plmblast-db", default="", help="Path to ECOD pLM-BLAST database (ECOD30 default).")
 
     g = p.add_argument_group("EggNOG-mapper")
     g.add_argument(

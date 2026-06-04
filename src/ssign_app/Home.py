@@ -1283,26 +1283,26 @@ with tab_pipeline:
             if run_pp:
                 st.caption("Local (BioPython) | No download needed | Instant")
 
-        # ── pLM-BLAST (ECOD70) ──
+        # ── pLM-BLAST (ECOD30) ──
         col_check, col_info = st.columns([1.5, 3.5])
         with col_check:
             run_plm = st.checkbox(
-                "pLM-BLAST (ECOD70)",
+                "pLM-BLAST (ECOD30)",
                 value=False,
                 key="run_plm",
                 help="Protein language model-based remote homology detection against the "
-                "ECOD70 structural database. Sensitive to deeply diverged folds where "
-                "BLASTp + HHpred miss hits. Requires the ECOD70 DB (~20 GB) — bundled "
+                "ECOD30 structural database. Sensitive to deeply diverged folds where "
+                "BLASTp + HHpred miss hits. Requires the ECOD30 DB (~11 GB) — bundled "
                 "with `--tier extended` or `--tier full`.",
             )
         with col_info:
             if run_plm:
-                st.caption("Local (GPU recommended) | ~5-15 min per genome")
+                st.caption("Local (GPU recommended) | ~40 min per genome")
                 st.text_input(
-                    "ECOD70 DB path",
+                    "ECOD DB path",
                     value="",
                     key="plm_db",
-                    help="Path to the pLM-BLAST ECOD70 database (set by `scripts/fetch_databases.sh --tier extended`).",
+                    help="Path to the pLM-BLAST ECOD database (set by `scripts/fetch_databases.sh --tier extended`).",
                 )
 
         st.divider()

@@ -28,7 +28,7 @@ Real on-disk numbers, measured 2026-06-03 against the fetched databases on Imper
 | Tier | Cumulative size | Adds |
 |---|---|---|
 | base | ~2 GB | DeepSecE checkpoint |
-| extended | ~140 GB | + Bakta light DB (4 GB), EggNOG (47 GB), InterProScan (35 GB), pLM-BLAST ECOD70 (24 GB), PLM-Effector weights (26 GB) |
+| extended | ~125 GB | + Bakta light DB (4 GB), EggNOG (47 GB), InterProScan (35 GB), pLM-BLAST ECOD30 (11 GB), PLM-Effector weights (26 GB) |
 | full | ~1.3 TB | + HH-suite Pfam + PDB70 + UniRef30 (340 GB total), BLAST nr (802 GB) |
 
 BLAST nr is the long pole for full-tier disk; if you don't need cross-genome BLASTp, sticking with extended saves ~1.2 TB.
@@ -306,7 +306,7 @@ for an extended period, pre-stage the DBs on your HPC scratch directory.
 
 ## pLM-BLAST (clone + database)
 
-pLM-BLAST does embedding-based remote homology against ECOD70. Not on PyPI;
+pLM-BLAST does embedding-based remote homology against ECOD30 (default; ECOD50/70/90 also work). Not on PyPI;
 clone the upstream repo and point ssign at `plmblast.py`:
 
 ```bash
@@ -328,14 +328,19 @@ test -f "$(dirname "$(dirname "$SSIGN_PLMBLAST_SCRIPT")")/embeddings.py" && echo
 > pre-flight if both the env var and the PATH entry are missing, so a
 > missing install no longer wastes hours of job time.
 
-Pre-built ECOD70 database (~21 GB compressed, ~24 GB extracted):
+Pre-built ECOD30 database (~10 GB compressed, ~11 GB extracted):
 
 ```bash
 mkdir -p ~/pLM-BLAST/db && cd ~/pLM-BLAST/db
-wget http://ftp.tuebingen.mpg.de/ebio/protevo/toolkit/databases/plmblast_dbs/ecod70db_20240417.tar.gz
-tar -xzf ecod70db_20240417.tar.gz && rm ecod70db_20240417.tar.gz
-export SSIGN_ECOD70_DB=~/pLM-BLAST/db/ECOD70
+wget http://ftp.tuebingen.mpg.de/ebio/protevo/toolkit/databases/plmblast_dbs/ecod30db_20240417.tar.gz
+tar -xzf ecod30db_20240417.tar.gz && rm ecod30db_20240417.tar.gz
+export SSIGN_ECOD_DB=~/pLM-BLAST/db/ECOD30
 ```
+
+Other cluster levels (ECOD50/70/90) live at the same FTP path with names
+`ecod50db_20240417.tar.gz` etc., if you need more redundancy. ECOD30
+still has ≥1 representative per F-group so annotation labels are
+identical across cluster levels.
 
 GPU strongly recommended: ProtT5 embedding is ~5-10 sec per 500-aa protein on
 CPU vs ~0.1 sec on a modern GPU. A whole-genome run on CPU (~5,000 proteins)
@@ -582,7 +587,7 @@ DBROOT=/path/to/your/databases
 export BAKTA_DB=$DBROOT/bakta/db-light
 export SSIGN_INTERPROSCAN_PATH=$DBROOT/interproscan/interproscan-5.77-108.0
 export EGGNOG_DATA_DIR=$DBROOT/eggnog
-export SSIGN_ECOD70_DB=$DBROOT/plm_blast/ECOD70
+export SSIGN_ECOD_DB=$DBROOT/plm_blast/ECOD30
 export SSIGN_PLM_EFFECTOR_WEIGHTS=$DBROOT/plm_effector_weights
 # Full-tier-only DBs — uncomment if you've fetched them:
 # export SSIGN_HHSUITE_PFAM=$DBROOT/hhsuite/pfam

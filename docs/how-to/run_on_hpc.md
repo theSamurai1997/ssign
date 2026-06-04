@@ -109,7 +109,7 @@ ssign run /path/to/genome.gbff \
     --bakta-db $SCRATCH/ssign-databases/bakta_light \
     --eggnog-db $SCRATCH/ssign-databases/eggnog \
     --interproscan-db $SCRATCH/ssign-databases/interproscan-5.77-108.0 \
-    --plmblast-db $SCRATCH/ssign-databases/ECOD70 \
+    --plmblast-db $SCRATCH/ssign-databases/ECOD30 \
     --cpu-per-genome 16
 ```
 

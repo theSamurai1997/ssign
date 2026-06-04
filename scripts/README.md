@@ -23,7 +23,7 @@ If a script becomes generally useful to multiple analyses, promote it into
   PLM-Effector weights from their canonical sources (Zenodo at v1.0.0
   release; upstream mirrors as fallback).
 - `fetch_databases.sh`: tier-aware (`--tier base|extended|full`) downloader
-  for Bakta, EggNOG, HH-suite, InterProScan, BLAST NR, ECOD70, taxdump.
+  for Bakta, EggNOG, HH-suite, InterProScan, BLAST NR, ECOD30, taxdump.
 
 ## To be populated in Phase 8
 

@@ -147,7 +147,7 @@ finish the pipeline at Phase 4 with no annotations.
 | **HH-suite** | Best Pfam domain match and best PDB structural homolog via HMM-vs-HMM. |
 | **EggNOG-mapper** | Orthology, COG/KEGG categories, GO terms. |
 | **InterProScan** | Protein domain calls across all Pfam, SMART, PROSITE, etc. |
-| **pLM-BLAST** | Embedding-based remote-homology search against ECOD70. |
+| **pLM-BLAST** | Embedding-based remote-homology search against ECOD30 (any cluster level supported). |
 | **ProtParam** | Physicochemical properties (GRAVY, MW, pI, charge, aromaticity). |
 
 Each writes a per-tool CSV to the work directory. None depend on each

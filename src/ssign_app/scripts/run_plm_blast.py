@@ -3,19 +3,25 @@
 
 pLM-BLAST (Kaminski et al. 2023, https://github.com/labstructbioinf/pLM-BLAST)
 detects remote homologues by comparing ProtT5 residue embeddings. We use
-it with the precomputed ECOD70 database to annotate secreted proteins with
+it with the precomputed ECOD30 database to annotate secreted proteins with
 ECOD structural domains, complementing the sequence-homology searches
 BLAST and HH-suite provide.
 
+Default DB is ECOD30 (10 GB, 30%-identity clustered representatives) and
+default `--cpc` is 90 — the setting the Kaminski 2023 paper benchmarks at.
+ECOD30 still has ≥1 representative per F-group, so annotation labels are
+unchanged from ECOD70; it just drops within-family near-duplicates that
+the embedding step doesn't need.
+
 Usage:
-    run_plm_blast.py --input proteins.faa --ecod-db /path/to/ecod70 \\
-        --out plm_blast.tsv [--threads 4] [--cpc 70]
+    run_plm_blast.py --input proteins.faa --ecod-db /path/to/ecod30 \\
+        --out plm_blast.tsv [--threads 4] [--cpc 90]
 
 The `--ecod-db` argument points at a pre-built pLM-BLAST database directory
 fetched from
-    http://ftp.tuebingen.mpg.de/pub/protevo/toolkit/databases/plmblast_dbs
-Output is a TSV mapping each query protein to its top pLM-BLAST hits with
-score and alignment coordinates.
+    http://ftp.tuebingen.mpg.de/ebio/protevo/toolkit/databases/plmblast_dbs
+Output is a TSV mapping each query protein to its top pLM-BLAST hit with
+score and alignment coordinates (one row per query, top-1 by score).
 """
 
 from __future__ import annotations
@@ -23,6 +29,7 @@ from __future__ import annotations
 import argparse
 import csv
 import logging
+import math
 import os
 import shutil
 import subprocess
@@ -43,14 +50,23 @@ from ssign_lib.substrates import (  # noqa: E402
     write_substrates_only_fasta,
 )
 
+# Column schema emitted to ssign. Matches the contract that
+# integrate_annotations.TOOL_HIT_COLUMNS["pLM-BLAST"] expects
+# (`ecod_top1_description`) and uses `locus_tag` as the join key so the
+# merge against the substrates table works. Pre-fix the wrapper emitted
+# `protein_id, target_id, score, ...` and produced multiple rows per
+# query, which caused integrate_annotations to silently drop the file
+# (no `locus_tag` column, and join-column heuristic resolved to
+# `protein_id` which the substrate table did not have) — see task #80.
 _OUTPUT_FIELDNAMES = [
-    "protein_id",
-    "target_id",
-    "score",
-    "qstart",
-    "qend",
-    "tstart",
-    "tend",
+    "locus_tag",
+    "ecod_top1_id",
+    "ecod_top1_description",
+    "ecod_top1_score",
+    "ecod_top1_qstart",
+    "ecod_top1_qend",
+    "ecod_top1_tstart",
+    "ecod_top1_tend",
 ]
 
 
@@ -63,9 +79,12 @@ def _write_empty_output(out_path):
 
 # pLM-BLAST output CSV columns (v1.x). Exact header names verified against
 # the upstream `scripts/plmblast.py` result-writer on first integration
-# run — see the TODO below if upstream renames columns.
+# run — see the TODO below if upstream renames columns. `sdesc` is added
+# by upstream `alntools/postprocess/format.py:prepare_output` when the DB
+# CSV has a `description` column (true for the public ECOD DB).
 _COL_QUERY = "qid"
 _COL_TARGET = "sid"
+_COL_SDESC = "sdesc"
 _COL_SCORE = "score"
 _COL_QSTART = "qstart"
 _COL_QEND = "qend"
@@ -161,7 +180,7 @@ def _embed_query_fasta(
     single pooled `<base>.pt` file plus a sibling `<base>.csv` index.
 
     `embedder` defaults to `pt` (ProtT5-XL UniRef50), matching the
-    embedder used to build the public ECOD70 database. ESM-2 etc. will
+    embedder used to build the public ECOD databases. ESM-2 etc. will
     only work against a database embedded with that same model.
 
     NB: embeddings.py writes the index to `<base>.pt.csv`, but
@@ -251,7 +270,7 @@ def run_plmblast(
     threads: int | None = None,
     failure_log_dir: str = "",
 ) -> str:
-    """Run pLM-BLAST against ECOD70 and return the CSV output path.
+    """Run pLM-BLAST against the ECOD DB and return the CSV output path.
 
     Two-step pipeline: ProtT5-embed the query FASTA into a single
     pooled .pt file, then search the embedding DB. Embedding dominates
@@ -316,7 +335,7 @@ def run_plmblast(
                 f"  How to fix:\n"
                 f"    - Reduce query size\n"
                 f"    - Increase --threads if more CPUs are available\n"
-                f"    - Use a smaller ECOD subset (e.g. ECOD50 instead of ECOD70)"
+                f"    - Use a smaller ECOD subset (e.g. ECOD30 instead of ECOD50/70)"
             ) from e
 
         if result.returncode != 0:
@@ -335,12 +354,14 @@ def parse_plmblast_csv(csv_path: str):
     """Parse pLM-BLAST CSV output into a list of hit dicts.
 
     Returns a list keyed per-hit (a protein can have multiple hits) with
-    fields: protein_id, target_id, score, qstart, qend, tstart, tend.
+    fields: protein_id, target_id, description, score, qstart, qend,
+    tstart, tend. `description` is sourced from pLM-BLAST's `sdesc`
+    column when present (added by upstream when the DB has a description
+    column — true for the public ECOD DB); otherwise empty.
 
-    TODO (Phase 3.2.a): surface the ECOD domain classification (T-group /
-    F-group IDs embedded in target IDs) once annotation_consensus.py is
-    extended to vote on structural domains. Currently the raw target ID
-    passes through as-is.
+    Top-1-per-query reduction happens in `_reduce_to_top1` before the
+    ssign-facing output is written. Callers that want the full hit list
+    (e.g. the per-tool integration test) use this function directly.
     """
     entries = []
     with open(csv_path) as f:
@@ -353,6 +374,7 @@ def parse_plmblast_csv(csv_path: str):
                 {
                     "protein_id": query_id,
                     "target_id": row.get(_COL_TARGET, "").strip(),
+                    "description": row.get(_COL_SDESC, "").strip(),
                     "score": row.get(_COL_SCORE, "").strip(),
                     "qstart": row.get(_COL_QSTART, "").strip(),
                     "qend": row.get(_COL_QEND, "").strip(),
@@ -363,13 +385,54 @@ def parse_plmblast_csv(csv_path: str):
     return entries
 
 
+def _entry_score(entry: dict) -> float:
+    """Parse an entry's score to float; NaN/inf and unparseable values
+    become 0.0 so they can't latch as "best" via NaN's weird comparison
+    semantics (NaN > anything is False, which would freeze the first
+    NaN-scored hit in place even when real-scored hits arrive later)."""
+
+    try:
+        score = float(entry.get("score", "") or 0)
+    except ValueError:
+        return 0.0
+    return score if math.isfinite(score) else 0.0
+
+
+def _reduce_to_top1(entries):
+    """Reduce a per-hit entry list to one row per query, picking the
+    highest-scoring hit. pLM-BLAST emits ranked-but-unsorted hits and
+    can list several entries per query; integrate_annotations.py needs
+    one row per locus_tag for the left-join to preserve row count."""
+    best: dict[str, dict] = {}
+    for e in entries:
+        pid = e["protein_id"]
+        prev = best.get(pid)
+        if prev is None or _entry_score(e) > _entry_score(prev):
+            best[pid] = e
+    return list(best.values())
+
+
+def _to_output_row(entry: dict) -> dict:
+    """Rename a parse_plmblast_csv entry to the ssign output schema."""
+    return {
+        "locus_tag": entry["protein_id"],
+        "ecod_top1_id": entry["target_id"],
+        "ecod_top1_description": entry.get("description", ""),
+        "ecod_top1_score": entry["score"],
+        "ecod_top1_qstart": entry["qstart"],
+        "ecod_top1_qend": entry["qend"],
+        "ecod_top1_tstart": entry["tstart"],
+        "ecod_top1_tend": entry["tend"],
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Run pLM-BLAST against ECOD70 on the filtered substrates and "
-            "convert output to ssign format. pLM-BLAST is an annotation-"
-            "tier tool — it runs only on the ~50 filtered substrates, not "
-            "the full ~5000-protein genome."
+            "Run pLM-BLAST against the ECOD database (default: ECOD30) on "
+            "the filtered substrates and convert output to ssign format. "
+            "pLM-BLAST is an annotation-tier tool — it runs only on the "
+            "~50 filtered substrates, not the full ~5000-protein genome."
         )
     )
     parser.add_argument(
@@ -385,14 +448,35 @@ def main() -> int:
     parser.add_argument(
         "--ecod-db",
         required=True,
-        help="Path to ECOD70 database directory (from ftp.tuebingen.mpg.de)",
+        help=(
+            "Path to a pLM-BLAST ECOD database directory (any clustering "
+            "level — ECOD30 default, ECOD50/70/90 also available from "
+            "ftp.tuebingen.mpg.de)"
+        ),
     )
     parser.add_argument("--out", required=True, help="Output hits TSV (ssign format)")
     parser.add_argument(
+        "--local-cache-dir",
+        default=None,
+        help=(
+            "Stage the ECOD DB tree (~11 GB for ECOD30, up to ~25 GB for "
+            "ECOD90) to this directory before running. No-op when the DB "
+            "is on local filesystem; otherwise rsyncs from gpfs/nfs/"
+            "lustre. Pass PBS/SLURM job-local TMPDIR. ProtT5 embedding "
+            "does heavy random I/O on the embedding shards; warm page "
+            "cache cuts wallclock substantially on shared FS."
+        ),
+    )
+    parser.add_argument(
         "--cpc",
         type=int,
-        default=70,
-        help="pLM-BLAST -cpc cluster percent cutoff (default: 70)",
+        default=90,
+        help=(
+            "pLM-BLAST -cpc cosine percentile cutoff (default: 90). The "
+            "Kaminski 2023 paper benchmarks at 90; the upstream argparse "
+            "default of 70 is more conservative but ~3x slower with little "
+            "annotation gain for ssign's use case."
+        ),
     )
     parser.add_argument(
         "--threads",
@@ -415,11 +499,19 @@ def main() -> int:
         return 2
     if not os.path.isdir(args.ecod_db):
         print(
-            f"ERROR: ECOD70 database directory not found: {args.ecod_db}\n"
-            f"  Fetch from http://ftp.tuebingen.mpg.de/pub/protevo/toolkit/databases/plmblast_dbs",
+            f"ERROR: ECOD database directory not found: {args.ecod_db}\n"
+            f"  Fetch from http://ftp.tuebingen.mpg.de/ebio/protevo/toolkit/databases/plmblast_dbs",
             file=sys.stderr,
         )
         return 2
+
+    # 30 GB free floor covers all four ECOD variants (ECOD30 ~11 GB
+    # through ECOD90 ~25 GB) with headroom; the helper logs a warning
+    # and skips staging if the cache dir doesn't have it.
+    if args.local_cache_dir:
+        from ssign_lib.resources import stage_directory_tree_to_local_ssd_if_remote
+
+        args.ecod_db = stage_directory_tree_to_local_ssd_if_remote(args.ecod_db, args.local_cache_dir, min_free_gb=15.0)
 
     os.makedirs(os.path.dirname(os.path.abspath(args.out)) or ".", exist_ok=True)
 
@@ -457,14 +549,16 @@ def main() -> int:
         entries = parse_plmblast_csv(raw_csv)
 
     logger.info(f"Parsed {len(entries)} pLM-BLAST hits")
+    top1 = _reduce_to_top1(entries)
+    logger.info(f"Reduced to {len(top1)} top-1 hits across queries")
 
     with open(args.out, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=_OUTPUT_FIELDNAMES, delimiter="\t")
         writer.writeheader()
-        for entry in entries:
-            writer.writerow(entry)
+        for entry in top1:
+            writer.writerow(_to_output_row(entry))
 
-    logger.info(f"Done: wrote {len(entries)} hits to {args.out}")
+    logger.info(f"Done: wrote {len(top1)} top-1 hits to {args.out}")
     return 0
 
 

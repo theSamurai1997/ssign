@@ -233,11 +233,11 @@ class TestPipelineConfigMarkerFallback:
         root = tmp_path / "dbs"
         (root / "bakta" / "db-light").mkdir(parents=True)
         (root / "hhsuite" / "pfam" / "PfamA_v38_2").mkdir(parents=True)
-        (root / "plm_blast" / "ECOD70").mkdir(parents=True)
+        (root / "plm_blast" / "ECOD30").mkdir(parents=True)
         (root / "plm_effector_weights").mkdir(parents=True)
         (root / "bakta" / "db-light" / "version.json").touch()
         (root / "hhsuite" / "pfam" / "PfamA_v38_2" / "PfamA_v38_2_a3m.ffdata").touch()
-        (root / "plm_blast" / "ECOD70" / "0.emb").touch()
+        (root / "plm_blast" / "ECOD30" / "0.emb").touch()
         home = tmp_path / "fake-home"
         (home / ".ssign").mkdir(parents=True)
         (home / ".ssign" / "db_root").write_text(str(root))
@@ -254,10 +254,10 @@ class TestPipelineConfigMarkerFallback:
         c = PipelineConfig(input_path="x.gbff")
         assert c.hhsuite_pfam_db == str(root / "hhsuite" / "pfam" / "PfamA_v38_2")
 
-    def test_marker_resolves_ecod70(self, tmp_path, monkeypatch):
+    def test_marker_resolves_ecod(self, tmp_path, monkeypatch):
         root = self._stage_dbs(tmp_path, monkeypatch)
         c = PipelineConfig(input_path="x.gbff")
-        assert c.plmblast_db == str(root / "plm_blast" / "ECOD70")
+        assert c.plmblast_db == str(root / "plm_blast" / "ECOD30")
 
     def test_marker_resolves_plm_effector_weights(self, tmp_path, monkeypatch):
         root = self._stage_dbs(tmp_path, monkeypatch)
@@ -275,7 +275,7 @@ class TestPipelineConfigMarkerFallback:
         c = PipelineConfig(input_path="x.gbff")
         assert c.bakta_db == str(alt / "db-light")
         # Other DBs still resolve via marker
-        assert c.plmblast_db == str(root / "plm_blast" / "ECOD70")
+        assert c.plmblast_db == str(root / "plm_blast" / "ECOD30")
 
     def test_env_var_pointing_at_parent_dir_auto_descends(self, tmp_path, monkeypatch):
         # The key bug-fix: BAKTA_DB=<root>/bakta (the parent of db-light)

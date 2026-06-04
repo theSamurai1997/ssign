@@ -150,7 +150,7 @@ PLME_TO_MACSYFINDER = {
 # Mapping reflects "what does this tier ship that's also actually usable?":
 #   - base: Bakta light DB + DeepSecE/PLM-Effector weights → those tools
 #     default on. Annotation tools that need extended DBs (EggNOG ~50 GB,
-#     IPS ~24 GB, ECOD70 ~24 GB) default off.
+#     IPS ~24 GB, ECOD30 ~11 GB) default off.
 #   - extended: adds those three DBs → EggNOG/IPS/pLM-BLAST default on.
 #     Pfam + PDB70 also get fetched, but HH-suite stays default-off (see
 #     _EXTENDED_ADDS comment) until the wrapper degrades gracefully

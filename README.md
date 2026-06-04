@@ -239,7 +239,7 @@ itself.
   remote BLAST, EBI InterProScan webserver, and MPI Toolkit HHpred remote
   modes removed in favour of local binaries.
 - ✅ Bakta + EggNOG whole-genome annotation, PLM-Effector first-class
-  secretion prediction, pLM-BLAST / ECOD70 substrate annotation.
+  secretion prediction, pLM-BLAST / ECOD30 substrate annotation.
 - ✅ Re-annotate inputs with Bakta by default; `--use-input-annotations`
   preserves curated GenBank annotations.
 - ✅ Cross-validation rule: DLP, DSE, and PLM-Effector treated as equal

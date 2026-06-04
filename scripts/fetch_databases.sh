@@ -6,7 +6,7 @@
 #
 # Tier sizes (post-extraction):
 #   base       ~22 GB   NCBI taxdump + Bakta light + PLM-Effector weights
-#   extended   ~115 GB  + EggNOG + InterProScan + ECOD70
+#   extended   ~100 GB  + EggNOG + InterProScan + ECOD30 (pLM-BLAST)
 #   full       ~700 GB  + BLAST NR + Bakta full + HH-suite (Pfam + PDB70 + UniRef30)
 # (sizes above are rough — see task #221 for the audit.)
 #
@@ -46,8 +46,12 @@ HHSUITE_PDB70_GWDG="${HHSUITE_GWDG_BASE}/pdb70_from_mmcif_latest.tar.gz"
 # UniRef30 only exists at GWDG; no Tübingen mirror as of plan D.5.
 HHSUITE_UNIREF30_GWDG="https://wwwuser.gwdg.de/~compbiol/uniclust/2023_02/UniRef30_2023_02_hhsuite.tar.gz"
 
-# pLM-BLAST — ECOD70 prebuilt embedding database.
-ECOD70_URL="http://ftp.tuebingen.mpg.de/ebio/protevo/toolkit/databases/plmblast_dbs/ecod70db_20240417.tar.gz"
+# pLM-BLAST — ECOD30 prebuilt embedding database. Switched from ECOD70
+# (21 GB / 2024-04-17) on 2026-06-04: ECOD30 is half the size (10 GB),
+# represents every ECOD F-group, and the paper's published benchmarks
+# already use this cluster level. The other levels (ECOD50/70/90) are
+# also hosted at the same FTP path if a user wants more redundancy.
+ECOD_URL="http://ftp.tuebingen.mpg.de/ebio/protevo/toolkit/databases/plmblast_dbs/ecod30db_20240417.tar.gz"
 
 # EggNOG — current host. The legacy hostname `eggnogdb.embl.de` was retired;
 # eggnog-mapper 2.1.13 (latest on bioconda as of 2026-05) still hardcodes the
@@ -83,7 +87,7 @@ Usage:
 
 Tier sizes (post-extraction):
   base       ~22 GB   NCBI taxdump + Bakta light + PLM-Effector weights
-  extended   ~115 GB  + EggNOG + InterProScan + ECOD70
+  extended   ~100 GB  + EggNOG + InterProScan + ECOD30 (pLM-BLAST)
   full       ~700 GB  + BLAST NR + Bakta full + HH-suite (Pfam + PDB70 + UniRef30)
 
 Default target: ~/.ssign/databases (override with --target /path).
@@ -361,21 +365,21 @@ fetch_hhsuite_uniref30() {
     _log "OK — set SSIGN_HHSUITE_UNICLUST=$dir"
 }
 
-fetch_ecod70() {
-    _log "==> pLM-BLAST ECOD70 (~24 GB extracted)"
+fetch_ecod() {
+    _log "==> pLM-BLAST ECOD30 (~11 GB extracted)"
     local dir="$TARGET/plm_blast"
-    local tarball="$dir/ecod70db_20240417.tar.gz"
-    local extracted="$dir/ECOD70"
+    local tarball="$dir/ecod30db_20240417.tar.gz"
+    local extracted="$dir/ECOD30"
 
     _already_done "$extracted" && return 0
 
     _run mkdir -p "$dir"
-    _wget_with_fallback "$tarball" "$ECOD70_URL"
-    # ECOD70 tarball contains its own ECOD70/ wrapper dir; extract to parent.
+    _wget_with_fallback "$tarball" "$ECOD_URL"
+    # ECOD30 tarball contains its own ECOD30/ wrapper dir; extract to parent.
     _run tar -xzf "$tarball" -C "$dir"
     _run touch "$extracted/$_FETCH_DONE"
     _run rm -f "$tarball"
-    _log "OK — set SSIGN_ECOD70_DB=$extracted"
+    _log "OK — set SSIGN_ECOD_DB=$extracted"
 }
 
 fetch_plm_effector_weights() {
@@ -463,7 +467,7 @@ run_extended() {
     run_base
     fetch_eggnog
     fetch_interproscan
-    fetch_ecod70
+    fetch_ecod
 }
 
 run_full() {
@@ -479,7 +483,7 @@ run_full() {
     fetch_hhsuite_pdb70
     fetch_hhsuite_uniref30
     fetch_interproscan
-    fetch_ecod70
+    fetch_ecod
     fetch_blast_nr
 }
 

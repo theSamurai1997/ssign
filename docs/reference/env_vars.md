@@ -31,7 +31,7 @@ run time; the matching CLI flag is the load-bearing handle.
 | `SSIGN_BAKTA_DB` | `--bakta-db` |
 | `SSIGN_EGGNOG_DB` | `--eggnog-db` |
 | `SSIGN_INTERPROSCAN_PATH` | `--interproscan-db` |
-| `SSIGN_ECOD70_DB` | `--plmblast-db` |
+| `SSIGN_ECOD_DB` | `--plmblast-db` |
 | `SSIGN_PLM_EFFECTOR_WEIGHTS` | (consumed by the PLM-Effector wrapper) |
 | `SSIGN_DEEPSECE_CHECKPOINT` | (alternative to `SSIGN_DEEPSECE_CHECKPOINT_URL` for already-downloaded files) |
 | `SSIGN_DEEPLOCPRO_PATH` | `--deeplocpro-path` (also used by the DLP integration test) |

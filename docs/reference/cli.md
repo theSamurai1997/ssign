@@ -106,8 +106,8 @@ accepts a `--no-<flag>` inverse (e.g. `--skip-blastp` and `--no-skip-blastp`).
 
 | Flag | Type | Default | Description |
 |---|---|---|---|
-| `--skip-plmblast` | bool | `true` | Skip pLM-BLAST (off by default). |
-| `--plmblast-db` | path | `""` | Path to ECOD70 pLM-BLAST database. |
+| `--skip-plmblast` | bool | `false` | Skip pLM-BLAST. On by default at the extended tier (ECOD30, ~40 min/genome). |
+| `--plmblast-db` | path | `""` | Path to ECOD pLM-BLAST database (ECOD30 default; ECOD50/70/90 also supported). |
 
 ## EggNOG-mapper
 

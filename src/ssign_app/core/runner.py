@@ -368,7 +368,7 @@ class PipelineConfig:
             ("hhsuite_uniclust_db", "SSIGN_HHSUITE_UNICLUST"),
             ("interproscan_db", "SSIGN_INTERPROSCAN_PATH"),
             ("eggnog_db", "EGGNOG_DATA_DIR"),
-            ("plmblast_db", "SSIGN_ECOD70_DB"),
+            ("plmblast_db", "SSIGN_ECOD_DB"),
             ("plm_effector_weights_dir", "SSIGN_PLM_EFFECTOR_WEIGHTS"),
             ("signalp_path", "SSIGN_SIGNALP_PATH"),
             ("deeplocpro_path", "SSIGN_DEEPLOCPRO_PATH"),
@@ -397,7 +397,7 @@ class PipelineConfig:
             ("hhsuite_uniclust_db", "SSIGN_HHSUITE_UNICLUST"),
             ("interproscan_db", "SSIGN_INTERPROSCAN_PATH"),
             ("eggnog_db", "SSIGN_EGGNOG_DB"),
-            ("plmblast_db", "SSIGN_ECOD70_DB"),
+            ("plmblast_db", "SSIGN_ECOD_DB"),
         ):
             entry = next((d for d in DATABASE_PATHS if d.env_var == manifest_env_var), None)
             if entry is None:
@@ -2120,7 +2120,7 @@ class PipelineRunner:
             return StepResult(
                 "plm_blast",
                 False,
-                "pLM-BLAST requires an ECOD70 database. Set `plmblast_db` "
+                "pLM-BLAST requires an ECOD database. Set `plmblast_db` "
                 "in the config; fetch from ftp.tuebingen.mpg.de.",
             )
 
@@ -2144,6 +2144,12 @@ class PipelineRunner:
             "--threads",
             str(self.config.cpu_per_genome),
         ]
+        # Stage ECOD DB tree to local SSD on network filesystems (same
+        # pattern as IPS / HH-suite / Bakta — see _step_interproscan).
+        cache = os.environ.get("TMPDIR", "")
+        if cache:
+            args.extend(["--local-cache-dir", cache])
+
         rc, stdout, stderr = run_script("run_plm_blast.py", args, timeout=14400)
         if rc == 0:
             self.files["plm_blast"] = output

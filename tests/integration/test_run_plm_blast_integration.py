@@ -1,11 +1,11 @@
 """Per-tool integration test for run_plm_blast.py.
 
 Runs the real pLM-BLAST `plmblast.py` script against the T1SS fixture
-proteins using an ECOD70 database. Skips cleanly if either prerequisite
+proteins using an ECOD database. Skips cleanly if either prerequisite
 is missing.
 
 Run explicitly with:
-    SSIGN_ECOD70_DB=/path/to/ecod70 pytest -m integration \\
+    SSIGN_ECOD_DB=/path/to/ecod30 pytest -m integration \\
         tests/integration/test_run_plm_blast_integration.py
 """
 
@@ -19,10 +19,10 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.fixture
-def ecod70_db():
-    """Path to a pLM-BLAST ECOD70 database. Skips the test if pLM-BLAST's
+def ecod_db():
+    """Path to a pLM-BLAST ECOD database. Skips the test if pLM-BLAST's
     `plmblast.py` (or `plmblast`) is not on PATH, SSIGN_PLMBLAST_SCRIPT
-    does not point at a real file, or SSIGN_ECOD70_DB is unset / missing."""
+    does not point at a real file, or SSIGN_ECOD_DB is unset / missing."""
     script_override = os.environ.get("SSIGN_PLMBLAST_SCRIPT")
     if script_override:
         if not os.path.exists(script_override):
@@ -34,18 +34,16 @@ def ecod70_db():
             "or set SSIGN_PLMBLAST_SCRIPT"
         )
 
-    db = os.environ.get("SSIGN_ECOD70_DB")
+    db = os.environ.get("SSIGN_ECOD_DB")
     if not db:
-        pytest.skip("SSIGN_ECOD70_DB env var not set")
+        pytest.skip("SSIGN_ECOD_DB env var not set")
     if not os.path.isdir(db):
-        pytest.skip(f"SSIGN_ECOD70_DB={db} is not a directory")
+        pytest.skip(f"SSIGN_ECOD_DB={db} is not a directory")
     return db
 
 
 class TestRunPlmBlastOnFixture:
-    def test_full_pipeline_on_fixture(
-        self, tmp_dir, t1ss_fixture_proteins, ecod70_db
-    ):
+    def test_full_pipeline_on_fixture(self, tmp_dir, t1ss_fixture_proteins, ecod_db):
         """One run, all asserts — pLM-BLAST embed+search on the
         minimal fixture takes ~10-15 min on CPU; running it once and
         asserting all invariants is much faster than the previous
@@ -54,7 +52,7 @@ class TestRunPlmBlastOnFixture:
         out_csv = os.path.join(tmp_dir, "plm_blast.csv")
         run_plmblast(
             proteins_fasta=t1ss_fixture_proteins,
-            ecod_db=ecod70_db,
+            ecod_db=ecod_db,
             out_csv=out_csv,
             cpc=70,
             threads=4,
@@ -72,8 +70,13 @@ class TestRunPlmBlastOnFixture:
 
         # Invariant 3: every entry has the columns downstream code reads.
         required = {
-            "protein_id", "target_id", "score",
-            "qstart", "qend", "tstart", "tend",
+            "protein_id",
+            "target_id",
+            "score",
+            "qstart",
+            "qend",
+            "tstart",
+            "tend",
         }
         for e in entries:
             assert required <= set(e.keys())

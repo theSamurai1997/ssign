@@ -18,7 +18,7 @@ will contain:
 | HH-suite (Pfam + PDB70)                  | extended        | ~26 GB  | Pfam (~3 GB) + PDB70 (~23 GB) profile HMM databases   |
 | HH-suite (+ UniRef30)                    | full            | +~25 GB | Adds UniRef30 for deep remote-homology MSA generation |
 | InterProScan                             | extended / full | ~24 GB  | Domain / motif annotation                             |
-| pLM-BLAST (ECOD70)                       | extended / full | ~24 GB  | Embedding-based remote homology                       |
+| pLM-BLAST (ECOD30)                       | extended / full | ~11 GB  | Embedding-based remote homology                       |
 | BLAST NR                                 | full            | ~390 GB | Primary homology search                               |
 
 ## Getting the databases
@@ -32,7 +32,7 @@ bash scripts/fetch_databases.sh --tier full       # ~630 GB
 ```
 
 The fetcher pulls each database from its canonical academic mirror (Bakta
-GitHub release, Tübingen MPI for HH-suite + ECOD70, NCBI for taxdump and
+GitHub release, Tübingen MPI for HH-suite + ECOD30, NCBI for taxdump and
 BLAST NR, EBI for InterProScan, EMBL for EggNOG). At v1.0.0 release, a
 mirror copy of the full set is also deposited on **Zenodo** under a pinned
 DOI for long-term reproducibility; the fetch script gains a

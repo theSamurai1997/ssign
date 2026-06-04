@@ -86,9 +86,21 @@ def synthetic_pipeline_outputs(tmp_dir):
     _write_tsv(
         gene_info,
         [
-            "locus_tag", "protein_id", "gene", "product", "contig",
-            "start", "end", "strand", "ec_numbers", "cog_ids", "go_terms",
-            "kegg_ko", "refseq_ids", "pfam_ids", "gbff_annotation",
+            "locus_tag",
+            "protein_id",
+            "gene",
+            "product",
+            "contig",
+            "start",
+            "end",
+            "strand",
+            "ec_numbers",
+            "cog_ids",
+            "go_terms",
+            "kegg_ko",
+            "refseq_ids",
+            "pfam_ids",
+            "gbff_annotation",
         ],
         [
             {
@@ -110,28 +122,34 @@ def synthetic_pipeline_outputs(tmp_dir):
     _write_tsv(
         bakta_ann,
         ["locus_tag", "bakta_product", "pfam_ids"],
-        [{"locus_tag": "BIMENO_04457",
-          "bakta_product": "hypothetical protein",
-          "pfam_ids": "PF03797;PF12951"}],
+        [{"locus_tag": "BIMENO_04457", "bakta_product": "hypothetical protein", "pfam_ids": "PF03797;PF12951"}],
     )
 
     eggnog_ann = tmp / "eggnog_ann.tsv"
     _write_tsv(
         eggnog_ann,
         ["locus_tag", "eggnog_description", "cog_category", "kegg_ko"],
-        [{"locus_tag": "BIMENO_04457",
-          "eggnog_description": "Autotransporter beta-domain",
-          "cog_category": "M",
-          "kegg_ko": ""}],
+        [
+            {
+                "locus_tag": "BIMENO_04457",
+                "eggnog_description": "Autotransporter beta-domain",
+                "cog_category": "M",
+                "kegg_ko": "",
+            }
+        ],
     )
 
     plm_blast_ann = tmp / "plm_blast_ann.tsv"
     _write_tsv(
         plm_blast_ann,
-        ["locus_tag", "ecod70_top1_description", "ecod70_top1_score"],
-        [{"locus_tag": "BIMENO_04457",
-          "ecod70_top1_description": "Autotransporter beta-domain",
-          "ecod70_top1_score": "0.91"}],
+        ["locus_tag", "ecod_top1_description", "ecod_top1_score"],
+        [
+            {
+                "locus_tag": "BIMENO_04457",
+                "ecod_top1_description": "Autotransporter beta-domain",
+                "ecod_top1_score": "0.91",
+            }
+        ],
     )
 
     # Tiny proteins FASTA so the script can pull sequence + length
@@ -151,27 +169,30 @@ def synthetic_pipeline_outputs(tmp_dir):
 def _run_integrate(inputs: dict) -> Path:
     out = inputs["tmp"] / "master.tsv"
     cmd = [
-        sys.executable, str(SCRIPT),
-        "--substrates-filtered", str(inputs["substrates_filtered"]),
-        "--substrates-all", str(inputs["substrates_all"]),
-        "--gene-info", str(inputs["gene_info"]),
-        "--proteins", str(inputs["proteins"]),
-        "--sample", "test",
-        "--output", str(out),
-        "--annotations", *[str(p) for p in inputs["annotations"]],
+        sys.executable,
+        str(SCRIPT),
+        "--substrates-filtered",
+        str(inputs["substrates_filtered"]),
+        "--substrates-all",
+        str(inputs["substrates_all"]),
+        "--gene-info",
+        str(inputs["gene_info"]),
+        "--proteins",
+        str(inputs["proteins"]),
+        "--sample",
+        "test",
+        "--output",
+        str(out),
+        "--annotations",
+        *[str(p) for p in inputs["annotations"]],
     ]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-    assert result.returncode == 0, (
-        f"integrate_annotations.py exit {result.returncode}\n"
-        f"stderr: {result.stderr}"
-    )
+    assert result.returncode == 0, f"integrate_annotations.py exit {result.returncode}\nstderr: {result.stderr}"
     return out
 
 
 class TestIntegrateAnnotations:
-    def test_master_tsv_carries_every_tool_contribution(
-        self, synthetic_pipeline_outputs
-    ):
+    def test_master_tsv_carries_every_tool_contribution(self, synthetic_pipeline_outputs):
         """The master CSV's BIMENO_04457 row should contain the
         per-tool contributions: Bakta product, EggNOG description,
         pLM-BLAST hit, GBFF annotation (from gene_info), and the
@@ -181,22 +202,14 @@ class TestIntegrateAnnotations:
         with open(out) as f:
             rows = list(csv.DictReader(f))
 
-        target = next(
-            (r for r in rows if r["locus_tag"] == "BIMENO_04457"), None
-        )
-        assert target is not None, (
-            "BIMENO_04457 not in master output — substrate row dropped "
-            "during merge."
-        )
+        target = next((r for r in rows if r["locus_tag"] == "BIMENO_04457"), None)
+        assert target is not None, "BIMENO_04457 not in master output — substrate row dropped during merge."
 
         # Per-tool contributions
         assert target.get("bakta_product"), "Bakta product not merged"
         assert target.get("eggnog_description"), "EggNOG description not merged"
-        assert target.get("ecod70_top1_description"), "pLM-BLAST hit not merged"
-        assert target.get("gbff_annotation"), (
-            "gbff_annotation not merged from gene_info — Phase 3.3.c "
-            "regression?"
-        )
+        assert target.get("ecod_top1_description"), "pLM-BLAST hit not merged"
+        assert target.get("gbff_annotation"), "gbff_annotation not merged from gene_info — Phase 3.3.c regression?"
 
         # Sequence got pulled from proteins FASTA
         assert target.get("sequence"), "sequence not merged from proteins FASTA"
@@ -216,17 +229,12 @@ class TestIntegrateAnnotations:
             "annotation_tools",
         }
         missing = consensus_cols - set(target.keys())
-        assert not missing, (
-            f"annotation_consensus columns missing from master CSV: "
-            f"{missing}"
-        )
+        assert not missing, f"annotation_consensus columns missing from master CSV: {missing}"
 
         # n_tools_with_hits should reflect the per-tool contributions
         # we provided (Bakta + EggNOG + pLM-BLAST + GBFF = 4).
         n_tools = int(target["n_tools_with_hits"])
-        assert n_tools >= 3, (
-            f"Expected ≥3 tools to have annotated BIMENO_04457, got {n_tools}"
-        )
+        assert n_tools >= 3, f"Expected ≥3 tools to have annotated BIMENO_04457, got {n_tools}"
 
     def test_runs_with_no_annotations(self, synthetic_pipeline_outputs):
         """integrate_annotations should still produce a master CSV when
@@ -239,8 +247,6 @@ class TestIntegrateAnnotations:
             rows = list(csv.DictReader(f))
         assert len(rows) >= 1
         # gbff_annotation still merges from gene_info
-        target = next(
-            (r for r in rows if r["locus_tag"] == "BIMENO_04457"), None
-        )
+        target = next((r for r in rows if r["locus_tag"] == "BIMENO_04457"), None)
         assert target is not None
         assert target.get("gbff_annotation")

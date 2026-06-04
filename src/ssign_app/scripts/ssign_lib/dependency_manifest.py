@@ -337,9 +337,9 @@ DATABASE_PATHS: tuple[DatabasePath, ...] = (
         tool="HH-suite",
     ),
     DatabasePath(
-        "pLM-BLAST ECOD70",
-        "SSIGN_ECOD70_DB",
-        "plm_blast/ECOD70",
+        "pLM-BLAST ECOD",
+        "SSIGN_ECOD_DB",
+        "plm_blast/ECOD30",
         "*.emb",
         "bash scripts/fetch_databases.sh --tier extended",
         tier="extended",

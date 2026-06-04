@@ -74,7 +74,7 @@ def fig_tool_coverage(df, outdir, dpi):
         "InterProScan": "interpro_domains",
         "HHpred Pfam": "pfam_top1",
         "HHpred PDB": "pdb_top1",
-        "pLM-BLAST": "ecod70_top1",
+        "pLM-BLAST": "ecod_top1",
         "SignalP": "signalp_prediction",
     }
 

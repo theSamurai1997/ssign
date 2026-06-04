@@ -31,7 +31,7 @@ TOOL_HIT_COLUMNS = {
     "HHpred_Pfam": "pfam_top1_description",
     "HHpred_PDB": "pdb_top1_description",
     "InterProScan": "interpro_descriptions",
-    "pLM-BLAST": "ecod70_top1_description",
+    "pLM-BLAST": "ecod_top1_description",
     "Bakta": "bakta_product",
     "EggNOG": "eggnog_description",
     "GBFF": "gbff_annotation",

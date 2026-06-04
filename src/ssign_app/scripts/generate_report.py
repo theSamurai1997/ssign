@@ -58,9 +58,7 @@ def generate_text_report(master_csvs, enrichment_file, output_path):
         lines.append("")
 
     # Tool coverage
-    tool_cols = [
-        c for c in df.columns if c.startswith(("blastp_", "interpro_", "pfam_", "pdb_", "ecod70_", "signalp_"))
-    ]
+    tool_cols = [c for c in df.columns if c.startswith(("blastp_", "interpro_", "pfam_", "pdb_", "ecod_", "signalp_"))]
     if tool_cols:
         lines.append("Annotation tool coverage:")
         for col in sorted(tool_cols):
