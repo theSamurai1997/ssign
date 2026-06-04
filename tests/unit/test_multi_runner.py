@@ -1,0 +1,397 @@
+"""Tests for ssign_app.core.multi_runner.MultiGenomeRunner.
+
+Covers:
+- N=1 dispatches straight to PipelineRunner.run() (no segment-splitting code path)
+- Constructor validation (empty, duplicate sample_ids, reserved name,
+  separator-in-sample_id, heterogeneous skip flags)
+- slice_stages_by_segment correctly partitions a stages list
+- N>1 flow calls pool/split helpers and per-segment runners in the
+  right order (verified via mocked PipelineRunner methods)
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from ssign_app.core._pool_utils import SEPARATOR
+from ssign_app.core.multi_runner import (
+    POOL_SAMPLE_ID,
+    MultiGenomeRunner,
+    slice_stages_by_segment,
+)
+
+# ---------------------------------------------------------------------------
+# Lightweight config + stages stand-ins
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class _StubConfig:
+    """A drop-in PipelineConfig stand-in. Includes every field that
+    MultiGenomeRunner reaches into (validation flags + the fields
+    overridden in ``_make_pool_runner`` via dataclasses.replace())."""
+
+    sample_id: str
+    outdir: str = "/tmp/out"
+    input_path: str = ""
+    monitor_resources: bool = True
+    skip_deeplocpro: bool = False
+    skip_deepsece: bool = False
+    skip_signalp: bool = False
+    skip_plm_effector: bool = False
+    skip_blastp: bool = False
+    skip_hhsuite: bool = True  # match runner default for tests
+    skip_interproscan: bool = False
+    skip_eggnog: bool = False
+    skip_plmblast: bool = False
+    skip_protparam: bool = False
+    enrichment_stats: bool = False
+
+
+def _stub_step(step_id: str):
+    """Return a callable whose __name__ mirrors a real _step_* method."""
+    fn = MagicMock()
+    fn.__name__ = f"_step_{step_id}"
+    return fn
+
+
+# ---------------------------------------------------------------------------
+# slice_stages_by_segment
+# ---------------------------------------------------------------------------
+
+
+class TestSliceStagesBySegment:
+    def test_canonical_layout(self):
+        # Mimics the shape returned by PipelineRunner._build_stages():
+        # 5 segment-A tuples, 1 parallel group (B prediction), 1 segment-B
+        # tuple (plm_effector), 4 segment-C tuples, 1 parallel group (D
+        # annotation), 5 segment-E tuples.
+        stages = [
+            ("Detecting input format", _stub_step("detect_format")),
+            ("Extracting proteins", _stub_step("extract_proteins")),
+            ("Running MacSyFinder", _stub_step("macsyfinder")),
+            ("Validating secretion systems", _stub_step("validate_systems")),
+            ("Extracting SS neighborhood", _stub_step("extract_neighborhood")),
+            [
+                ("DLP", _stub_step("deeplocpro")),
+                ("DSE", _stub_step("deepsece")),
+                ("SignalP", _stub_step("signalp")),
+            ],
+            ("PLM-Effector", _stub_step("plm_effector")),
+            ("Cross-validating", _stub_step("cross_validate")),
+            ("Proximity", _stub_step("proximity")),
+            ("T5SS", _stub_step("t5ss")),
+            ("Filtering", _stub_step("filtering")),
+            [
+                ("BLASTp", _stub_step("blastp")),
+                ("EggNOG", _stub_step("eggnog")),
+                ("IPS", _stub_step("interproscan")),
+                ("pLM-BLAST", _stub_step("plm_blast")),
+                ("ProtParam", _stub_step("protparam")),
+            ],
+            ("Integrate", _stub_step("integrate")),
+            ("Orthologs", _stub_step("orthologs")),
+            ("Enrichment", _stub_step("enrichment")),
+            ("Report", _stub_step("report")),
+            ("Figures", _stub_step("figures")),
+        ]
+        segments = slice_stages_by_segment(stages)
+        # A is the 5 tuples before the first parallel group
+        assert len(segments["A"]) == 5
+        # B is the prediction parallel group + plm_effector
+        assert len(segments["B"]) == 2
+        assert isinstance(segments["B"][0], list)
+        # C is the 4 sequential tuples between the parallel groups
+        assert len(segments["C"]) == 4
+        # D is the annotation parallel group
+        assert len(segments["D"]) == 1
+        assert isinstance(segments["D"][0], list)
+        # E is the 5 trailing tuples
+        assert len(segments["E"]) == 5
+
+    def test_enrichment_stats_routes_to_A(self):
+        # sample_null_proteins is opt-in in segment A.
+        stages = [
+            ("Detecting input format", _stub_step("detect_format")),
+            ("Sample null proteins", _stub_step("sample_null_proteins")),
+            [("DLP", _stub_step("deeplocpro"))],
+            ("Cross-validating", _stub_step("cross_validate")),
+            [("EggNOG", _stub_step("eggnog"))],
+            ("Integrate", _stub_step("integrate")),
+        ]
+        segments = slice_stages_by_segment(stages)
+        # Both sample_null_proteins and detect_format end up in A
+        assert len(segments["A"]) == 2
+
+    def test_empty_parallel_group_skipped(self):
+        # All predictions skipped → empty prediction parallel list.
+        stages = [
+            ("Detecting input format", _stub_step("detect_format")),
+            [],  # empty parallel group (all predictions skipped)
+            ("Cross-validating", _stub_step("cross_validate")),
+        ]
+        segments = slice_stages_by_segment(stages)
+        assert len(segments["A"]) == 1
+        assert segments["B"] == []
+        assert len(segments["C"]) == 1
+
+
+# ---------------------------------------------------------------------------
+# Constructor validation
+# ---------------------------------------------------------------------------
+
+
+class TestConstructorValidation:
+    def test_empty_configs_raises(self):
+        with pytest.raises(ValueError, match="at least one"):
+            MultiGenomeRunner([])
+
+    def test_duplicate_sample_ids_raises(self):
+        configs = [_StubConfig(sample_id="ecoli"), _StubConfig(sample_id="ecoli")]
+        with pytest.raises(ValueError, match="unique"):
+            MultiGenomeRunner(configs)
+
+    def test_pool_sample_id_reserved(self):
+        configs = [
+            _StubConfig(sample_id="ecoli"),
+            _StubConfig(sample_id=POOL_SAMPLE_ID),
+        ]
+        with pytest.raises(ValueError, match="reserved"):
+            MultiGenomeRunner(configs)
+
+    def test_separator_in_sample_id_raises(self):
+        configs = [_StubConfig(sample_id=f"bad{SEPARATOR}id")]
+        with pytest.raises(ValueError, match="separator"):
+            MultiGenomeRunner(configs)
+
+    def test_heterogeneous_skip_flags_raises(self):
+        configs = [
+            _StubConfig(sample_id="ecoli", skip_eggnog=False),
+            _StubConfig(sample_id="pao1", skip_eggnog=True),
+        ]
+        with pytest.raises(ValueError, match="skip_eggnog"):
+            MultiGenomeRunner(configs)
+
+    def test_uniform_configs_pass(self):
+        configs = [
+            _StubConfig(sample_id="ecoli"),
+            _StubConfig(sample_id="pao1"),
+            _StubConfig(sample_id="vc"),
+        ]
+        # Should not raise.
+        runner = MultiGenomeRunner(configs)
+        assert [c.sample_id for c in runner.configs] == ["ecoli", "pao1", "vc"]
+
+
+# ---------------------------------------------------------------------------
+# N=1 dispatch — delegates straight to PipelineRunner
+# ---------------------------------------------------------------------------
+
+
+class TestSingleGenomeDispatch:
+    def test_n1_delegates_to_pipeline_runner(self, monkeypatch):
+        # Patch PipelineRunner so we can capture how MultiGenomeRunner uses it.
+        fake_instance = MagicMock()
+        fake_instance.run.return_value = ["fake_result_1", "fake_result_2"]
+        fake_cls = MagicMock(return_value=fake_instance)
+        monkeypatch.setattr("ssign_app.core.multi_runner.PipelineRunner", fake_cls)
+
+        config = _StubConfig(sample_id="ecoli")
+        mgr = MultiGenomeRunner([config], progress_callback=None)
+        out = mgr.run(resume=True)
+
+        # PipelineRunner constructed exactly once, with the single config.
+        fake_cls.assert_called_once()
+        args, kwargs = fake_cls.call_args
+        assert args[0] is config
+        # run() called with resume=True
+        fake_instance.run.assert_called_once_with(resume=True)
+        # Output keyed by sample_id
+        assert out == {"ecoli": ["fake_result_1", "fake_result_2"]}
+
+    def test_n1_does_not_invoke_multi_path(self, monkeypatch):
+        # If N=1 accidentally fell into _run_multi, it would try to pool —
+        # which would touch the pool_utils helpers. Patch them so we'd notice.
+        fake_runner = MagicMock()
+        fake_runner.run.return_value = []
+        monkeypatch.setattr(
+            "ssign_app.core.multi_runner.PipelineRunner",
+            MagicMock(return_value=fake_runner),
+        )
+        pool_fastas_spy = MagicMock()
+        monkeypatch.setattr("ssign_app.core.multi_runner.pool_fastas", pool_fastas_spy)
+
+        MultiGenomeRunner([_StubConfig(sample_id="solo")]).run()
+        pool_fastas_spy.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# N>1 flow — exercise the segment dance with mocked PipelineRunner methods
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def n2_runner(monkeypatch, tmp_path):
+    """Build a MultiGenomeRunner with N=2 stub configs and patched PipelineRunner.
+
+    Returns ``(mgr, fake_runners_by_sid, fake_pool_runner, call_log)``:
+    - mgr: the MultiGenomeRunner under test
+    - fake_runners_by_sid: dict mapping sample_id -> mocked per-genome runner
+    - fake_pool_runner: the mocked pool runner (the third PipelineRunner instance)
+    - call_log: list of (instance, method, args, kwargs) for ordering assertions
+    """
+    configs = [
+        _StubConfig(sample_id="g1", outdir=str(tmp_path / "g1")),
+        _StubConfig(sample_id="g2", outdir=str(tmp_path / "g2")),
+    ]
+    for c in configs:
+        # The constructor for the *real* PipelineRunner needs outdir to exist
+        # only when run() is called; our mock doesn't care, but make the dirs
+        # so _make_pool_runner's commonpath logic produces tmp_path.
+        import os as _os
+
+        _os.makedirs(c.outdir, exist_ok=True)
+
+    call_log: list[tuple] = []
+
+    def _make_fake_runner(sample_id: str) -> MagicMock:
+        fake = MagicMock()
+        fake.config = MagicMock()
+        fake.config.sample_id = sample_id
+        fake.config.outdir = str(tmp_path / sample_id) if sample_id != POOL_SAMPLE_ID else str(tmp_path / "_pool")
+        fake.files = {}
+        fake.work_dir = str(tmp_path / f"work_{sample_id}")
+        import os as _os
+
+        _os.makedirs(fake.work_dir, exist_ok=True)
+        fake.results = []
+
+        # Stub _build_stages to return a minimal stages list with one tuple
+        # per segment letter so all five segments are populated.
+        stages = [
+            ("A1", _stub_step("detect_format")),
+            [("B1", _stub_step("deeplocpro"))],
+            ("B2", _stub_step("plm_effector")),
+            ("C1", _stub_step("cross_validate")),
+            [("D1", _stub_step("eggnog"))],
+            ("E1", _stub_step("integrate")),
+        ]
+        fake._build_stages = MagicMock(return_value=stages)
+
+        def _exec(stages_arg, skip_steps):
+            call_log.append((sample_id, "_execute_stages", len(stages_arg)))
+            return False  # core_failed=False
+
+        fake._execute_stages = MagicMock(side_effect=_exec)
+        return fake
+
+    fake_g1 = _make_fake_runner("g1")
+    fake_g2 = _make_fake_runner("g2")
+    fake_pool = _make_fake_runner(POOL_SAMPLE_ID)
+
+    # Sequence the PipelineRunner constructor: 2 per-genome, then 1 pool.
+    instances = iter([fake_g1, fake_g2, fake_pool])
+    fake_cls = MagicMock(side_effect=lambda *a, **kw: next(instances))
+    monkeypatch.setattr("ssign_app.core.multi_runner.PipelineRunner", fake_cls)
+
+    # Patch pool/split helpers so we can verify they're called at the
+    # right boundaries without needing real FASTA/TSV inputs.
+    pool_fastas_spy = MagicMock(return_value=0)
+    pool_tsvs_spy = MagicMock(return_value=0)
+    split_tsv_spy = MagicMock(return_value={})
+    monkeypatch.setattr("ssign_app.core.multi_runner.pool_fastas", pool_fastas_spy)
+    monkeypatch.setattr("ssign_app.core.multi_runner.pool_tsvs", pool_tsvs_spy)
+    monkeypatch.setattr("ssign_app.core.multi_runner.split_tsv_by_source", split_tsv_spy)
+
+    mgr = MultiGenomeRunner(configs, write_combined_summary=False)
+
+    return (
+        mgr,
+        {"g1": fake_g1, "g2": fake_g2},
+        fake_pool,
+        call_log,
+        {
+            "pool_fastas": pool_fastas_spy,
+            "pool_tsvs": pool_tsvs_spy,
+            "split_tsv_by_source": split_tsv_spy,
+        },
+    )
+
+
+class TestMultiGenomeFlow:
+    def test_per_genome_runners_execute_segments_a_c_e(self, n2_runner):
+        mgr, per_genome, pool, log, spies = n2_runner
+        # Seed substrates_filtered + proteins on per-genome runners so
+        # segment-D input pooling has something to draw from.
+        per_genome["g1"].files["neighborhood_proteins"] = "/tmp/g1_nb.faa"
+        per_genome["g2"].files["neighborhood_proteins"] = "/tmp/g2_nb.faa"
+        per_genome["g1"].files["substrates_filtered"] = "/tmp/g1_sub.tsv"
+        per_genome["g2"].files["substrates_filtered"] = "/tmp/g2_sub.tsv"
+        per_genome["g1"].files["proteins"] = "/tmp/g1_p.faa"
+        per_genome["g2"].files["proteins"] = "/tmp/g2_p.faa"
+
+        # Patch substrates helpers so pooling doesn't try to read real files.
+        with patch("ssign_app.scripts.ssign_lib.substrates.load_substrate_ids", return_value=set()):
+            mgr.run(resume=True)
+
+        # Each per-genome runner ran _execute_stages 3 times (segments A, C, E).
+        per_sid_calls = {sid: 0 for sid in per_genome}
+        for sid, method, _n in log:
+            if method == "_execute_stages" and sid in per_genome:
+                per_sid_calls[sid] += 1
+        assert per_sid_calls == {"g1": 3, "g2": 3}
+
+    def test_pool_runner_executes_segments_b_d(self, n2_runner):
+        mgr, per_genome, pool, log, spies = n2_runner
+        per_genome["g1"].files["neighborhood_proteins"] = "/tmp/g1_nb.faa"
+        per_genome["g2"].files["neighborhood_proteins"] = "/tmp/g2_nb.faa"
+        per_genome["g1"].files["substrates_filtered"] = "/tmp/g1_sub.tsv"
+        per_genome["g2"].files["substrates_filtered"] = "/tmp/g2_sub.tsv"
+        per_genome["g1"].files["proteins"] = "/tmp/g1_p.faa"
+        per_genome["g2"].files["proteins"] = "/tmp/g2_p.faa"
+
+        with patch("ssign_app.scripts.ssign_lib.substrates.load_substrate_ids", return_value=set()):
+            mgr.run(resume=True)
+
+        pool_calls = [entry for entry in log if entry[0] == POOL_SAMPLE_ID]
+        # Pool runner runs once for segment B and once for segment D.
+        assert len(pool_calls) == 2
+
+    def test_pool_helpers_called(self, n2_runner):
+        mgr, per_genome, pool, log, spies = n2_runner
+        per_genome["g1"].files["neighborhood_proteins"] = "/tmp/g1_nb.faa"
+        per_genome["g2"].files["neighborhood_proteins"] = "/tmp/g2_nb.faa"
+        per_genome["g1"].files["substrates_filtered"] = "/tmp/g1_sub.tsv"
+        per_genome["g2"].files["substrates_filtered"] = "/tmp/g2_sub.tsv"
+        per_genome["g1"].files["proteins"] = "/tmp/g1_p.faa"
+        per_genome["g2"].files["proteins"] = "/tmp/g2_p.faa"
+
+        with patch("ssign_app.scripts.ssign_lib.substrates.load_substrate_ids", return_value=set()):
+            mgr.run(resume=True)
+
+        # Pool boundary 1: pool_fastas called for neighborhood
+        assert spies["pool_fastas"].called
+        # Pool boundary 2: pool_tsvs called for substrates
+        assert spies["pool_tsvs"].called
+
+    def test_result_keyed_by_sample_id(self, n2_runner):
+        mgr, per_genome, pool, log, spies = n2_runner
+        per_genome["g1"].files["neighborhood_proteins"] = "/tmp/g1_nb.faa"
+        per_genome["g2"].files["neighborhood_proteins"] = "/tmp/g2_nb.faa"
+        per_genome["g1"].files["substrates_filtered"] = "/tmp/g1_sub.tsv"
+        per_genome["g2"].files["substrates_filtered"] = "/tmp/g2_sub.tsv"
+        per_genome["g1"].files["proteins"] = "/tmp/g1_p.faa"
+        per_genome["g2"].files["proteins"] = "/tmp/g2_p.faa"
+
+        per_genome["g1"].results = ["g1_result"]
+        per_genome["g2"].results = ["g2_result"]
+
+        with patch("ssign_app.scripts.ssign_lib.substrates.load_substrate_ids", return_value=set()):
+            out = mgr.run(resume=True)
+
+        assert set(out.keys()) == {"g1", "g2"}
+        assert out["g1"] == ["g1_result"]
+        assert out["g2"] == ["g2_result"]
