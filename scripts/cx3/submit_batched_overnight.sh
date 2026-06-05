@@ -84,7 +84,7 @@ jid=$(qsub \
     -l "select=1:ncpus=64:mem=120gb:ngpus=1:gpu_type=$GPU" \
     -l "walltime=$WALLTIME" \
     -N "ssign_batched_${#GENOMES[@]}genomes" \
-    -v "INPUT_GBFFS=${GBFFS},GPU_TYPE=${GPU}" \
+    -v "INPUT_GBFFS=${GBFFS},GPU_TYPE=${GPU},SSIGN_EXTRA_ARGS=${SSIGN_EXTRA_ARGS:-}" \
     "$PBS_SCRIPT")
 echo "Submitted: $jid"
 echo
