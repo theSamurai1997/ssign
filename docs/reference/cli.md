@@ -129,6 +129,7 @@ accepts a `--no-<flag>` inverse (e.g. `--skip-blastp` and `--no-skip-blastp`).
 | Flag | Type | Default | Description |
 |---|---|---|---|
 | `--skip-protparam` | bool | `false` | Skip the ProtParam physicochemical-property step. |
+| `--t5ass-annotate-whole` | bool | `false` | For T5aSS (classical autotransporter) substrates, run EggNOG / BLASTp / pLM-BLAST / HHsuite / ProtParam a second time on the full protein and emit `t5ass_whole_*` columns alongside the default passenger-only annotations. Lets you compare functional (passenger) vs structural (β-barrel-dominated whole-AT) hits side by side. InterProScan unchanged (already domain-aware). See `docs/explanation/design_decisions.md` § 4.3. |
 | `--filter-dse-type-mismatch` | bool | `true` | Drop DSE-only substrates whose predicted SS type does not match the nearby MacSyFinder system. |
 | `--ortholog-min-pident` | float | `40.0` | Ortholog grouping percent-identity floor. |
 | `--ortholog-min-qcov` | float | `70.0` | Ortholog grouping query-coverage floor. |

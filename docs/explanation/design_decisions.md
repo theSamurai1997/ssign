@@ -318,6 +318,86 @@ Entries are organised by pipeline stage. Each has three parts:
   name (`kegg_ko`) across tools means `annotation_consensus.py` does
   not need per-tool column-name conditionals.
 
+### 4.3 T5aSS passenger-domain annotation (default since v1.0.0)
+
+- **Decision:** For T5aSS (classical autotransporter) substrates with
+  a clean domain geometry (PF03797 β-barrel found, passenger length
+  ≥ 25 aa), EggNOG / BLASTp / pLM-BLAST / HHsuite / ProtParam read
+  the **passenger subsequence** rather than the full protein.
+  InterProScan is the lone exception: it keeps reading the full
+  protein. Users can opt into a second, full-protein pass via
+  `--t5ass-annotate-whole`, which adds side-by-side `t5ass_whole_*`
+  columns to the master CSV; the two annotation sets sit alongside
+  each other rather than overwriting.
+
+- **Rationale:** Autotransporters have three functional regions
+  (N-terminal passenger / α-helical linker / C-terminal β-barrel
+  translocator), and the barrel is highly conserved across the family.
+  Tools that return a single best hit per query (DIAMOND-based EggNOG,
+  blastp's bitscore-sorted top hit, pLM-BLAST's cosine-screened ECOD
+  best hit) preferentially match the barrel — for a typical AT, this
+  means the headline annotation collapses to "Outer membrane
+  autotransporter barrel" (COG3210 or similar) and the functional
+  passenger annotation (pertactin / IgA protease / hemoglobin protease
+  fold etc.) is hidden. Empirical evidence on K-12 (2026-06-04 run):
+  5/5 T5aSS substrates returned β-barrel ECOD families (4KH3, 5KE1,
+  4MEE, 3QQ2, 3AEH) when run on the full protein.
+
+  Routing those five tools to the passenger subsequence pushes the
+  homology search toward passenger-fold matches. The passenger
+  boundary is `seq[sp_end+1 : barrel_start - LINKER_LENGTH]`, where
+  `sp_end` is SignalP's cleavage-site position, `barrel_start` is the
+  envelope start of PF03797 from the bundled HMM scan, and
+  `LINKER_LENGTH = 30` (constants in `scripts/ssign_lib/constants.py`).
+
+  InterProScan stays on the full protein because it is already
+  domain-aware: it reports per-domain coordinates and Pfam hits
+  separately, so a full-AT input gives the user both the passenger
+  Pfam(s) (pertactin etc.) and the barrel Pfam at distinct positions —
+  passenger-only input would lose the barrel confirmation without
+  gaining any functional information.
+
+- **Fallback to full protein** for T5aSS substrates with:
+  - any `t5_quality_flag` set (`barrel_only`, `no_signalp`,
+    `no_sec_signal`, `omp_porin_no_at`, `unclassified`) — the
+    handler couldn't fix the geometry and we don't trust the slice;
+  - `passenger_length < MIN_PASSENGER_FOR_ANNOTATION` (25 aa) —
+    pLM-BLAST's cpc-90 pre-screen and blastp's bitscore would not
+    find meaningful homology on a residue count this small.
+
+  Non-T5aSS substrates (T5bSS, T5cSS, T1SS effectors, etc.) always
+  carry their full sequence — these don't have an autotransporter
+  passenger to begin with.
+
+- **Per-row provenance:** the `t5_annotation_source` column in the
+  master CSV records `passenger` or `full` for each T5aSS row (empty
+  for non-T5aSS). Populated by the side-car TSV from
+  `_step_build_passenger_fasta`.
+
+- **`--t5ass-annotate-whole` opt-in second pass:** users who want to
+  compare passenger vs full-AT annotations side by side enable this
+  flag. The pipeline runs EggNOG / BLASTp / pLM-BLAST / HHsuite /
+  ProtParam a second time on the full protein FASTA, restricted to
+  clean T5aSS substrates only, and writes the results into
+  `t5ass_whole_*`-prefixed columns. v1.0.0 runs this second pass
+  sequentially per genome (small T5aSS substrate counts make
+  per-tool startup the dominant cost); pooled multi-genome execution
+  for the second pass is a future enhancement.
+
+- **Implementation notes:**
+  - Per-genome step: `_step_build_passenger_fasta` reads the t5ss
+    handler's domains TSV, substitutes passenger sequences into a
+    new FASTA keyed by the same locus_tags, and writes a side-car
+    TSV recording per-locus routing.
+  - Routing dispatch: `PipelineRunner._annotation_input_proteins(tool)`
+    returns the passenger-substituted FASTA for the five routed
+    tools and the full FASTA for IPS (and any future non-routed
+    tool).
+  - Multi-genome: `MultiGenomeRunner._pool_segment_d_inputs` builds
+    two pooled substrate-only FASTAs (`pooled_substrate_proteins.faa`
+    full + `pooled_substrate_proteins_passenger.faa` substituted)
+    and the pool runner's annotation steps route via the same helper.
+
 ---
 
 ## 5. Proximity analysis

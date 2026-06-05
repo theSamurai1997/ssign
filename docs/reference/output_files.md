@@ -73,6 +73,8 @@ producing step was skipped or had no output.
 | InterProScan | `interpro_domains`, `interpro_go_terms`, `interpro_pfam_ids`, `interpro_descriptions` |
 | Ortholog groups | `ortholog_group`, `og_n_members`, `og_mean_pident` |
 | Tool inventory | `annotation_tools` |
+| T5aSS annotation source | `t5_annotation_source` (`passenger` or `full`; empty for non-T5aSS rows). See `design_decisions.md` § 4.3. |
+| T5aSS whole-protein second pass (opt-in via `--t5ass-annotate-whole`) | `t5ass_whole_eggnog_*`, `t5ass_whole_blastp_*`, `t5ass_whole_ecod_top1_*`, `t5ass_whole_pfam_top1_*`, `t5ass_whole_pdb_top1_*`, `t5ass_whole_<protparam>_*`. Each mirrors the corresponding default-pass column on T5aSS substrates only. |
 | Sequence | `sequence` (always last when present) |
 
 Any tool-specific column not listed above (e.g. EggNOG, pLM-BLAST, PLM-Effector
