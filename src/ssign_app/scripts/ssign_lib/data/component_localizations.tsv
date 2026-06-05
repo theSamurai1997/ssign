@@ -1,0 +1,128 @@
+# Expected subcellular localizations for secretion-system machinery components.
+#
+# Used by the per-system localization-correctness gate (required_fraction_correct):
+# for each MacSyFinder-validated SS, the gate compares each component's
+# DeepLocPro `predicted_localization` against the `acceptable_localizations`
+# set below; the system is dropped when the fraction matching falls below
+# the user's --required-fraction-correct threshold (default 0.8). Components
+# whose DLP max_probability is below --dlp-confidence-threshold (default 0.8)
+# are excluded from the denominator. The literature review behind this file
+# is task #58a (2026-06-05); citations are primary structural / topology
+# papers where possible.
+#
+# Schema (tab-separated):
+#   ss_type                  TXSScan model name (matches ss_components.tsv ss_type col).
+#   txsscan_gene_name        TXSScan v2.1 component name from the model XMLs at
+#                              /home/teo/.macsyfinder/models/TXSScan/.
+#   protein_alias            Common name(s) — informational only, not matched.
+#   acceptable_localizations Pipe-separated set in DLP's exact 5-class vocab:
+#                              "Cytoplasmic", "Cytoplasmic Membrane", "Periplasmic",
+#                              "Outer Membrane", "Extracellular". A predicted
+#                              localization is "correct" if it is a member of this set.
+#                              An EMPTY value means "no defensible expected
+#                              localization": the gate treats this component the
+#                              same as a low-DLP-confidence call — excluded from
+#                              both the numerator and denominator of fraction-correct.
+#   citation_pmid            PubMed ID of the primary citation; empty if none.
+#   citation_doi             DOI of the primary citation; empty if none.
+#   notes                    One-line caveat or rationale, esp. for borderline cases.
+#
+# Localizations track what DLP would call from the static protein sequence
+# (not lifecycle-dependent post-secretion compartments — e.g. T6SS Hcp/VgrG
+# are listed as Cytoplasmic because DLP scores the pre-firing sequence,
+# not the fired tube/spike).
+#
+# Comment lines start with '#'; the schema header is the first non-comment line.
+ss_type	txsscan_gene_name	protein_alias	acceptable_localizations	citation_pmid	citation_doi	notes
+T1SS	T1SS_abc	HlyB / PrtD	Cytoplasmic Membrane	36055198	10.1016/j.cell.2022.07.017	ABC transporter; integral IM, ~6 TM helices, cytoplasmic NBD
+T1SS	T1SS_mfp	HlyD / PrtE	Cytoplasmic Membrane	9822594	10.1093/emboj/17.22.6487	IM-anchored by N-terminal TM; bulk of mass is periplasmic adaptor but DLP scores the TM
+T1SS	T1SS_omf	TolC	Outer Membrane	10879525	10.1038/35016007	OM β-barrel + α-helical periplasmic tunnel; multi_system in TXSScan
+T2SS	T2SS_gspE	GspE	Cytoplasmic	25092625	10.1016/j.jsb.2014.07.006	Soluble cytoplasmic ATPase; no TM helix; recruited to IM via GspL
+T2SS	T2SS_gspF	GspF	Cytoplasmic Membrane	30767847	10.1128/ecosalplus.ESP-0034-2018	Polytopic IM (3 TMs), assembly platform
+T2SS	T2SS_gspL	GspL	Cytoplasmic Membrane	15533433	10.1016/j.jmb.2004.09.062	Bitopic IM: large cytoplasmic N-domain + single TM + small periplasmic C-domain
+T2SS	T2SS_gspM	GspM	Cytoplasmic Membrane	30767847	10.1128/ecosalplus.ESP-0034-2018	Bitopic IM, partners with GspL
+T2SS	T2SS_gspC	GspC	Cytoplasmic Membrane	21931548	10.1371/journal.ppat.1002228	Bitopic IM (HR domain + TM); periplasmic C-domain contacts GspD N0
+T2SS	T2SS_gspD	GspD	Outer Membrane	28067918	10.1038/nsmb.3350	15-mer OM secretin β-barrel; periplasmic N0-N3 ring
+T2SS	T2SS_gspG	GspG	Cytoplasmic Membrane|Periplasmic	8096341	10.1073/pnas.90.6.2404	Major pseudopilin; class-III SP looks like TM to DLP on full-length prepilin
+T2SS	T2SS_gspH	GspH	Cytoplasmic Membrane|Periplasmic	8096341	10.1073/pnas.90.6.2404	Minor pseudopilin, same routing as GspG
+T2SS	T2SS_gspI	GspI	Cytoplasmic Membrane|Periplasmic	8096341	10.1073/pnas.90.6.2404	Minor pseudopilin
+T2SS	T2SS_gspJ	GspJ	Cytoplasmic Membrane|Periplasmic	8096341	10.1073/pnas.90.6.2404	Minor pseudopilin
+T2SS	T2SS_gspK	GspK	Cytoplasmic Membrane|Periplasmic	8096341	10.1073/pnas.90.6.2404	Largest minor pseudopilin; most likely Periplasmic call
+T2SS	T2SS_gspN	GspN	Cytoplasmic Membrane	30767847	10.1128/ecosalplus.ESP-0034-2018	Bitopic IM accessory
+T2SS	T2SS_gspO	GspO	Cytoplasmic Membrane	8096341	10.1073/pnas.90.6.2404	Polytopic IM aspartic protease (prepilin peptidase)
+T3SS	T3SS_sctN	InvC / YscN / EscN	Cytoplasmic	28392566	10.1038/nrmicro.2017.20	Soluble hexameric ATPase peripherally tethered to IM by SctL stator
+T3SS	T3SS_sctQ	SpaO / YscQ	Cytoplasmic	30242280	10.1038/s41467-018-06298-8	Sorting platform; cytoplasmic pods beneath C-ring
+T3SS	T3SS_sctJ	PrgK / YscJ	Cytoplasmic Membrane	30242280	10.1038/s41467-018-06298-8	IM lipoprotein anchored to outer leaflet of IM
+T3SS	T3SS_sctV	InvA / YscV	Cytoplasmic Membrane	33774138	10.1016/j.jsb.2021.107729	Polytopic IM (8 TMs) with large cytoplasmic C-terminal torus
+T3SS	T3SS_sctR	SpaP / YscR	Cytoplasmic Membrane	28392566	10.1038/nrmicro.2017.20	Polytopic IM, export apparatus core
+T3SS	T3SS_sctS	SpaQ / YscS	Cytoplasmic Membrane	28392566	10.1038/nrmicro.2017.20	Small polytopic IM (~88 aa); DLP may be low-confidence
+T3SS	T3SS_sctT	SpaR / YscT	Cytoplasmic Membrane	28392566	10.1038/nrmicro.2017.20	Polytopic IM
+T3SS	T3SS_sctU	SpaS / YscU	Cytoplasmic Membrane	28392566	10.1038/nrmicro.2017.20	Bipartite topology (N-term IM, C-term cytoplasmic autocleaved switch)
+T3SS	T3SS_sctC	InvG / YscC	Outer Membrane	30242280	10.1038/s41467-018-06298-8	15-subunit OM secretin ring; requires pilotin SctG for assembly
+pT4SSt	T4SS_t4cp1	VirD4	Cytoplasmic Membrane	15134575	10.2174/1381612043384817	Integral IM coupling factor; N-terminal TM anchor + cytoplasmic ATPase
+pT4SSt	T4SS_virb4	VirB4	Cytoplasmic|Cytoplasmic Membrane	24670658	10.1038/nature13081	Hexamer-of-dimers at cytoplasmic face of IM; N-terminal TM segment; sequence is largely soluble
+pT4SSt	T4SS_T_virB1	VirB1	Periplasmic	10852875	10.1128/JB.182.12.3437-3445.2000	Lytic transglycosylase; periplasmic. Cleaved VirB1* is extracellular but not what DLP sees on full-length
+pT4SSt	T4SS_T_virB2	VirB2	Cytoplasmic Membrane|Extracellular	36513067	10.1016/j.str.2022.11.007	Major pilin: precursor is IM (DLP call), mature pilin is extracellular T-pilus
+pT4SSt	T4SS_T_virB3	VirB3	Cytoplasmic Membrane	20348257	10.1128/JB.01331-09	2-TM IM with cytoplasmic N and C termini
+pT4SSt	T4SS_T_virB5	VirB5	Cytoplasmic Membrane|Extracellular	17975085	10.1099/mic.0.2007/010462-0	Minor pilin tip protein; has Sec signal so DLP may also call periplasm-en-route
+pT4SSt	T4SS_T_virB6	VirB6	Cytoplasmic Membrane	10913084	10.1128/JB.182.16.4505-4511.2000	Polytopic IM (~5 TMs), translocation channel component
+pT4SSt	T4SS_T_virB8	VirB8	Cytoplasmic Membrane	20427270	10.1074/jbc.M110.110296	Bitopic IM; periplasmic C-domain
+pT4SSt	T4SS_T_virB9	VirB9	Outer Membrane|Periplasmic	15569944	10.1073/pnas.0405843101	C-domain forms OM core complex with VirB7/B10; N-domain periplasmic
+pT4SSt	T4SS_T_virB10	VirB10	Cytoplasmic Membrane|Outer Membrane	24670658	10.1038/nature13081	Spans both membranes; N-terminal TM anchor dominates DLP signal; C-terminal "antennae" insert into OM
+pT4SSt	T4SS_T_virB11	VirB11	Cytoplasmic	12177441	10.1073/pnas.172390299	Soluble hexameric ATPase recruited to IM via VirB4
+pT4SSi	T4SS_t4cp1	DotL / LvhD4	Cytoplasmic Membrane	15134575	10.2174/1381612043384817	Integral IM coupling factor (Dot/Icm T4CP); same family as VirD4
+pT4SSi	T4SS_virb4	DotO / IcmB	Cytoplasmic	29784975	10.1038/s41564-018-0165-z	VirB4-family hexameric ATPase docked at IM cytoplasmic face
+pT4SSi	T4SS_I_traE	DotO / IcmB (paralog)	Cytoplasmic	10564519	10.1046/j.1365-2958.1999.01642.x	R64 TraE = IcmB/DotO ortholog (62-74% id); same Cytoplasm call
+pT4SSi	T4SS_I_traI	TraI (R64 relaxase)	Cytoplasmic	9393692	10.1128/jb.179.23.7291-7297.1997	R64-only; nicks oriT in cytoplasm. No canonical Dot/Icm ortholog
+pT4SSi	T4SS_I_traK	DotJ / IcmT	Cytoplasmic Membrane	11748165	10.1128/IAI.70.1.69-78.2002	Small IM-spanning partner of IcmF/DotU subassembly
+pT4SSi	T4SS_I_traL	TraL	Cytoplasmic Membrane	8349545	10.1128/jb.175.16.5035-5042.1993	R64 single-TM IM accessory; no direct Dot/Icm ortholog. Citation covers R64 traA-D operon context, not TraL specifically
+pT4SSi	T4SS_I_traM	DotI / IcmL	Cytoplasmic Membrane	26039110	10.1038/srep10912	Bitopic IM, VirB8-like fold, single-TM anchor + periplasmic domain
+pT4SSi	T4SS_I_traN	DotH / IcmK	Outer Membrane|Periplasmic	32876045	10.7554/eLife.59530	OM ring component with large periplasmic ring extension; either OM or Periplasm acceptable
+pT4SSi	T4SS_I_traO	DotG / IcmE	Cytoplasmic Membrane|Outer Membrane	17040490	10.1111/j.1365-2958.2006.05446.x	VirB10-like: IM-anchored N-term, long periplasmic stalk, OM-inserted C-terminus
+pT4SSi	T4SS_I_traP	DotF / IcmG	Cytoplasmic Membrane	17040490	10.1111/j.1365-2958.2006.05446.x	Bitopic IM with large periplasmic domain contacting substrates
+pT4SSi	T4SS_I_traQ	DotE / DotV				No evidence found; component not factored into the gate (treated like a low-confidence DLP call)
+pT4SSi	T4SS_I_traR	DotD / DotP				No evidence found; component not factored into the gate (treated like a low-confidence DLP call)
+pT4SSi	T4SS_I_traT	DotN / IcmJ				No evidence found; component not factored into the gate (treated like a low-confidence DLP call)
+pT4SSi	T4SS_I_traW	IcmX	Periplasmic	10858211	10.1128/IAI.68.7.3971-3982.2000	Sec-cleaved periplasmic protein; truncated form leaks extracellularly but full-length predicts Periplasm
+pT4SSi	T4SS_I_traY	DotA	Cytoplasmic Membrane	11689436	10.1093/emboj/20.21.5962	8-TM polytopic IM; OMV-released as lifecycle quirk, but sequence-derived call is IM
+pT4SSi	T4SS_I_trbA	DotM / IcmP	Cytoplasmic Membrane	22694730	10.1111/j.1365-2958.2012.08118.x	Bitopic IM, partners with DotL (T4CP) for substrate recognition
+pT4SSi	T4SS_I_trbB	TrbB	Periplasmic	8626273	10.1128/jb.178.6.1491-1497.1996	R64 disulfide-handling periplasmic protein; no direct Dot/Icm ortholog
+T5aSS	T5aSS_PF03797	Classical autotransporter β-barrel + passenger	Outer Membrane|Extracellular	22337167	10.1038/nrmicro2733	Passenger faces extracellular; barrel sits in OM. Existing T5SS_COMPONENT_RULES preserved
+T5bSS	T5bSS_translocator	TpsB (e.g. FhaC)	Outer Membrane	17702945	10.1126/science.1143860	TpsB β-barrel pore + 2 periplasmic POTRA domains. TpsA passenger is a separate gene, not in TXSScan
+T5cSS	T5cSS_PF03895	Trimeric autotransporter (YadA-like) β-barrel + passenger	Outer Membrane|Extracellular	15866036	10.1016/j.tim.2005.03.004	Trimeric β-barrel anchor (3 monomers × 4 strands); head/stalk passenger extracellular
+T6SSi	T6SSi_tssM	TssM / IcmF	Cytoplasmic Membrane|Periplasmic	25811612	10.1371/journal.pone.0122187	3-TM IM with large (~900 aa) periplasmic C-terminal domain; DLP may pick up either
+T6SSi	T6SSi_tssL	TssL / DotU	Cytoplasmic Membrane	27600409	10.1016/j.jmb.2016.08.030	Single C-terminal TM; large cytoplasmic N-domain binds TssK
+T6SSi	T6SSi_tssJ	TssJ	Outer Membrane	22102820	10.1371/journal.ppat.1002386	OM lipoprotein (lipidated, Lol-pathway)
+T6SSi	T6SSi_tssB	TssB / VipA	Cytoplasmic	23861778	10.1371/journal.pone.0067647	Contractile sheath subunit; cytoplasmic before and during firing
+T6SSi	T6SSi_tssC	TssC / VipB	Cytoplasmic	23861778	10.1371/journal.pone.0067647	Sheath subunit, partners with TssB
+T6SSi	T6SSi_tssD	Hcp	Cytoplasmic	16432199	10.1073/pnas.0510322103	Inner tube subunit; pre-firing cytoplasmic. Post-firing extracellular but DLP scores sequence
+T6SSi	T6SSi_tssI	VgrG	Cytoplasmic	16763151	10.1126/science.1128393	Spike protein; pre-firing cytoplasmic. Post-firing extracellular
+T6SSi	T6SSi_tssH	ClpV	Cytoplasmic	22367545	10.1038/nature10846	AAA+ ATPase that disassembles contracted sheath; cytoplasmic
+T6SSi	T6SSi_tssA	TssA	Cytoplasmic	26909579	10.1038/nature17182	Tail-tip priming complex; cytoplasmic, caps growing sheath-tube
+T6SSi	T6SSi_tssE	TssE	Cytoplasmic	26460929	10.1371/journal.pgen.1005545	Baseplate wedge (gp25-like); cytoplasmic
+T6SSi	T6SSi_tssF	TssF	Cytoplasmic	26460929	10.1371/journal.pgen.1005545	Baseplate wedge (gp6-like); cytoplasmic
+T6SSi	T6SSi_tssG	TssG	Cytoplasmic	26460929	10.1371/journal.pgen.1005545	Baseplate wedge; contacts cytoplasmic loop of TssM
+T6SSi	T6SSi_tssK	TssK	Cytoplasmic	28650463	10.1038/nmicrobiol.2017.103	Baseplate hub, phage-receptor-like; cytoplasmic
+T6SSi	T6SSi_evpJ	EvpJ				No evidence found; component not factored into the gate (treated like a low-confidence DLP call)
+T6SSii	T6SSii_iglA	IglA	Cytoplasmic	19201795	10.1128/JB.01759-08	TssB-family sheath subunit (FPI)
+T6SSii	T6SSii_iglB	IglB	Cytoplasmic	19201795	10.1128/JB.01759-08	TssC-family sheath subunit
+T6SSii	T6SSii_iglC	IglC	Cytoplasmic	9169749	10.1128/iai.65.6.2183-2189.1997	Hcp-family; pre-firing cytoplasmic tube subunit
+T6SSii	T6SSii_iglE	IglE	Outer Membrane	24616435	10.1128/IAI.01359-13	OM lipoprotein (TssJ equivalent in FPI)
+T6SSii	T6SSii_dotU	DotU	Cytoplasmic Membrane	27600409	10.1016/j.jmb.2016.08.030	TssL-family IM partner
+T6SSii	T6SSii_vgrG	VgrG	Cytoplasmic	16763151	10.1126/science.1128393	Pre-firing cytoplasmic spike
+T6SSii	T6SSii_pdpB	PdpB / IcmF	Cytoplasmic Membrane	25811612	10.1371/journal.pone.0122187	TssM-family IM with periplasmic C-domain
+T6SSii	T6SSii_iglD	IglD				No evidence found; component not factored into the gate (treated like a low-confidence DLP call)
+T6SSii	T6SSii_iglF	IglF				No evidence found; component not factored into the gate (treated like a low-confidence DLP call)
+T6SSii	T6SSii_iglG	IglG				No evidence found; component not factored into the gate (treated like a low-confidence DLP call)
+T6SSii	T6SSii_iglH	IglH				No evidence found; component not factored into the gate (treated like a low-confidence DLP call)
+T6SSii	T6SSii_iglI	IglI				No evidence found; component not factored into the gate (treated like a low-confidence DLP call)
+T6SSii	T6SSii_iglJ	IglJ				No evidence found; component not factored into the gate (treated like a low-confidence DLP call)
+T6SSii	T6SSii_pdpA	PdpA				No evidence found; component not factored into the gate (treated like a low-confidence DLP call)
+T6SSii	T6SSii_pdpC	PdpC				No evidence found; component not factored into the gate (treated like a low-confidence DLP call)
+T6SSii	T6SSii_pdpD	PdpD				No evidence found; component not factored into the gate (treated like a low-confidence DLP call)
+T6SSii	T6SSii_pdpE	PdpE				No evidence found; component not factored into the gate (treated like a low-confidence DLP call)
+T2SS	T4aP_pilD	PilD prepilin peptidase (exchangeable for GspO)	Cytoplasmic Membrane	8096341	10.1073/pnas.90.6.2404	Polytopic IM aspartic protease; same family as GspO. TXSScan exchangeable for T2SS_gspO
+T2SS	ComM_comC	ComC competence prepilin peptidase (exchangeable for GspO)	Cytoplasmic Membrane	7783624	10.1111/j.1365-2958.1995.tb02267.x	Polytopic IM aspartic protease (type IV prepilin peptidase family). TXSScan exchangeable for T2SS_gspO
+T3SS	T2SS_gspD	T2SS secretin (exchangeable for SctC)	Outer Membrane	28067918	10.1038/nsmb.3350	OM β-barrel secretin. TXSScan exchangeable for T3SS_sctC in T3SS context
+T3SS	T4aP_pilQ	T4aP secretin (exchangeable for SctC)	Outer Membrane	23028322	10.1371/journal.ppat.1002923	OM β-barrel secretin family. TXSScan exchangeable for T3SS_sctC
+T3SS	Tad_rcpA	Tad secretin RcpA (exchangeable for SctC)	Outer Membrane	17435791	10.1038/nrmicro1636	OM secretin family. TXSScan exchangeable for T3SS_sctC
