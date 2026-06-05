@@ -74,6 +74,15 @@ def run_local_blastp(query_fasta, db_path, evalue, exclude_taxid, num_threads=No
         "500",
         "-num_threads",
         str(num_threads),
+        # -mt_mode 1 = parallelise across queries instead of the default
+        # 0 (parallelise across DB chunks). ssign's BLASTp call queries a
+        # small substrate set (~16-100 proteins) against a large DB (NR
+        # ~390 GB), so query-parallel scales linearly with thread count
+        # whereas DB-chunk-parallel hits diminishing returns past ~4
+        # threads on small query sets (NCBI BLAST+ user guide 4.2.1).
+        # Takes effect only when num_threads > 1.
+        "-mt_mode",
+        "1",
     ]
     if exclude_taxid:
         cmd.extend(["-negative_taxids", str(exclude_taxid)])
