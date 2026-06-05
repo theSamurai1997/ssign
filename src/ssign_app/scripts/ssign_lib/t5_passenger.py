@@ -30,9 +30,9 @@ import logging
 from pathlib import Path
 from typing import Literal
 
-from ssign_lib.constants import LINKER_LENGTH, MIN_PASSENGER_FOR_ANNOTATION
-from ssign_lib.fasta_io import read_fasta, write_fasta
-from ssign_lib.parsing import parse_int_or_none
+from .constants import LINKER_LENGTH, MIN_PASSENGER_FOR_ANNOTATION
+from .fasta_io import read_fasta, write_fasta
+from .parsing import parse_int_or_none
 
 logger = logging.getLogger(__name__)
 
