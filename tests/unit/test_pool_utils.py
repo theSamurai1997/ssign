@@ -266,6 +266,18 @@ def _read_tsv(path):
         return list(csv.DictReader(f, delimiter="\t"))
 
 
+def _write_csv(path, fieldnames, rows):
+    with open(path, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=fieldnames)  # default comma
+        w.writeheader()
+        w.writerows(rows)
+
+
+def _read_csv(path):
+    with open(path) as f:
+        return list(csv.DictReader(f))  # default comma
+
+
 class TestPoolAndSplitTsv:
     def test_pool_then_split_recovers_per_genome(self, tmp_path):
         a = tmp_path / "a.tsv"
@@ -357,6 +369,66 @@ class TestPoolAndSplitTsv:
         split = split_tsv_by_source(pooled, tmp_path / "out")
         assert _read_tsv(split["ga"]) == [{"locus_tag": "XYZ_001", "x": "a"}]
         assert _read_tsv(split["gb"]) == [{"locus_tag": "XYZ_001", "x": "b"}]
+
+    # ------------------------------------------------------------------
+    # CSV-format handling — regression for the 2026-06-05 multi-genome
+    # crash where _pool_interproscan.csv was read with a tab delimiter
+    # and the entire comma-separated header parsed as one field.
+    # ------------------------------------------------------------------
+
+    def test_split_csv_input_preserves_csv_output(self, tmp_path):
+        """A `.csv` pooled file is read comma-delimited and split files keep `.csv`."""
+        pooled = tmp_path / "_pool_interproscan.csv"
+        _write_csv(
+            pooled,
+            ["locus_tag", "interpro_domains", "interpro_pfam_ids"],
+            [
+                {"locus_tag": f"g1{SEPARATOR}P1", "interpro_domains": "Sec61", "interpro_pfam_ids": "PF00344"},
+                {"locus_tag": f"g2{SEPARATOR}P2", "interpro_domains": "TonB", "interpro_pfam_ids": "PF03544"},
+            ],
+        )
+        split = split_tsv_by_source(pooled, tmp_path / "out")
+        assert set(split.keys()) == {"g1", "g2"}
+        for sid, path in split.items():
+            assert path.suffix == ".csv", f"{sid} output should keep .csv extension"
+
+        g1 = _read_csv(split["g1"])
+        assert g1 == [{"locus_tag": "P1", "interpro_domains": "Sec61", "interpro_pfam_ids": "PF00344"}]
+
+    def test_pool_tsvs_csv_round_trip(self, tmp_path):
+        """Two CSV inputs round-trip through pool + split with comma delimiters end-to-end."""
+        a = tmp_path / "a.csv"
+        _write_csv(a, ["locus_tag", "x"], [{"locus_tag": "A1", "x": "11"}])
+        b = tmp_path / "b.csv"
+        _write_csv(b, ["locus_tag", "x"], [{"locus_tag": "B1", "x": "21"}])
+
+        pooled = tmp_path / "pool.csv"
+        n = pool_tsvs([("g1", a), ("g2", b)], pooled)
+        assert n == 2
+        # Pooled file must be readable as comma-delimited.
+        pooled_rows = _read_csv(pooled)
+        assert {r["locus_tag"] for r in pooled_rows} == {f"g1{SEPARATOR}A1", f"g2{SEPARATOR}B1"}
+
+        split = split_tsv_by_source(pooled, tmp_path / "out")
+        assert _read_csv(split["g1"]) == [{"locus_tag": "A1", "x": "11"}]
+        assert _read_csv(split["g2"]) == [{"locus_tag": "B1", "x": "21"}]
+
+    def test_pool_handles_mixed_csv_and_tsv_sources(self, tmp_path):
+        """If one source is CSV and another is TSV, each is read with its own delimiter.
+
+        Not a realistic ssign workflow (per-tool outputs are uniform) but
+        the helper should not assume the sources share a format.
+        """
+        a = tmp_path / "a.csv"
+        _write_csv(a, ["locus_tag", "x"], [{"locus_tag": "A1", "x": "11"}])
+        b = tmp_path / "b.tsv"
+        _write_tsv(b, ["locus_tag", "x"], [{"locus_tag": "B1", "x": "21"}])
+
+        pooled = tmp_path / "pool.tsv"
+        n = pool_tsvs([("g1", a), ("g2", b)], pooled)
+        assert n == 2
+        pooled_rows = _read_tsv(pooled)
+        assert {r["locus_tag"] for r in pooled_rows} == {f"g1{SEPARATOR}A1", f"g2{SEPARATOR}B1"}
 
 
 @given(

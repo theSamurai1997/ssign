@@ -24,6 +24,24 @@ logger = logging.getLogger(__name__)
 
 SEPARATOR = "__"
 
+# Map file extension → csv delimiter. ssign wrappers emit CSV
+# (interproscan, blastp, protparam — csv.DictWriter default ',') or TSV
+# (eggnog, plm_blast, signalp, etc. — explicit '\t'); pool_tsvs and
+# split_tsv_by_source preserve whatever the wrapper chose so downstream
+# integrate_annotations sees the per-genome file in the same format the
+# single-genome path produces.
+_DELIMITER_BY_EXT = {".csv": ",", ".tsv": "\t"}
+
+
+def _delimiter_for(path: Path | str) -> str:
+    """Return the delimiter implied by a path's extension.
+
+    Defaults to tab when the extension isn't ``.csv`` or ``.tsv`` (ssign's
+    convention is TSV for ad-hoc intermediate files). Callers should pass
+    paths whose suffix matches the wrapper's emitted format.
+    """
+    return _DELIMITER_BY_EXT.get(Path(path).suffix.lower(), "\t")
+
 
 def make_prefixed_id(sample_id: str, locus_tag: str) -> str:
     return f"{sample_id}{SEPARATOR}{locus_tag}"
@@ -141,7 +159,7 @@ def pool_tsvs(
     for sample_id, src in sources:
         validate_sample_id(sample_id)
         with open(src) as f:
-            reader = csv.DictReader(f, delimiter="\t")
+            reader = csv.DictReader(f, delimiter=_delimiter_for(src))
             source_fields = list(reader.fieldnames or [])
             if id_column not in source_fields:
                 raise ValueError(f"pool_tsvs: id_column {id_column!r} not in {src} columns {source_fields}")
@@ -161,7 +179,7 @@ def pool_tsvs(
         return 0
 
     with open(dest, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=all_fields, delimiter="\t")
+        writer = csv.DictWriter(f, fieldnames=all_fields, delimiter=_delimiter_for(dest))
         writer.writeheader()
         writer.writerows(pooled_rows)
     return len(pooled_rows)
@@ -183,11 +201,17 @@ def split_tsv_by_source(
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    delimiter = _delimiter_for(pooled_tsv)
+    # Mirror the input extension on output so downstream readers (e.g.
+    # integrate_annotations) consume per-genome split files exactly as
+    # they would the single-genome wrapper output of the same tool.
+    out_ext = pooled_tsv.suffix or ".tsv"
+
     buffers: dict[str, list[dict[str, str]]] = {}
     fieldnames: list[str] = []
 
     with open(pooled_tsv) as f:
-        reader = csv.DictReader(f, delimiter="\t")
+        reader = csv.DictReader(f, delimiter=delimiter)
         fieldnames = list(reader.fieldnames or [])
         if not fieldnames:
             return {}
@@ -204,9 +228,9 @@ def split_tsv_by_source(
 
     paths: dict[str, Path] = {}
     for sample_id, rows in buffers.items():
-        out_path = out_dir / f"{sample_id}.tsv"
+        out_path = out_dir / f"{sample_id}{out_ext}"
         with open(out_path, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter="\t")
+            writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter=delimiter)
             writer.writeheader()
             writer.writerows(rows)
         paths[sample_id] = out_path
