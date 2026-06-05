@@ -182,11 +182,6 @@ class MultiGenomeRunner:
             for c in self.configs
         }
 
-        # Per-genome stages are identical (uniform skip flags); slice once.
-        ref = next(iter(runners.values()))
-        per_genome_stages = ref._build_stages()
-        segments = slice_stages_by_segment(per_genome_stages)
-
         # Top-level outdir is the shared parent of all per-genome outdirs.
         # Pool runner artefacts land in <top_outdir>/_pool/.
         top_outdir = Path(os.path.commonpath([c.outdir for c in self.configs])).resolve()
@@ -194,30 +189,28 @@ class MultiGenomeRunner:
         pool_outdir.mkdir(parents=True, exist_ok=True)
 
         # === Segment A (per-genome) ===
-        self._run_per_genome_segment(runners, segments["A"])
+        self._run_per_genome_segment(runners, "A")
 
         # === Pool boundary 1: pool neighborhoods ===
         pool_runner = self._make_pool_runner(top_outdir)
         self._pool_segment_b_inputs(runners, pool_runner, pool_outdir)
 
         # === Segment B (pooled) ===
-        if segments["B"]:
-            self._run_pool_segment(pool_runner, segments["B"])
-            self._split_pooled_outputs(runners, pool_runner, pool_outdir, _SEGMENT_B_OUTPUT_KEYS)
+        self._run_pool_segment(pool_runner, "B")
+        self._split_pooled_outputs(runners, pool_runner, pool_outdir, _SEGMENT_B_OUTPUT_KEYS)
 
         # === Segment C (per-genome) ===
-        self._run_per_genome_segment(runners, segments["C"])
+        self._run_per_genome_segment(runners, "C")
 
         # === Pool boundary 2: pool substrates + substrate-only proteomes ===
         self._pool_segment_d_inputs(runners, pool_runner, pool_outdir)
 
         # === Segment D (pooled) ===
-        if segments["D"]:
-            self._run_pool_segment(pool_runner, segments["D"])
-            self._split_pooled_outputs(runners, pool_runner, pool_outdir, _SEGMENT_D_OUTPUT_KEYS)
+        self._run_pool_segment(pool_runner, "D")
+        self._split_pooled_outputs(runners, pool_runner, pool_outdir, _SEGMENT_D_OUTPUT_KEYS)
 
         # === Segment E (per-genome) ===
-        self._run_per_genome_segment(runners, segments["E"])
+        self._run_per_genome_segment(runners, "E")
 
         if self.write_combined_summary:
             self._write_combined_summary(runners, top_outdir)
@@ -246,16 +239,37 @@ class MultiGenomeRunner:
         os.makedirs(pool_runner.config.outdir, exist_ok=True)
         return pool_runner
 
-    def _run_per_genome_segment(self, runners: dict[str, PipelineRunner], stages: list) -> None:
-        if not stages:
-            return
+    def _run_per_genome_segment(self, runners: dict[str, PipelineRunner], segment_letter: str) -> None:
+        """Build and run one segment on each per-genome runner.
+
+        Stages are built from each runner individually because the
+        ``(name, callable)`` tuples returned by ``_build_stages`` hold
+        bound methods. Reusing one runner's stage list across other
+        runners would silently execute the first runner's methods every
+        time (caught on 2026-06-05: all 4 genomes in a batched run
+        produced identical K-12 results because every runner re-ran
+        ref._step_extract_proteins on K-12's config).
+        """
         for sid, runner in runners.items():
             if not runner.work_dir:
                 runner.work_dir = tempfile.mkdtemp(prefix=f"ssign_{sid}_")
                 os.makedirs(runner.config.outdir, exist_ok=True)
+            stages = slice_stages_by_segment(runner._build_stages())[segment_letter]
+            if not stages:
+                continue
             runner._execute_stages(stages, skip_steps=set())
 
-    def _run_pool_segment(self, pool_runner: PipelineRunner, stages: list) -> None:
+    def _run_pool_segment(self, pool_runner: PipelineRunner, segment_letter: str) -> None:
+        """Build the pool runner's segment slice and execute it.
+
+        Same bound-method consideration as _run_per_genome_segment: slice
+        the pool_runner's OWN stages so the executed methods are bound to
+        pool_runner (reading pool_runner.files and writing into its
+        work_dir), not to some other runner.
+        """
+        stages = slice_stages_by_segment(pool_runner._build_stages())[segment_letter]
+        if not stages:
+            return
         pool_runner._execute_stages(stages, skip_steps=set())
 
     def _pool_segment_b_inputs(

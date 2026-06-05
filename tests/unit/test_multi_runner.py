@@ -395,3 +395,39 @@ class TestMultiGenomeFlow:
         assert set(out.keys()) == {"g1", "g2"}
         assert out["g1"] == ["g1_result"]
         assert out["g2"] == ["g2_result"]
+
+    def test_each_runner_builds_its_own_stages(self, n2_runner):
+        """Regression for the 2026-06-05 bound-method bug.
+
+        Stages returned by ``_build_stages`` hold method tuples bound to
+        their original instance. Reusing one runner's stages list across
+        other runners silently runs the FIRST runner's methods every time,
+        which manifested as a 4-genome batched CX3 run where every per-
+        genome ``step_timings.csv`` reported K-12's protein/substrate
+        counts (the first config's data) regardless of which genome's
+        config it nominally came from.
+
+        Fix: each runner must build its own stages list. This test pins
+        that by asserting ``_build_stages`` was called on each runner
+        instance — three times per per-genome runner (segments A, C, E)
+        and twice on the pool runner (segments B, D).
+        """
+        mgr, per_genome, pool, log, spies = n2_runner
+        per_genome["g1"].files["neighborhood_proteins"] = "/tmp/g1_nb.faa"
+        per_genome["g2"].files["neighborhood_proteins"] = "/tmp/g2_nb.faa"
+        per_genome["g1"].files["substrates_filtered"] = "/tmp/g1_sub.tsv"
+        per_genome["g2"].files["substrates_filtered"] = "/tmp/g2_sub.tsv"
+        per_genome["g1"].files["proteins"] = "/tmp/g1_p.faa"
+        per_genome["g2"].files["proteins"] = "/tmp/g2_p.faa"
+
+        with patch("ssign_app.scripts.ssign_lib.substrates.load_substrate_ids", return_value=set()):
+            mgr.run(resume=True)
+
+        for sid, runner in per_genome.items():
+            assert runner._build_stages.call_count >= 3, (
+                f"runner {sid} _build_stages called "
+                f"{runner._build_stages.call_count}x; expected >= 3 (segments A, C, E)"
+            )
+        assert pool._build_stages.call_count >= 2, (
+            f"pool runner _build_stages called {pool._build_stages.call_count}x; expected >= 2 (segments B, D)"
+        )
