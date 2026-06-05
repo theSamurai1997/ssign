@@ -81,6 +81,13 @@ MAP_GBFF_BAKTA_MIN_OVERLAP = 0.8
 MIN_PASSENGER_LENGTH = 100  # aa — below this = "minimal passenger"
 LINKER_LENGTH = 30  # aa — alpha-helix linker between passenger and barrel
 
+# Minimum passenger length for which we route annotation tools to the
+# passenger-only sequence (EggNOG / BLASTp / pLM-BLAST / HHsearch /
+# ProtParam). Below this, the full protein is used so the cpc-90 pre-screen
+# in pLM-BLAST and the homology searches have enough residues to work with.
+# IPS always sees the full protein regardless.
+MIN_PASSENGER_FOR_ANNOTATION = 25  # aa
+
 # Per-row quality flags emitted by t5ss_handler.py, ordered worst → best.
 # Lower numbers in T5_QUALITY_FLAG_RANK sort toward the top of the master CSV;
 # missing or empty flag = clean call, ranked 0. `no_signalp` and

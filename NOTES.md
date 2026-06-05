@@ -30,3 +30,8 @@ Tracks items skipped during tasks. One bullet per item: what, why, trigger to re
 ## Statistics
 
 - **(Resolved 2026-06-02)** The broken permutation + biased Fisher path was replaced by the A+ rewrite: opt-in `--enrichment-stats` flag, null sample of N=200 random non-SS-neighborhood proteins per genome, scipy binomial test per real SS system + per broad type, BH FDR. Multi-genome runs also emit a pooled view. See `enrichment_testing.py` + `pool_enrichment_stats` in `core/runner.py`.
+
+## Shared TSV/parsing helpers (#75a simplify follow-up, deferred 2026-06-05)
+
+- **Consolidate tolerant int parsing.** `t5_passenger._parse_int` and `t5ss_handler._parse_sp_end` both turn a TSV cell into `int | None` with empty-string and float-string tolerance. The sp_end variant additionally handles "22-23" range strings. Worth merging into a single `ssign_lib/parsing.py` helper with a flag for range-string handling. Revisit when a third call site appears, or as part of the next ssign_lib cleanup pass.
+- **Consolidate "load TSV → dict keyed by column" pattern.** At least 3 implementations: `t5_passenger.load_t5_classifications` (strict `locus_tag` only), `cross_validate_predictions._load_tsv_by_locus` (tolerant: locus_tag / protein_id / seq_id fallback), `enrichment_testing.load_predictions_keyed` (strict locus_tag). A shared `ssign_lib/tsv_io.py:load_tsv_by_key(path, key_column, required_columns=None)` would replace all three. Revisit before v1.0.0 docs sweep — it's a pre-publication readability improvement, not a behavior change.
