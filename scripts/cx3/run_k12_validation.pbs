@@ -79,9 +79,16 @@ for c in hmmsearch macsyfinder signalp6 deeplocpro emapper.py bakta hhblits tRNA
 done
 
 echo "===== ssign run START $(date -Is) ====="
+# SSIGN_EXTRA_ARGS appends additional ssign flags (e.g.
+# --t5ass-annotate-whole, --skip-protparam). Pass via
+#   qsub -v INPUT_GBFF=...,SSIGN_EXTRA_ARGS="--t5ass-annotate-whole" ...
+# Word-splits on whitespace in the variable so multiple flags work.
+: "${SSIGN_EXTRA_ARGS:=}"
+echo "extra args: $SSIGN_EXTRA_ARGS"
 ssign run "$INPUT_GBFF" \
   --outdir "$RUN_DIR/results" \
   --tier extended \
+  $SSIGN_EXTRA_ARGS \
   2>&1 | tee "$RUN_DIR/ssign.run.log"
 SSIGN_RC=${PIPESTATUS[0]}
 echo "===== ssign run END (rc=$SSIGN_RC) $(date -Is) ====="

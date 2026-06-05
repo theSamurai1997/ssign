@@ -52,9 +52,15 @@ export SSIGN_PLMBLAST_SCRIPT="$HOME/tools/pLM-BLAST/scripts/plmblast.py"
 test -f "$SSIGN_PLMBLAST_SCRIPT" || { echo "FATAL: SSIGN_PLMBLAST_SCRIPT not found at $SSIGN_PLMBLAST_SCRIPT"; exit 1; }
 
 echo "===== ssign run START $(date -Is) ====="
+# SSIGN_EXTRA_ARGS appends additional ssign flags. Word-splits on
+# whitespace, so multiple flags work. Pass via
+#   qsub -v INPUT_GBFFS=...,SSIGN_EXTRA_ARGS="--no-combined-summary" ...
+: "${SSIGN_EXTRA_ARGS:=}"
+echo "extra args: $SSIGN_EXTRA_ARGS"
 ssign run "${GENOME_LIST[@]}" \
     --outdir "$RUN_DIR" \
     --tier extended \
+    $SSIGN_EXTRA_ARGS \
     2>&1 | tee "$RUN_DIR/ssign.run.log"
 SSIGN_RC=${PIPESTATUS[0]}
 echo "===== ssign run END (rc=$SSIGN_RC) $(date -Is) ====="
