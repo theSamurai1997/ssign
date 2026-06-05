@@ -217,8 +217,23 @@ class MultiGenomeRunner:
         self._run_pool_segment(pool_runner, "D")
         self._split_pooled_outputs(runners, pool_runner, pool_outdir, _SEGMENT_D_OUTPUT_KEYS)
 
+        # === Optional pool t5ass_whole pass (between D and E) ===
+        # When any config has --t5ass-annotate-whole on and at least one
+        # genome has clean T5aSS substrates, the second annotation pass
+        # runs ONCE on the pool instead of N times per-genome. The
+        # per-genome t5ass_whole step in segment E is then skipped via
+        # the skip_steps argument below — it would otherwise re-do the
+        # work for each genome AND overwrite the split paths we just
+        # wired into runners[sid].files["t5ass_whole_<tool>"].
+        skip_e_steps: set[str] = set()
+        if any(c.t5ass_annotate_whole for c in self.configs):
+            if self._pool_t5ass_whole_inputs(runners, pool_runner, pool_outdir):
+                self._run_pool_t5ass_whole_segment(pool_runner, pool_outdir)
+                self._split_t5ass_whole_outputs(runners, pool_runner, pool_outdir)
+                skip_e_steps.add("t5ass_whole_annotations")
+
         # === Segment E (per-genome) ===
-        self._run_per_genome_segment(runners, "E")
+        self._run_per_genome_segment(runners, "E", skip_steps=skip_e_steps)
 
         if self.write_combined_summary:
             self._write_combined_summary(runners, top_outdir)
@@ -259,7 +274,20 @@ class MultiGenomeRunner:
         """
         return slice_stages_by_segment(runner._build_stages())[segment_letter]
 
-    def _run_per_genome_segment(self, runners: dict[str, PipelineRunner], segment_letter: SegmentLetter) -> None:
+    def _run_per_genome_segment(
+        self,
+        runners: dict[str, PipelineRunner],
+        segment_letter: SegmentLetter,
+        skip_steps: Optional[set[str]] = None,
+    ) -> None:
+        """Run the named segment for each per-genome runner.
+
+        ``skip_steps`` is forwarded to ``_execute_stages`` so callers can
+        suppress steps that have already run in a multi-genome pool
+        pass — e.g. ``t5ass_whole_annotations`` runs once on the pool
+        between segments D and E and should not re-fire per-genome.
+        """
+        skip = set(skip_steps) if skip_steps else set()
         for sid, runner in runners.items():
             if not runner.work_dir:
                 runner.work_dir = tempfile.mkdtemp(prefix=f"ssign_{sid}_")
@@ -267,7 +295,7 @@ class MultiGenomeRunner:
             stages = self._stages_for_segment(runner, segment_letter)
             if not stages:
                 continue
-            runner._execute_stages(stages, skip_steps=set())
+            runner._execute_stages(stages, skip_steps=skip)
 
     def _run_pool_segment(self, pool_runner: PipelineRunner, segment_letter: SegmentLetter) -> None:
         stages = self._stages_for_segment(pool_runner, segment_letter)
@@ -393,6 +421,157 @@ class MultiGenomeRunner:
             pooled_passenger = pool_outdir / "pooled_substrate_proteins_passenger.faa"
             pool_fastas(passenger_fasta_sources, pooled_passenger)
             pool_runner.files["proteins_for_passenger_tools"] = str(pooled_passenger)
+
+    def _pool_t5ass_whole_inputs(
+        self,
+        runners: dict[str, PipelineRunner],
+        pool_runner: PipelineRunner,
+        pool_outdir: Path,
+    ) -> bool:
+        """Pool T5aSS-only-clean substrates + full proteins across genomes.
+
+        Returns True if at least one genome contributed substrates (and
+        the pool t5ass_whole pass should fire), False otherwise.
+        Mirrors ``_pool_segment_d_inputs`` but on the T5aSS subset and
+        with the FULL protein sequence (not passenger-substituted) so
+        the second-pass tools see the whole autotransporter.
+        """
+        from ssign_app.scripts.ssign_lib.substrates import (
+            load_substrate_ids,
+            write_substrates_only_fasta,
+        )
+
+        t5_substrates_sources: list[tuple[str, Path]] = []
+        t5_full_fasta_sources: list[tuple[str, Path]] = []
+        for sid, r in runners.items():
+            t5_sub_path = r._build_t5ass_only_substrates_tsv()
+            if t5_sub_path is None:
+                continue
+            t5_substrates_sources.append((sid, Path(t5_sub_path)))
+
+            proteins = r.files.get("proteins")
+            if not proteins:
+                continue
+            t5_ids = load_substrate_ids(t5_sub_path)
+            if not t5_ids:
+                continue
+            per_genome_fasta = Path(r.work_dir) / f"{sid}_t5ass_substrate_proteins_full.faa"
+            write_substrates_only_fasta(proteins, t5_ids, str(per_genome_fasta))
+            t5_full_fasta_sources.append((sid, per_genome_fasta))
+
+        if not t5_substrates_sources:
+            return False
+
+        pooled_t5_subs = pool_outdir / "pooled_t5ass_substrates.tsv"
+        pool_tsvs(t5_substrates_sources, pooled_t5_subs)
+
+        pooled_t5_fasta = pool_outdir / "pooled_t5ass_substrate_proteins_full.faa"
+        if t5_full_fasta_sources:
+            pool_fastas(t5_full_fasta_sources, pooled_t5_fasta)
+
+        # Stash on pool_runner under disambiguated keys; the actual
+        # swap into substrates_filtered + proteins happens inside
+        # _run_pool_t5ass_whole_segment so the segment-D outputs aren't
+        # clobbered before split.
+        pool_runner.files["t5ass_only_substrates"] = str(pooled_t5_subs)
+        if t5_full_fasta_sources:
+            pool_runner.files["t5ass_full_proteins"] = str(pooled_t5_fasta)
+        return True
+
+    def _run_pool_t5ass_whole_segment(
+        self,
+        pool_runner: PipelineRunner,
+        pool_outdir: Path,
+    ) -> None:
+        """Run the 5 routed annotation tools once on the pooled T5aSS inputs.
+
+        Same hijack pattern as the single-genome
+        ``_step_t5ass_whole_annotations``: swap work_dir + substrates
+        + drop the passenger FASTA so the step methods see the full
+        pooled FASTA, run each tool, column-prefix the output, store
+        under ``pool_runner.files["t5ass_whole_<tool>"]``. Restores
+        the segment-D state in ``finally``.
+        """
+        import shutil
+
+        from ssign_app.core.runner import _rename_csv_columns_with_prefix
+
+        t5_sub_path = pool_runner.files.get("t5ass_only_substrates", "")
+        t5_full_fasta = pool_runner.files.get("t5ass_full_proteins", "")
+        if not t5_sub_path or not t5_full_fasta:
+            return
+
+        tools = PipelineRunner._T5ASS_WHOLE_TOOLS
+        second_work_dir = tempfile.mkdtemp(prefix="ssign_pool_t5ass_whole_")
+        saved_work_dir = pool_runner.work_dir
+        saved_substrates = pool_runner.files.get("substrates_filtered")
+        saved_proteins = pool_runner.files.get("proteins")
+        saved_passenger = pool_runner.files.get("proteins_for_passenger_tools")
+        saved_outputs: dict[str, object] = {tool: pool_runner.files.get(tool) for tool in tools}
+
+        pool_runner.work_dir = second_work_dir
+        pool_runner.files["substrates_filtered"] = t5_sub_path
+        pool_runner.files["proteins"] = t5_full_fasta
+        pool_runner.files.pop("proteins_for_passenger_tools", None)
+
+        try:
+            for tool in tools:
+                if saved_outputs[tool] is None:
+                    continue  # main pool pass didn't run this tool
+                try:
+                    step_method = getattr(pool_runner, f"_step_{tool}")
+                    result = step_method()
+                    if not result.success:
+                        logger.warning("pool t5ass_whole %s failed: %s", tool, result.message[:120])
+                        continue
+                    tool_output = pool_runner.files.get(tool, "")
+                    if not tool_output or not os.path.exists(tool_output):
+                        continue
+                    ext = os.path.splitext(tool_output)[1]
+                    final_path = pool_outdir / f"_pool_t5ass_whole_{tool}{ext}"
+                    _rename_csv_columns_with_prefix(
+                        tool_output, str(final_path), prefix="t5ass_whole_", keep_columns={"locus_tag"}
+                    )
+                    saved_outputs[tool] = (saved_outputs[tool], str(final_path))
+                except Exception as e:
+                    logger.warning("pool t5ass_whole %s raised: %s", tool, str(e)[:120])
+        finally:
+            pool_runner.work_dir = saved_work_dir
+            if saved_substrates is not None:
+                pool_runner.files["substrates_filtered"] = saved_substrates
+            if saved_proteins is not None:
+                pool_runner.files["proteins"] = saved_proteins
+            if saved_passenger is not None:
+                pool_runner.files["proteins_for_passenger_tools"] = saved_passenger
+            for tool, info in saved_outputs.items():
+                if isinstance(info, tuple):
+                    main_path, t5_path = info
+                    pool_runner.files[tool] = main_path
+                    pool_runner.files[f"t5ass_whole_{tool}"] = t5_path
+                elif info is not None:
+                    pool_runner.files[tool] = info
+            try:
+                shutil.rmtree(second_work_dir)
+            except OSError:
+                pass
+
+    def _split_t5ass_whole_outputs(
+        self,
+        runners: dict[str, PipelineRunner],
+        pool_runner: PipelineRunner,
+        pool_outdir: Path,
+    ) -> None:
+        """Demux each ``t5ass_whole_<tool>`` pool file into per-genome splits."""
+        for tool in PipelineRunner._T5ASS_WHOLE_TOOLS:
+            key = f"t5ass_whole_{tool}"
+            pooled = pool_runner.files.get(key)
+            if not pooled or not os.path.exists(pooled):
+                continue
+            split_dir = pool_outdir / f"split_{key}"
+            paths = split_tsv_by_source(Path(pooled), split_dir, id_column="locus_tag")
+            for sid, path in paths.items():
+                if sid in runners:
+                    runners[sid].files[key] = str(path)
 
     def _write_combined_summary(self, runners: dict[str, PipelineRunner], top_outdir: Path) -> None:
         """Concatenate per-genome master CSVs into ``combined_summary.tsv``.

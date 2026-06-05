@@ -49,6 +49,7 @@ class _StubConfig:
     skip_plmblast: bool = False
     skip_protparam: bool = False
     enrichment_stats: bool = False
+    t5ass_annotate_whole: bool = False
 
 
 def _stub_step(step_id: str):
@@ -406,3 +407,106 @@ class TestMultiGenomeFlow:
         assert pool._build_stages.call_count >= 2, (
             f"pool runner _build_stages called {pool._build_stages.call_count}x; expected >= 2 (segments B, D)"
         )
+
+
+class TestT5assWholePoolPass:
+    """The pool t5ass_whole pass between segments D and E runs ONLY when
+    at least one config has --t5ass-annotate-whole on. When it runs, the
+    per-genome t5ass_whole step is skipped via skip_steps so it doesn't
+    overwrite the split paths.
+    """
+
+    def test_skipped_when_no_config_enables_whole(self, n2_runner):
+        mgr, per_genome, pool, log, spies = n2_runner
+        _seed_two_genome_files(per_genome)
+        # Default configs all have t5ass_annotate_whole=False.
+        mgr._pool_t5ass_whole_inputs = MagicMock()
+        mgr._run_pool_t5ass_whole_segment = MagicMock()
+        mgr._split_t5ass_whole_outputs = MagicMock()
+
+        with patch("ssign_app.scripts.ssign_lib.substrates.load_substrate_ids", return_value=set()):
+            mgr.run(resume=True)
+
+        mgr._pool_t5ass_whole_inputs.assert_not_called()
+        mgr._run_pool_t5ass_whole_segment.assert_not_called()
+        mgr._split_t5ass_whole_outputs.assert_not_called()
+
+    def test_inputs_called_when_flag_on(self, n2_runner):
+        mgr, per_genome, pool, log, spies = n2_runner
+        _seed_two_genome_files(per_genome)
+        # Toggle the flag on one config — that's enough to trigger the pool path.
+        mgr.configs[0].t5ass_annotate_whole = True
+
+        # Simulate "no genome has clean T5aSS substrates" via the inputs
+        # method returning False; the downstream methods then stay quiet.
+        mgr._pool_t5ass_whole_inputs = MagicMock(return_value=False)
+        mgr._run_pool_t5ass_whole_segment = MagicMock()
+        mgr._split_t5ass_whole_outputs = MagicMock()
+
+        with patch("ssign_app.scripts.ssign_lib.substrates.load_substrate_ids", return_value=set()):
+            mgr.run(resume=True)
+
+        mgr._pool_t5ass_whole_inputs.assert_called_once()
+        mgr._run_pool_t5ass_whole_segment.assert_not_called()
+        mgr._split_t5ass_whole_outputs.assert_not_called()
+
+    def test_full_pool_pass_fires_when_inputs_pool_succeeds(self, n2_runner):
+        mgr, per_genome, pool, log, spies = n2_runner
+        _seed_two_genome_files(per_genome)
+        mgr.configs[0].t5ass_annotate_whole = True
+        mgr.configs[1].t5ass_annotate_whole = True
+
+        mgr._pool_t5ass_whole_inputs = MagicMock(return_value=True)
+        mgr._run_pool_t5ass_whole_segment = MagicMock()
+        mgr._split_t5ass_whole_outputs = MagicMock()
+
+        with patch("ssign_app.scripts.ssign_lib.substrates.load_substrate_ids", return_value=set()):
+            mgr.run(resume=True)
+
+        mgr._pool_t5ass_whole_inputs.assert_called_once()
+        mgr._run_pool_t5ass_whole_segment.assert_called_once()
+        mgr._split_t5ass_whole_outputs.assert_called_once()
+
+    def test_per_genome_segment_e_skips_t5ass_whole_when_pool_ran(self, n2_runner):
+        """When the pool ran the second pass, per-genome _execute_stages
+        for segment E must be invoked with the t5ass_whole_annotations
+        step in its skip_steps set so it doesn't re-do (and clobber) the
+        split paths.
+        """
+        mgr, per_genome, pool, log, spies = n2_runner
+        _seed_two_genome_files(per_genome)
+        mgr.configs[0].t5ass_annotate_whole = True
+        mgr.configs[1].t5ass_annotate_whole = True
+
+        mgr._pool_t5ass_whole_inputs = MagicMock(return_value=True)
+        mgr._run_pool_t5ass_whole_segment = MagicMock()
+        mgr._split_t5ass_whole_outputs = MagicMock()
+
+        with patch("ssign_app.scripts.ssign_lib.substrates.load_substrate_ids", return_value=set()):
+            mgr.run(resume=True)
+
+        # Look at the per-genome _execute_stages calls. The third call
+        # per runner is segment E; its skip_steps kwarg must include
+        # t5ass_whole_annotations.
+        for sid, runner in per_genome.items():
+            e_calls = runner._execute_stages.call_args_list[-1]
+            skip = e_calls.kwargs.get("skip_steps") or (e_calls.args[1] if len(e_calls.args) > 1 else None)
+            assert skip is not None, f"runner {sid} segment-E call had no skip_steps"
+            assert "t5ass_whole_annotations" in skip, (
+                f"runner {sid} segment-E skip_steps missing t5ass_whole_annotations: {skip}"
+            )
+
+    def test_per_genome_segment_e_no_skip_when_flag_off(self, n2_runner):
+        """When the flag is off, segment E runs unrestricted (empty skip)."""
+        mgr, per_genome, pool, log, spies = n2_runner
+        _seed_two_genome_files(per_genome)
+
+        with patch("ssign_app.scripts.ssign_lib.substrates.load_substrate_ids", return_value=set()):
+            mgr.run(resume=True)
+
+        for sid, runner in per_genome.items():
+            e_calls = runner._execute_stages.call_args_list[-1]
+            skip = e_calls.kwargs.get("skip_steps") or (e_calls.args[1] if len(e_calls.args) > 1 else None)
+            # skip can be an empty set or None — either way, t5ass_whole shouldn't be in it.
+            if skip:
+                assert "t5ass_whole_annotations" not in skip
