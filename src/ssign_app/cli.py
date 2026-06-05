@@ -459,6 +459,19 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
         help="Skip ProtParam step (overrides --tier default).",
     )
     g.add_argument(
+        "--t5ass-annotate-whole",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Run EggNOG / BLASTp / pLM-BLAST / HHsuite / ProtParam a "
+            "SECOND time on T5aSS substrates with the full protein "
+            "FASTA, emitting t5ass_whole_* columns alongside the "
+            "default passenger-only annotations. Useful to compare "
+            "functional (passenger) vs structural (whole-AT, "
+            "β-barrel-dominated) annotation. IPS unchanged."
+        ),
+    )
+    g.add_argument(
         "--filter-dse-type-mismatch",
         action=argparse.BooleanOptionalAction,
         default=True,
@@ -574,6 +587,7 @@ def _config_from_args(
         "plm_effector_types": list(args.plm_effector_types),
         "plm_chunk_size": args.plm_chunk_size,
         "skip_protparam": args.skip_protparam,
+        "t5ass_annotate_whole": args.t5ass_annotate_whole,
         "filter_dse_type_mismatch": args.filter_dse_type_mismatch,
         "deepsece_min_prob": args.deepsece_min_prob,
         "signalp_min_prob": args.signalp_min_prob,

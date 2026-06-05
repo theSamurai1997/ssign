@@ -58,6 +58,7 @@ _SEGMENT_BY_STEP = {
     "eggnog": "D",
     "plm_blast": "D",
     "protparam": "D",
+    "t5ass_whole_annotations": "E",
     "integrate": "E",
     "orthologs": "E",
     "enrichment": "E",

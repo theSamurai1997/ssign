@@ -313,6 +313,14 @@ class PipelineConfig:
 
     skip_protparam: Optional[bool] = None
 
+    # When True, run EggNOG/BLASTp/pLM-BLAST/HHsuite/ProtParam a SECOND time
+    # on T5aSS substrates using the full protein FASTA (not the passenger-
+    # substituted one) and emit the results under t5ass_whole_* columns in
+    # the master CSV. Lets users compare passenger-only annotation (default,
+    # often more functional) against full-AT annotation (often dominated by
+    # the conserved β-barrel) side by side. IPS unchanged.
+    t5ass_annotate_whole: bool = False
+
     # DSE type-match filter: remove DSE-only substrates where predicted
     # SS type doesn't match nearby MacSyFinder system
     filter_dse_type_mismatch: bool = True
@@ -438,6 +446,42 @@ class PipelineConfig:
             self.deeplocpro_mode, discovered = _detect_dtu_mode("deeplocpro", self.deeplocpro_path, "DeepLocPro")
             if discovered and not self.deeplocpro_path:
                 self.deeplocpro_path = discovered
+
+
+def _rename_csv_columns_with_prefix(src_path: str, dst_path: str, prefix: str, keep_columns: set[str]) -> None:
+    """Copy a CSV/TSV from ``src_path`` to ``dst_path``, prefixing column
+    headers except those in ``keep_columns``.
+
+    Used by the t5ass_whole annotation second pass so each tool's output
+    merges as side-by-side columns in the integrated CSV (e.g.
+    ``eggnog_description`` vs ``t5ass_whole_eggnog_description``)
+    instead of clobbering the passenger annotations on join.
+
+    Delimiter for both files is inferred from the path extension via
+    ``_pool_utils._delimiter_for`` so CSV/TSV mixed roundtrips keep
+    each format. The ``keep_columns`` set typically holds the join
+    column (``locus_tag``) that integrate_annotations merges on.
+    """
+    import csv as _csv
+
+    from ssign_app.core._pool_utils import _delimiter_for
+
+    in_delim = _delimiter_for(src_path)
+    out_delim = _delimiter_for(dst_path)
+
+    with open(src_path) as f:
+        reader = _csv.DictReader(f, delimiter=in_delim)
+        fieldnames = list(reader.fieldnames or [])
+        rows = list(reader)
+
+    rename_map = {c: (c if c in keep_columns else f"{prefix}{c}") for c in fieldnames}
+    new_fieldnames = [rename_map[c] for c in fieldnames]
+
+    with open(dst_path, "w", newline="") as f:
+        writer = _csv.DictWriter(f, fieldnames=new_fieldnames, delimiter=out_delim)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({rename_map[k]: v for k, v in row.items()})
 
 
 @dataclass
@@ -896,6 +940,7 @@ class PipelineRunner:
                 ("Filtering systems", self._step_filtering),
                 ("Building passenger-substituted FASTA", self._step_build_passenger_fasta),
                 annotation_steps,
+                ("Re-annotating T5aSS substrates whole-protein", self._step_t5ass_whole_annotations),
                 ("Integrating annotations", self._step_integrate),
                 ("Assigning ortholog groups", self._step_orthologs),
                 ("Running enrichment analysis", self._step_enrichment),
@@ -2326,6 +2371,152 @@ class PipelineRunner:
 
     # ── Phase 6: Integration ──
 
+    _T5ASS_WHOLE_TOOLS = ("eggnog", "blastp", "plm_blast", "hhsuite", "protparam")
+
+    def _build_t5ass_only_substrates_tsv(self) -> str | None:
+        """Filter substrates_filtered.tsv to clean T5aSS rows; write to a new TSV.
+
+        Returns the path to the filtered TSV, or None if no clean T5aSS
+        substrates exist. A T5aSS substrate is recognised by either
+        ``tool == "T5SS-self"`` (from t5ss_handler) or "T5aSS" in
+        ``nearby_ss_types``; rows with a non-empty ``t5_quality_flag``
+        are excluded since we don't trust their domain geometry.
+        """
+        import csv as _csv
+
+        substrates_filtered = self.files.get("substrates_filtered", "")
+        if not substrates_filtered or not os.path.exists(substrates_filtered):
+            return None
+
+        with open(substrates_filtered) as f:
+            reader = _csv.DictReader(f, delimiter="\t")
+            fieldnames = list(reader.fieldnames or [])
+            t5_rows = []
+            for row in reader:
+                ss_types = (row.get("nearby_ss_types") or "").strip()
+                tool = (row.get("tool") or "").strip()
+                quality = (row.get("t5_quality_flag") or "").strip()
+                is_t5a = (tool == "T5SS-self") or ("T5aSS" in ss_types)
+                if is_t5a and not quality:
+                    t5_rows.append(row)
+
+        if not t5_rows:
+            return None
+
+        out_path = self._wf(f"{self.config.sample_id}_t5ass_only_substrates.tsv")
+        with open(out_path, "w", newline="") as f:
+            writer = _csv.DictWriter(f, fieldnames=fieldnames, delimiter="\t")
+            writer.writeheader()
+            writer.writerows(t5_rows)
+        return out_path
+
+    def _step_t5ass_whole_annotations(self) -> StepResult:
+        """Second annotation pass on T5aSS substrates using the full protein FASTA.
+
+        Re-runs each routed annotation tool (EggNOG / BLASTp / pLM-BLAST /
+        HHsuite / ProtParam) that succeeded in the main pass — this time
+        against the full protein sequence instead of the passenger
+        subsequence. Output files have their column headers prefixed
+        with ``t5ass_whole_`` so integrate_annotations merges them as
+        side-by-side columns rather than overwriting the passenger
+        annotations.
+
+        Skipped when ``config.t5ass_annotate_whole`` is False (default).
+        Implementation re-uses the existing step methods by swapping
+        ``self.work_dir`` to a sibling directory and overriding
+        ``substrates_filtered`` and ``proteins_for_passenger_tools`` in
+        ``self.files`` for the duration of each call; original state is
+        restored at the end so downstream integrate sees the original
+        main-pass outputs untouched plus the new t5ass_whole_* keys.
+
+        Sequential across tools (not the parallel-group treatment the
+        main annotation pass gets). T5aSS substrate counts are typically
+        small (<10 per genome), so the per-tool startup cost dominates
+        wallclock and serial sequencing is a few minutes of overhead
+        rather than tens — fine for v1.
+        """
+        if not self.config.t5ass_annotate_whole:
+            return StepResult(
+                "t5ass_whole_annotations",
+                True,
+                "Skipped (--t5ass-annotate-whole not set)",
+            )
+
+        t5_sub_path = self._build_t5ass_only_substrates_tsv()
+        if t5_sub_path is None:
+            return StepResult(
+                "t5ass_whole_annotations",
+                True,
+                "Skipped (no clean T5aSS substrates)",
+            )
+
+        second_work_dir = tempfile.mkdtemp(prefix=f"ssign_t5ass_whole_{self.config.sample_id}_")
+        saved_work_dir = self.work_dir
+        saved_substrates = self.files.get("substrates_filtered")
+        saved_passenger = self.files.get("proteins_for_passenger_tools")
+        saved_outputs = {tool: self.files.get(tool) for tool in self._T5ASS_WHOLE_TOOLS}
+
+        # Hijack inputs: swap work_dir so step methods don't clobber main-
+        # pass outputs, point substrates_filtered at the T5aSS subset, and
+        # drop proteins_for_passenger_tools so _annotation_input_proteins
+        # falls back to the full proteins FASTA.
+        self.work_dir = second_work_dir
+        self.files["substrates_filtered"] = t5_sub_path
+        self.files.pop("proteins_for_passenger_tools", None)
+
+        n_run = 0
+        failures: list[str] = []
+        try:
+            for tool in self._T5ASS_WHOLE_TOOLS:
+                if saved_outputs[tool] is None:
+                    continue  # main pass didn't run this tool; nothing to compare to
+                try:
+                    step_method = getattr(self, f"_step_{tool}")
+                    result = step_method()
+                    if not result.success:
+                        failures.append(f"{tool}: {result.message[:80]}")
+                        continue
+                    tool_output = self.files.get(tool, "")
+                    if not tool_output or not os.path.exists(tool_output):
+                        failures.append(f"{tool}: no output file")
+                        continue
+                    ext = os.path.splitext(tool_output)[1]
+                    final_path = os.path.join(
+                        saved_work_dir,
+                        f"{self.config.sample_id}_t5ass_whole_{tool}{ext}",
+                    )
+                    _rename_csv_columns_with_prefix(
+                        tool_output, final_path, prefix="t5ass_whole_", keep_columns={"locus_tag"}
+                    )
+                    # Stash the renamed-column path under the t5ass_whole key
+                    # AFTER the finally-block restoration would overwrite it.
+                    saved_outputs[tool] = (saved_outputs[tool], final_path)
+                    n_run += 1
+                except Exception as e:
+                    failures.append(f"{tool}: {str(e)[:80]}")
+        finally:
+            self.work_dir = saved_work_dir
+            if saved_substrates is not None:
+                self.files["substrates_filtered"] = saved_substrates
+            if saved_passenger is not None:
+                self.files["proteins_for_passenger_tools"] = saved_passenger
+            for tool, info in saved_outputs.items():
+                if isinstance(info, tuple):
+                    main_path, t5_path = info
+                    self.files[tool] = main_path
+                    self.files[f"t5ass_whole_{tool}"] = t5_path
+                elif info is not None:
+                    self.files[tool] = info
+            try:
+                shutil.rmtree(second_work_dir)
+            except OSError:
+                pass
+
+        msg = f"Ran {n_run}/{len(self._T5ASS_WHOLE_TOOLS)} tools on T5aSS substrates"
+        if failures:
+            msg += f"; {len(failures)} failure(s): " + "; ".join(failures[:3])
+        return StepResult("t5ass_whole_annotations", True, msg)
+
     def _step_integrate(self) -> StepResult:
         output = self._wf(f"{self.config.sample_id}_integrated.csv")
 
@@ -2341,6 +2532,18 @@ class PipelineRunner:
             "eggnog",
             "plm_blast",
             "protparam",
+            # t5ass_whole_* files from the optional second annotation pass
+            # carry t5ass_whole_-prefixed column headers, so they merge as
+            # side-by-side columns rather than overwriting the main-pass
+            # passenger annotations. Empty when --t5ass-annotate-whole=False.
+            "t5ass_whole_blastp",
+            "t5ass_whole_hhsuite",
+            "t5ass_whole_eggnog",
+            "t5ass_whole_plm_blast",
+            "t5ass_whole_protparam",
+            # Side-car from _step_build_passenger_fasta: one row per T5aSS
+            # substrate with t5_annotation_source ∈ {passenger, full}.
+            "t5_annotation_source",
         ]:
             if key in self.files and os.path.exists(self.files[key]):
                 annotation_files.append(self.files[key])

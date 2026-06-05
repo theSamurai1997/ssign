@@ -16,6 +16,7 @@ methods) is out of unit-test scope; tests/integration/test_pipeline_fixture.py
 exercises that on the real T1SS fixture.
 """
 
+import csv
 import json
 import os
 import shutil
@@ -1319,3 +1320,155 @@ class TestPoolEnrichmentStats:
         assert os.path.exists(out)
         with open(out) as f:
             assert len(f.readlines()) == 1
+
+
+class TestRenameCsvColumnsWithPrefix:
+    """Module-level helper that prefixes annotation-output column headers
+    for the t5ass_whole second annotation pass so they don't clobber the
+    passenger annotations at integrate-time."""
+
+    def test_prefix_csv_columns(self, tmp_path):
+        from ssign_app.core.runner import _rename_csv_columns_with_prefix
+
+        src = tmp_path / "in.csv"
+        src.write_text("locus_tag,eggnog_description,evalue\nKO_1,glycoside hydrolase,1e-50\n")
+        dst = tmp_path / "out.csv"
+        _rename_csv_columns_with_prefix(str(src), str(dst), prefix="t5ass_whole_", keep_columns={"locus_tag"})
+        rows = list(csv.DictReader(open(dst)))
+        assert list(rows[0].keys()) == ["locus_tag", "t5ass_whole_eggnog_description", "t5ass_whole_evalue"]
+        assert rows[0]["locus_tag"] == "KO_1"
+        assert rows[0]["t5ass_whole_eggnog_description"] == "glycoside hydrolase"
+
+    def test_tsv_input_keeps_tab(self, tmp_path):
+        from ssign_app.core.runner import _rename_csv_columns_with_prefix
+
+        src = tmp_path / "in.tsv"
+        src.write_text("locus_tag\tscore\nKO_1\t0.9\n")
+        dst = tmp_path / "out.tsv"
+        _rename_csv_columns_with_prefix(str(src), str(dst), prefix="t5ass_whole_", keep_columns={"locus_tag"})
+        with open(dst) as f:
+            header = f.readline().strip().split("\t")
+        assert header == ["locus_tag", "t5ass_whole_score"]
+
+
+class TestBuildT5assOnlySubstratesTsv:
+    """`_build_t5ass_only_substrates_tsv` filters substrates_filtered to
+    T5aSS-only-clean rows for the second annotation pass."""
+
+    def _runner(self, tmp_dir, files):
+        c = runner.PipelineConfig(outdir=tmp_dir, sample_id="x")
+        r = runner.PipelineRunner(c)
+        r.work_dir = tmp_dir
+        r.files = files
+        return r
+
+    def _write_subs(self, path, rows):
+        fieldnames = ["locus_tag", "sample_id", "tool", "nearby_ss_types", "t5_quality_flag"]
+        with open(path, "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=fieldnames, delimiter="\t")
+            w.writeheader()
+            w.writerows(rows)
+
+    def test_includes_t5sss_self_rows(self, tmp_dir):
+        substrates_path = os.path.join(tmp_dir, "subs.tsv")
+        self._write_subs(
+            substrates_path,
+            [
+                {
+                    "locus_tag": "A1",
+                    "sample_id": "x",
+                    "tool": "T5SS-self",
+                    "nearby_ss_types": "T5aSS",
+                    "t5_quality_flag": "",
+                },
+                {
+                    "locus_tag": "B1",
+                    "sample_id": "x",
+                    "tool": "DSE",
+                    "nearby_ss_types": "T2SS",
+                    "t5_quality_flag": "",
+                },
+            ],
+        )
+        r = self._runner(tmp_dir, {"substrates_filtered": substrates_path})
+        out_path = r._build_t5ass_only_substrates_tsv()
+        assert out_path is not None
+        rows = list(csv.DictReader(open(out_path), delimiter="\t"))
+        assert [r["locus_tag"] for r in rows] == ["A1"]
+
+    def test_excludes_quality_flagged_t5sss(self, tmp_dir):
+        substrates_path = os.path.join(tmp_dir, "subs.tsv")
+        self._write_subs(
+            substrates_path,
+            [
+                {
+                    "locus_tag": "A1",
+                    "sample_id": "x",
+                    "tool": "T5SS-self",
+                    "nearby_ss_types": "T5aSS",
+                    "t5_quality_flag": "barrel_only",
+                },
+                {
+                    "locus_tag": "A2",
+                    "sample_id": "x",
+                    "tool": "T5SS-self",
+                    "nearby_ss_types": "T5aSS",
+                    "t5_quality_flag": "",
+                },
+            ],
+        )
+        r = self._runner(tmp_dir, {"substrates_filtered": substrates_path})
+        out_path = r._build_t5ass_only_substrates_tsv()
+        assert out_path is not None
+        rows = list(csv.DictReader(open(out_path), delimiter="\t"))
+        assert [r["locus_tag"] for r in rows] == ["A2"]
+
+    def test_returns_none_when_no_t5sss(self, tmp_dir):
+        substrates_path = os.path.join(tmp_dir, "subs.tsv")
+        self._write_subs(
+            substrates_path,
+            [
+                {
+                    "locus_tag": "B1",
+                    "sample_id": "x",
+                    "tool": "DSE",
+                    "nearby_ss_types": "T2SS",
+                    "t5_quality_flag": "",
+                }
+            ],
+        )
+        r = self._runner(tmp_dir, {"substrates_filtered": substrates_path})
+        assert r._build_t5ass_only_substrates_tsv() is None
+
+
+class TestStepT5assWholeAnnotations:
+    """Top-level dispatch of the t5ass_whole second annotation pass."""
+
+    def test_skipped_when_flag_off(self, tmp_dir):
+        c = runner.PipelineConfig(outdir=tmp_dir, sample_id="x", t5ass_annotate_whole=False)
+        r = runner.PipelineRunner(c)
+        r.work_dir = tmp_dir
+        result = r._step_t5ass_whole_annotations()
+        assert result.success is True
+        assert "Skipped" in result.message
+
+    def test_skipped_when_no_clean_t5sss(self, tmp_dir):
+        c = runner.PipelineConfig(outdir=tmp_dir, sample_id="x", t5ass_annotate_whole=True)
+        r = runner.PipelineRunner(c)
+        r.work_dir = tmp_dir
+        # No substrates_filtered staged → no T5aSS to find
+        result = r._step_t5ass_whole_annotations()
+        assert result.success is True
+        assert "no clean T5aSS" in result.message.lower() or "skipped" in result.message.lower()
+
+
+class TestT5assAnnotateWholeConfig:
+    """The --t5ass-annotate-whole flag round-trips through PipelineConfig."""
+
+    def test_default_is_false(self, tmp_dir):
+        c = runner.PipelineConfig(outdir=tmp_dir, sample_id="x")
+        assert c.t5ass_annotate_whole is False
+
+    def test_field_accepts_true(self, tmp_dir):
+        c = runner.PipelineConfig(outdir=tmp_dir, sample_id="x", t5ass_annotate_whole=True)
+        assert c.t5ass_annotate_whole is True
