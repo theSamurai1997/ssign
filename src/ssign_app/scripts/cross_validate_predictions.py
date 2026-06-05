@@ -61,6 +61,7 @@ _scripts_dir = os.path.dirname(os.path.abspath(__file__))
 if _scripts_dir not in sys.path:
     sys.path.insert(0, _scripts_dir)
 from ssign_lib.constants import T5SS_COMPONENT_RULES  # noqa: E402
+from ssign_lib.tsv_io import load_tsv_by_key  # noqa: E402
 
 # SignalP's "protein has no signal peptide" sentinels
 _SP_NEGATIVE = {"OTHER", "", "No signal peptide"}
@@ -69,16 +70,13 @@ _DSE_NEGATIVE = {"Non-secreted", "", "OTHER"}
 
 
 def _load_tsv_by_locus(path: str):
-    """Return {locus_tag: row_dict} for a TSV keyed by `locus_tag`. Empty dict if path missing."""
-    if not path or not os.path.exists(path):
-        return {}
-    rows = {}
-    with open(path) as f:
-        for row in csv.DictReader(f, delimiter="\t"):
-            tag = row.get("locus_tag") or row.get("protein_id") or row.get("seq_id")
-            if tag:
-                rows[tag] = row
-    return rows
+    """Return ``{locus_tag: row_dict}`` for a tool-output TSV.
+
+    Tolerant on the id-column name (some tools emit ``protein_id`` or
+    ``seq_id`` instead of ``locus_tag``); empty dict if the path is
+    missing. Thin wrapper around the shared ``load_tsv_by_key`` helper.
+    """
+    return load_tsv_by_key(path, key_columns=("locus_tag", "protein_id", "seq_id"))
 
 
 def _float_or_zero(value) -> float:

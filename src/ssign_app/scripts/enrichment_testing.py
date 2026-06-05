@@ -35,6 +35,7 @@ from extract_neighborhood import (  # noqa: E402
     get_neighborhood_proteins,
     load_gene_order,
 )
+from ssign_lib.tsv_io import load_tsv_by_key  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -87,12 +88,13 @@ def is_dse_positive(row: dict, conf: float) -> bool:
 
 
 def load_predictions_keyed(path: str) -> dict:
-    """Read a tool-output TSV indexed by locus_tag."""
-    out = {}
-    with open(path) as f:
-        for row in csv.DictReader(f, delimiter="\t"):
-            out[row["locus_tag"]] = row
-    return out
+    """Read a tool-output TSV indexed by locus_tag.
+
+    Thin wrapper around ``load_tsv_by_key`` keyed strictly on
+    ``locus_tag``; this script's inputs always come from the runner's
+    prediction-tool wrappers and have the canonical column name.
+    """
+    return load_tsv_by_key(path, key_columns=("locus_tag",))
 
 
 def load_systems(ss_components_path: str):

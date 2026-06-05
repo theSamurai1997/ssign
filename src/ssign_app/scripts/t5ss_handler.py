@@ -60,6 +60,7 @@ from ssign_lib.constants import (  # noqa: E402
     MIN_PASSENGER_LENGTH,
     VALID_SEC_SIGNAL_TYPES,
 )
+from ssign_lib.parsing import parse_int_or_none  # noqa: E402
 
 BUNDLED_HMMS = {"PF03797": "PF03797.hmm", "PF13505": "PF13505.hmm"}
 
@@ -151,14 +152,12 @@ def classify_t5a(
 
 
 def _parse_sp_end(raw: str) -> int | None:
-    """Parse SignalP CS position (formats vary: '22', '22-23', '22.0', '')."""
-    if not raw:
-        return None
-    token = raw.split("-")[0].strip()
-    try:
-        return int(float(token))
-    except (ValueError, TypeError):
-        return None
+    """Parse SignalP CS position (formats vary: '22', '22-23', '22.0', '').
+
+    Thin wrapper around ``parse_int_or_none(allow_range=True)``; kept
+    locally so call sites read naturally as ``_parse_sp_end(...)``.
+    """
+    return parse_int_or_none(raw, allow_range=True)
 
 
 def _signalp_was_run(predictions: dict[str, dict]) -> bool:

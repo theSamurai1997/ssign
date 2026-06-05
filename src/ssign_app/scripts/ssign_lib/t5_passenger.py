@@ -32,22 +32,13 @@ from typing import Literal
 
 from ssign_lib.constants import LINKER_LENGTH, MIN_PASSENGER_FOR_ANNOTATION
 from ssign_lib.fasta_io import read_fasta, write_fasta
+from ssign_lib.parsing import parse_int_or_none
 
 logger = logging.getLogger(__name__)
 
 AnnotationSource = Literal["passenger", "full"]
 PASSENGER: AnnotationSource = "passenger"
 FULL: AnnotationSource = "full"
-
-
-def _parse_int(value: str) -> int | None:
-    """Tolerant int parser for TSV cells that may be empty strings."""
-    if value is None or value == "":
-        return None
-    try:
-        return int(float(value))
-    except (ValueError, TypeError):
-        return None
 
 
 def load_t5_classifications(classifications_tsv: str | Path) -> dict[str, dict]:
@@ -71,9 +62,9 @@ def load_t5_classifications(classifications_tsv: str | Path) -> dict[str, dict]:
             out[locus] = {
                 "ss_type": row.get("ss_type", ""),
                 "t5_quality_flag": row.get("t5_quality_flag", ""),
-                "passenger_length": _parse_int(row.get("passenger_length", "")) or 0,
-                "sp_end": _parse_int(row.get("sp_end", "")),
-                "barrel_start": _parse_int(row.get("barrel_start", "")),
+                "passenger_length": parse_int_or_none(row.get("passenger_length", "")) or 0,
+                "sp_end": parse_int_or_none(row.get("sp_end", "")),
+                "barrel_start": parse_int_or_none(row.get("barrel_start", "")),
             }
     return out
 
