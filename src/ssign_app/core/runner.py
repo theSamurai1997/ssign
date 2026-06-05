@@ -821,7 +821,7 @@ class PipelineRunner:
         return self.results
 
     def _build_stages(self) -> list:
-        """Return the ordered pipeline stages list.
+        """Return the ordered pipeline stages list (memoised on first call).
 
         Each element is either a ``(name, callable)`` tuple (sequential
         step) or a list of such tuples (parallel group). Steps disabled
@@ -840,7 +840,15 @@ class PipelineRunner:
         loads 3-4 PLMs (~6 GB resident each), and on a memory-constrained
         allocation the parallel group's shared memory ceiling kills its
         first model load while DLP/DSE/SignalP are still resident.
+
+        Memoised because MultiGenomeRunner re-asks each per-genome
+        runner for its stages once per per-genome segment (3 calls);
+        recomputing each time is cheap (~ms) but pointless when config
+        is frozen post-init.
         """
+        cached = getattr(self, "_cached_stages", None)
+        if cached is not None:
+            return cached
         prediction_steps = []
         if not self.config.skip_deeplocpro:
             prediction_steps.append(("Predicting localization (DeepLocPro)", self._step_deeplocpro))
@@ -894,6 +902,7 @@ class PipelineRunner:
                 ("Generating figures", self._step_figures),
             ]
         )
+        self._cached_stages = stages
         return stages
 
     def _execute_stages(self, stages: list, skip_steps: set) -> bool:

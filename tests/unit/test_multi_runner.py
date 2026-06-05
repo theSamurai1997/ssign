@@ -321,19 +321,21 @@ def n2_runner(monkeypatch, tmp_path):
     )
 
 
+def _seed_two_genome_files(per_genome: dict) -> None:
+    """Seed neighborhood / substrates / proteins paths so the pooling
+    boundaries in _run_multi find something to gather. Used by every
+    test in TestMultiGenomeFlow."""
+    for sid in ("g1", "g2"):
+        per_genome[sid].files["neighborhood_proteins"] = f"/tmp/{sid}_nb.faa"
+        per_genome[sid].files["substrates_filtered"] = f"/tmp/{sid}_sub.tsv"
+        per_genome[sid].files["proteins"] = f"/tmp/{sid}_p.faa"
+
+
 class TestMultiGenomeFlow:
     def test_per_genome_runners_execute_segments_a_c_e(self, n2_runner):
         mgr, per_genome, pool, log, spies = n2_runner
-        # Seed substrates_filtered + proteins on per-genome runners so
-        # segment-D input pooling has something to draw from.
-        per_genome["g1"].files["neighborhood_proteins"] = "/tmp/g1_nb.faa"
-        per_genome["g2"].files["neighborhood_proteins"] = "/tmp/g2_nb.faa"
-        per_genome["g1"].files["substrates_filtered"] = "/tmp/g1_sub.tsv"
-        per_genome["g2"].files["substrates_filtered"] = "/tmp/g2_sub.tsv"
-        per_genome["g1"].files["proteins"] = "/tmp/g1_p.faa"
-        per_genome["g2"].files["proteins"] = "/tmp/g2_p.faa"
+        _seed_two_genome_files(per_genome)
 
-        # Patch substrates helpers so pooling doesn't try to read real files.
         with patch("ssign_app.scripts.ssign_lib.substrates.load_substrate_ids", return_value=set()):
             mgr.run(resume=True)
 
@@ -346,12 +348,7 @@ class TestMultiGenomeFlow:
 
     def test_pool_runner_executes_segments_b_d(self, n2_runner):
         mgr, per_genome, pool, log, spies = n2_runner
-        per_genome["g1"].files["neighborhood_proteins"] = "/tmp/g1_nb.faa"
-        per_genome["g2"].files["neighborhood_proteins"] = "/tmp/g2_nb.faa"
-        per_genome["g1"].files["substrates_filtered"] = "/tmp/g1_sub.tsv"
-        per_genome["g2"].files["substrates_filtered"] = "/tmp/g2_sub.tsv"
-        per_genome["g1"].files["proteins"] = "/tmp/g1_p.faa"
-        per_genome["g2"].files["proteins"] = "/tmp/g2_p.faa"
+        _seed_two_genome_files(per_genome)
 
         with patch("ssign_app.scripts.ssign_lib.substrates.load_substrate_ids", return_value=set()):
             mgr.run(resume=True)
@@ -362,12 +359,7 @@ class TestMultiGenomeFlow:
 
     def test_pool_helpers_called(self, n2_runner):
         mgr, per_genome, pool, log, spies = n2_runner
-        per_genome["g1"].files["neighborhood_proteins"] = "/tmp/g1_nb.faa"
-        per_genome["g2"].files["neighborhood_proteins"] = "/tmp/g2_nb.faa"
-        per_genome["g1"].files["substrates_filtered"] = "/tmp/g1_sub.tsv"
-        per_genome["g2"].files["substrates_filtered"] = "/tmp/g2_sub.tsv"
-        per_genome["g1"].files["proteins"] = "/tmp/g1_p.faa"
-        per_genome["g2"].files["proteins"] = "/tmp/g2_p.faa"
+        _seed_two_genome_files(per_genome)
 
         with patch("ssign_app.scripts.ssign_lib.substrates.load_substrate_ids", return_value=set()):
             mgr.run(resume=True)
@@ -379,12 +371,7 @@ class TestMultiGenomeFlow:
 
     def test_result_keyed_by_sample_id(self, n2_runner):
         mgr, per_genome, pool, log, spies = n2_runner
-        per_genome["g1"].files["neighborhood_proteins"] = "/tmp/g1_nb.faa"
-        per_genome["g2"].files["neighborhood_proteins"] = "/tmp/g2_nb.faa"
-        per_genome["g1"].files["substrates_filtered"] = "/tmp/g1_sub.tsv"
-        per_genome["g2"].files["substrates_filtered"] = "/tmp/g2_sub.tsv"
-        per_genome["g1"].files["proteins"] = "/tmp/g1_p.faa"
-        per_genome["g2"].files["proteins"] = "/tmp/g2_p.faa"
+        _seed_two_genome_files(per_genome)
 
         per_genome["g1"].results = ["g1_result"]
         per_genome["g2"].results = ["g2_result"]
@@ -399,26 +386,14 @@ class TestMultiGenomeFlow:
     def test_each_runner_builds_its_own_stages(self, n2_runner):
         """Regression for the 2026-06-05 bound-method bug.
 
-        Stages returned by ``_build_stages`` hold method tuples bound to
-        their original instance. Reusing one runner's stages list across
-        other runners silently runs the FIRST runner's methods every time,
-        which manifested as a 4-genome batched CX3 run where every per-
-        genome ``step_timings.csv`` reported K-12's protein/substrate
-        counts (the first config's data) regardless of which genome's
-        config it nominally came from.
-
-        Fix: each runner must build its own stages list. This test pins
-        that by asserting ``_build_stages`` was called on each runner
-        instance — three times per per-genome runner (segments A, C, E)
-        and twice on the pool runner (segments B, D).
+        ``_build_stages`` tuples hold bound methods; reusing one
+        runner's slice across others silently runs the first runner's
+        methods (manifested as 4 K-12 copies in a 4-genome batched CX3
+        run). Each runner must build its own — assert _build_stages
+        was hit on every runner instance individually.
         """
         mgr, per_genome, pool, log, spies = n2_runner
-        per_genome["g1"].files["neighborhood_proteins"] = "/tmp/g1_nb.faa"
-        per_genome["g2"].files["neighborhood_proteins"] = "/tmp/g2_nb.faa"
-        per_genome["g1"].files["substrates_filtered"] = "/tmp/g1_sub.tsv"
-        per_genome["g2"].files["substrates_filtered"] = "/tmp/g2_sub.tsv"
-        per_genome["g1"].files["proteins"] = "/tmp/g1_p.faa"
-        per_genome["g2"].files["proteins"] = "/tmp/g2_p.faa"
+        _seed_two_genome_files(per_genome)
 
         with patch("ssign_app.scripts.ssign_lib.substrates.load_substrate_ids", return_value=set()):
             mgr.run(resume=True)

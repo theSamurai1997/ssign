@@ -20,7 +20,9 @@ import os
 import tempfile
 from dataclasses import replace
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Literal, Optional
+
+SegmentLetter = Literal["A", "B", "C", "D", "E"]
 
 from ssign_app.core._pool_utils import (
     pool_fastas,
@@ -196,6 +198,9 @@ class MultiGenomeRunner:
         self._pool_segment_b_inputs(runners, pool_runner, pool_outdir)
 
         # === Segment B (pooled) ===
+        # split is unconditional: if segment B was empty (all predictions
+        # skipped), pool_runner.files won't have any segment-B keys, and
+        # _split_pooled_outputs no-ops over the empty key set.
         self._run_pool_segment(pool_runner, "B")
         self._split_pooled_outputs(runners, pool_runner, pool_outdir, _SEGMENT_B_OUTPUT_KEYS)
 
@@ -206,6 +211,7 @@ class MultiGenomeRunner:
         self._pool_segment_d_inputs(runners, pool_runner, pool_outdir)
 
         # === Segment D (pooled) ===
+        # Same no-op-on-empty rule as the segment B split above.
         self._run_pool_segment(pool_runner, "D")
         self._split_pooled_outputs(runners, pool_runner, pool_outdir, _SEGMENT_D_OUTPUT_KEYS)
 
@@ -239,35 +245,30 @@ class MultiGenomeRunner:
         os.makedirs(pool_runner.config.outdir, exist_ok=True)
         return pool_runner
 
-    def _run_per_genome_segment(self, runners: dict[str, PipelineRunner], segment_letter: str) -> None:
-        """Build and run one segment on each per-genome runner.
+    def _stages_for_segment(self, runner: PipelineRunner, segment_letter: SegmentLetter) -> list:
+        """Slice the named segment from this runner's own ``_build_stages``.
 
-        Stages are built from each runner individually because the
-        ``(name, callable)`` tuples returned by ``_build_stages`` hold
-        bound methods. Reusing one runner's stage list across other
-        runners would silently execute the first runner's methods every
-        time (caught on 2026-06-05: all 4 genomes in a batched run
-        produced identical K-12 results because every runner re-ran
-        ref._step_extract_proteins on K-12's config).
+        Stages must come from the executing runner because the
+        ``(name, callable)`` tuples hold bound methods — reusing one
+        runner's slice across others silently executes the first
+        runner's methods (caught 2026-06-05: a 4-genome batched CX3 run
+        produced four copies of K-12's results because every runner
+        re-ran ref._step_extract_proteins against ref.config).
         """
+        return slice_stages_by_segment(runner._build_stages())[segment_letter]
+
+    def _run_per_genome_segment(self, runners: dict[str, PipelineRunner], segment_letter: SegmentLetter) -> None:
         for sid, runner in runners.items():
             if not runner.work_dir:
                 runner.work_dir = tempfile.mkdtemp(prefix=f"ssign_{sid}_")
                 os.makedirs(runner.config.outdir, exist_ok=True)
-            stages = slice_stages_by_segment(runner._build_stages())[segment_letter]
+            stages = self._stages_for_segment(runner, segment_letter)
             if not stages:
                 continue
             runner._execute_stages(stages, skip_steps=set())
 
-    def _run_pool_segment(self, pool_runner: PipelineRunner, segment_letter: str) -> None:
-        """Build the pool runner's segment slice and execute it.
-
-        Same bound-method consideration as _run_per_genome_segment: slice
-        the pool_runner's OWN stages so the executed methods are bound to
-        pool_runner (reading pool_runner.files and writing into its
-        work_dir), not to some other runner.
-        """
-        stages = slice_stages_by_segment(pool_runner._build_stages())[segment_letter]
+    def _run_pool_segment(self, pool_runner: PipelineRunner, segment_letter: SegmentLetter) -> None:
+        stages = self._stages_for_segment(pool_runner, segment_letter)
         if not stages:
             return
         pool_runner._execute_stages(stages, skip_steps=set())
