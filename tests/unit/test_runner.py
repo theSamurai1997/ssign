@@ -1023,6 +1023,43 @@ class TestResolveStepInputFasta:
             r._resolve_step_input_fasta(whole_genome=True)
 
 
+class TestAnnotationInputProteins:
+    """`_annotation_input_proteins` routes the five passenger-aware
+    annotation tools (BLASTp / HHsuite / EggNOG / pLM-BLAST / ProtParam)
+    to the passenger-substituted FASTA when one is staged, and IPS to
+    the full proteins FASTA always.
+    """
+
+    def _runner(self, tmp_dir, files):
+        c = PipelineConfig(outdir=tmp_dir, sample_id="x")
+        r = PipelineRunner(c)
+        r.files = files
+        return r
+
+    @pytest.mark.parametrize("tool", ["blastp", "hhsuite", "eggnog", "plm_blast", "protparam"])
+    def test_routed_tool_prefers_passenger_fasta(self, tmp_dir, tool):
+        r = self._runner(tmp_dir, {"proteins": "/full", "proteins_for_passenger_tools": "/pass"})
+        assert r._annotation_input_proteins(tool) == "/pass"
+
+    @pytest.mark.parametrize("tool", ["blastp", "hhsuite", "eggnog", "plm_blast", "protparam"])
+    def test_routed_tool_falls_back_when_no_passenger_fasta(self, tmp_dir, tool):
+        # build_passenger_fasta step didn't run (e.g. resumed mid-pipeline).
+        r = self._runner(tmp_dir, {"proteins": "/full"})
+        assert r._annotation_input_proteins(tool) == "/full"
+
+    def test_interproscan_always_full_proteins(self, tmp_dir):
+        # IPS is already domain-aware; routing it to a passenger-only FASTA
+        # would lose the barrel-Pfam confirmation users rely on.
+        r = self._runner(tmp_dir, {"proteins": "/full", "proteins_for_passenger_tools": "/pass"})
+        assert r._annotation_input_proteins("interproscan") == "/full"
+
+    def test_unknown_tool_defaults_to_full_proteins(self, tmp_dir):
+        # Defensive: a future tool that isn't in _PASSENGER_ROUTED_TOOLS
+        # should not silently pick up passenger seqs.
+        r = self._runner(tmp_dir, {"proteins": "/full", "proteins_for_passenger_tools": "/pass"})
+        assert r._annotation_input_proteins("future_tool") == "/full"
+
+
 class TestStepPlmEffectorInput:
     """`_step_plm_effector` must read the SS neighborhood by default and
     only fall back to the full proteome when plme_whole_genome=True. The

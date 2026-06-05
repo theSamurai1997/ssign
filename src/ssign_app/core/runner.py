@@ -894,6 +894,7 @@ class PipelineRunner:
                 ("Running proximity analysis", self._step_proximity),
                 ("Handling T5SS autotransporters", self._step_t5ss),
                 ("Filtering systems", self._step_filtering),
+                ("Building passenger-substituted FASTA", self._step_build_passenger_fasta),
                 annotation_steps,
                 ("Integrating annotations", self._step_integrate),
                 ("Assigning ortholog groups", self._step_orthologs),
@@ -1860,6 +1861,7 @@ class PipelineRunner:
 
         if rc == 0:
             self.files["t5ss_substrates"] = out_sub
+            self.files["t5ss_domains"] = out_dom
             return StepResult("t5ss", True, "T5SS handled")
         return StepResult("t5ss", False, stderr[:500])
 
@@ -1903,6 +1905,52 @@ class PipelineRunner:
             return StepResult("filtering", True, f"{n_subs} secreted proteins")
         return StepResult("filtering", False, stderr[:500])
 
+    def _step_build_passenger_fasta(self) -> StepResult:
+        """Build a passenger-substituted FASTA for routed annotation tools.
+
+        For each clean T5aSS substrate (non-empty t5_quality_flag absent,
+        passenger_length >= MIN_PASSENGER_FOR_ANNOTATION), the entry's
+        sequence is replaced with the passenger subsequence
+        ``seq[sp_end : barrel_start - LINKER_LENGTH]``. Every other
+        entry (non-T5aSS substrates, T5aSS with quality flags, T5aSS
+        with passenger too short, non-substrate proteins) carries its
+        full sequence unchanged. The 5 annotation tools that benefit
+        from passenger-only annotation (EggNOG / BLASTp / pLM-BLAST /
+        HHsuite / ProtParam) read this FASTA instead of the full
+        proteins FASTA; IPS continues to consume the full FASTA
+        because it is already domain-aware.
+
+        Always runs (even when there are no T5aSS substrates) so the
+        ``proteins_for_passenger_tools`` key is always staged. When the
+        t5ss step found no T5aSS components, the output FASTA is
+        functionally a copy of the full proteins FASTA.
+        """
+        from ssign_app.scripts.ssign_lib.t5_passenger import build_passenger_substituted_fasta
+
+        proteins = self.files.get("proteins", "")
+        if not proteins:
+            return StepResult(
+                "build_passenger_fasta",
+                False,
+                "No proteins FASTA staged; extract_proteins step must run first",
+            )
+        classifications = self.files.get("t5ss_domains", "")
+
+        out_fasta = self._wf(f"{self.config.sample_id}_proteins_passenger.faa")
+        out_source = self._wf(f"{self.config.sample_id}_t5_annotation_source.tsv")
+        routing = build_passenger_substituted_fasta(proteins, classifications, out_fasta, out_source)
+
+        self.files["proteins_for_passenger_tools"] = out_fasta
+        self.files["t5_annotation_source"] = out_source
+
+        n_pass = sum(1 for v in routing.values() if v == "passenger")
+        n_full = sum(1 for v in routing.values() if v == "full")
+        return StepResult(
+            "build_passenger_fasta",
+            True,
+            f"{n_pass} T5aSS substrates routed to passenger, {n_full} fell back to full protein",
+        )
+
     # ── Phase 5: Annotation ──
 
     def _annotation_cpu_budget(self) -> int:
@@ -1933,6 +1981,24 @@ class PipelineRunner:
             return StepResult(step_name, False, "Skipped — no substrates from upstream steps")
         return None
 
+    # Annotation tools that benefit from passenger-only annotation on
+    # T5aSS substrates. IPS is excluded — it's already domain-aware and
+    # would lose its barrel-Pfam confirmation if pointed at passenger seqs.
+    _PASSENGER_ROUTED_TOOLS = frozenset({"blastp", "hhsuite", "eggnog", "plm_blast", "protparam"})
+
+    def _annotation_input_proteins(self, tool: str) -> str:
+        """FASTA path that ``--proteins`` should point to for an annotation tool.
+
+        Routed tools get the passenger-substituted FASTA produced by
+        ``_step_build_passenger_fasta`` when it is staged; IPS and any
+        future non-routed tool get the full proteins FASTA. Falls back
+        to the full FASTA whenever the passenger one is missing, so
+        callers degrade gracefully if the build step was skipped.
+        """
+        if tool in self._PASSENGER_ROUTED_TOOLS:
+            return self.files.get("proteins_for_passenger_tools", "") or self.files.get("proteins", "")
+        return self.files.get("proteins", "")
+
     def _step_blastp(self) -> StepResult:
         err = self._check_substrates_exist("blastp")
         if err:
@@ -1952,7 +2018,7 @@ class PipelineRunner:
             "--substrates",
             self.files.get("substrates_filtered", ""),
             "--proteins",
-            self.files.get("proteins", ""),
+            self._annotation_input_proteins("blastp"),
             "--sample",
             self.config.sample_id,
             "--output",
@@ -2000,7 +2066,7 @@ class PipelineRunner:
             "--substrates",
             self.files.get("substrates_filtered", ""),
             "--proteins",
-            self.files.get("proteins", ""),
+            self._annotation_input_proteins("hhsuite"),
             "--sample",
             self.config.sample_id,
             "--output",
@@ -2081,7 +2147,7 @@ class PipelineRunner:
                 "--substrates",
                 self.files.get("substrates_filtered", ""),
                 "--proteins",
-                self.files.get("proteins", ""),
+                self._annotation_input_proteins("protparam"),
                 "--sample",
                 self.config.sample_id,
                 "--output",
@@ -2111,7 +2177,7 @@ class PipelineRunner:
             "--substrates",
             self.files.get("substrates_filtered", ""),
             "--proteins",
-            self.files.get("proteins", ""),
+            self._annotation_input_proteins("eggnog"),
             "--db",
             self.config.eggnog_db,
             "--sample",
@@ -2164,7 +2230,7 @@ class PipelineRunner:
             "--substrates",
             self.files.get("substrates_filtered", ""),
             "--proteins",
-            self.files.get("proteins", ""),
+            self._annotation_input_proteins("plm_blast"),
             "--ecod-db",
             self.config.plmblast_db,
             "--out",

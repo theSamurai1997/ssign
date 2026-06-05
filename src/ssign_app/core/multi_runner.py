@@ -51,6 +51,7 @@ _SEGMENT_BY_STEP = {
     "proximity": "C",
     "t5ss": "C",
     "filtering": "C",
+    "build_passenger_fasta": "C",
     "blastp": "D",
     "hhsuite": "D",
     "interproscan": "D",
@@ -355,8 +356,14 @@ class MultiGenomeRunner:
         )
 
         # Per-genome substrate-only FASTAs (pre-filtered so the pooled
-        # FASTA is small), then pool.
+        # FASTA is small), then pool. Build TWO pools:
+        #   - "proteins"                       full-protein sequences (IPS reads this)
+        #   - "proteins_for_passenger_tools"   T5aSS substrates carry passenger seqs;
+        #                                      everything else carries the full seq
+        # The same routing fires inside the pool runner via
+        # PipelineRunner._annotation_input_proteins.
         substrate_fasta_sources = []
+        passenger_fasta_sources = []
         for sid, r in runners.items():
             sf = r.files.get("substrates_filtered")
             proteins = r.files.get("proteins")
@@ -369,10 +376,22 @@ class MultiGenomeRunner:
             write_substrates_only_fasta(proteins, sub_ids, str(per_genome_fasta))
             substrate_fasta_sources.append((sid, per_genome_fasta))
 
+            # Passenger-substituted substrate-only FASTA. Falls back to the
+            # full substrate FASTA when build_passenger_fasta wasn't staged.
+            passenger_proteins = r.files.get("proteins_for_passenger_tools") or proteins
+            per_genome_pfasta = Path(r.work_dir) / f"{sid}_substrate_proteins_passenger.faa"
+            write_substrates_only_fasta(passenger_proteins, sub_ids, str(per_genome_pfasta))
+            passenger_fasta_sources.append((sid, per_genome_pfasta))
+
         if substrate_fasta_sources:
             pooled_proteins = pool_outdir / "pooled_substrate_proteins.faa"
             pool_fastas(substrate_fasta_sources, pooled_proteins)
             pool_runner.files["proteins"] = str(pooled_proteins)
+
+        if passenger_fasta_sources:
+            pooled_passenger = pool_outdir / "pooled_substrate_proteins_passenger.faa"
+            pool_fastas(passenger_fasta_sources, pooled_passenger)
+            pool_runner.files["proteins_for_passenger_tools"] = str(pooled_passenger)
 
     def _write_combined_summary(self, runners: dict[str, PipelineRunner], top_outdir: Path) -> None:
         """Concatenate per-genome master CSVs into ``combined_summary.tsv``.
