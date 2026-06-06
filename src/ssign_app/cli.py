@@ -186,6 +186,21 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
         help="Fraction of SS components correctly localized (default: 0.8).",
     )
     g.add_argument(
+        "--dlp-confidence-threshold",
+        type=float,
+        default=0.8,
+        help=(
+            "Minimum DLP max-probability for an SS-machinery component to count in the "
+            "localization-correctness gate (default: 0.8). Components below this are "
+            "excluded from both numerator and denominator of fraction_correct."
+        ),
+    )
+    g.add_argument(
+        "--skip-localization-gate",
+        action="store_true",
+        help="Disable the literature-derived localization-correctness gate (debug / ad-hoc).",
+    )
+    g.add_argument(
         "--deepsece-min-prob", type=float, default=0.8, help="DeepSecE min probability to call secreted (default: 0.8)."
     )
     g.add_argument(
@@ -543,6 +558,8 @@ def _config_from_args(
         "conf_threshold": args.conf_threshold,
         "proximity_window": args.proximity_window,
         "required_fraction_correct": args.required_fraction_correct,
+        "dlp_confidence_threshold": args.dlp_confidence_threshold,
+        "skip_localization_gate": args.skip_localization_gate,
         "use_input_annotations": args.use_input_annotations,
         "run_bakta": args.run_bakta,
         "bakta_db": args.bakta_db,

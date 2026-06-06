@@ -192,6 +192,12 @@ class PipelineConfig:
     conf_threshold: float = 0.8
     proximity_window: int = 3
     required_fraction_correct: float = 0.8
+    # Localization-correctness gate (#58): per-component DLP max_probability
+    # below this is treated as low-confidence and excluded from the gate's
+    # numerator AND denominator. Separately tunable from conf_threshold,
+    # which is the substrate-trigger DLP cutoff (different semantic).
+    dlp_confidence_threshold: float = 0.8
+    skip_localization_gate: bool = False
 
     # Phase 1: ORF prediction options
     # GenBank input is re-annotated through Bakta by default (Phase 3.3.c).
@@ -1919,6 +1925,7 @@ class PipelineRunner:
         if not substrates or not os.path.exists(substrates):
             return StepResult("filtering", False, "No substrates from previous step")
 
+        gate_verdicts = self._wf(f"{self.config.sample_id}_gate_verdicts.tsv")
         filter_args = [
             "--proximity-substrates",
             substrates,
@@ -1926,25 +1933,37 @@ class PipelineRunner:
             t5ss if t5ss and os.path.exists(t5ss) else substrates,
             "--valid-systems",
             self.files.get("valid_systems", ""),
+            "--ss-components",
+            self.files.get("ss_components", ""),
             "--predictions",
             self.files.get("predictions", ""),
             "--sample",
             self.config.sample_id,
             "--excluded-systems",
             ",".join(self.config.excluded_systems),
+            "--required-fraction-correct",
+            str(self.config.required_fraction_correct),
+            "--dlp-confidence-threshold",
+            str(self.config.dlp_confidence_threshold),
             "--out-filtered",
             out_filtered,
             "--out-all",
             out_all,
+            "--out-gate-verdicts",
+            gate_verdicts,
         ]
         if self.config.filter_dse_type_mismatch:
             filter_args.append("--filter-dse-type-mismatch")
+        if self.config.skip_localization_gate:
+            filter_args.append("--skip-localization-gate")
 
         rc, stdout, stderr = run_script("system_filtering.py", filter_args)
 
         if rc == 0:
             self.files["substrates_filtered"] = out_filtered
             self.files["substrates_all"] = out_all
+            if os.path.exists(gate_verdicts):
+                self.files["gate_verdicts"] = gate_verdicts
             n_subs = sum(1 for line in open(out_filtered) if not line.startswith("locus_tag") and line.strip()) - 1
             n_subs = max(0, n_subs)
             return StepResult("filtering", True, f"{n_subs} secreted proteins")
