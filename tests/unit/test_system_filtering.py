@@ -284,3 +284,98 @@ class TestEmptyInputs:
             assert f.readline().strip()
         with open(os.path.join(tmp_dir, "substrates_all.tsv")) as f:
             assert f.readline().strip()
+
+
+class TestLocalizationGateEndToEnd:
+    """Smoke-test the gate's real code path with non-empty ss_components +
+    predictions inputs.
+
+    Earlier tests left both inputs empty, which triggered the no-systems
+    short-circuit in _run_localization_gate and skipped over the
+    load_tsv_by_key call. That hid a missing import (caught on CX3
+    Jun 6 2026, jobs 2939885 + 2939886, crash at step 13 of 24). This
+    test exercises the same code path the runner does so a NameError of
+    that kind shows up in CI.
+    """
+
+    def test_gate_runs_with_real_components_and_predictions(self, monkeypatch, tmp_dir):
+        # One system with one component; tag it with a real ss_type so the
+        # shipped literature table has rules to score against. The exact
+        # verdict (pass/fail) doesn't matter — we just need the gate to
+        # complete without raising.
+        ss_components = write_tsv(
+            os.path.join(tmp_dir, "ss_components.tsv"),
+            ["sys_id", "ss_type", "locus_tag", "gene_name", "excluded"],
+            [
+                {
+                    "sys_id": "sys_1",
+                    "ss_type": "T2SS",
+                    "locus_tag": "COMP_1",
+                    "gene_name": "T2SS_gspD",
+                    "excluded": "False",
+                }
+            ],
+        )
+        predictions = write_tsv(
+            os.path.join(tmp_dir, "predictions.tsv"),
+            [
+                "locus_tag",
+                "dlp_extracellular_prob",
+                "outer_membrane_prob",
+                "periplasm_prob",
+                "cytoplasm_prob",
+                "cytoplasmic_membrane_prob",
+            ],
+            [
+                {
+                    "locus_tag": "COMP_1",
+                    "dlp_extracellular_prob": "0.05",
+                    "outer_membrane_prob": "0.90",
+                    "periplasm_prob": "0.02",
+                    "cytoplasm_prob": "0.02",
+                    "cytoplasmic_membrane_prob": "0.01",
+                }
+            ],
+        )
+        proximity = write_tsv(
+            os.path.join(tmp_dir, "proximity.tsv"),
+            SUBSTRATE_FIELDS,
+            [_make_substrate("PROX_1", nearby_ss_types="T2SS")],
+        )
+        t5ss = write_tsv(os.path.join(tmp_dir, "t5ss.tsv"), SUBSTRATE_FIELDS, [])
+        valid = write_tsv(
+            os.path.join(tmp_dir, "valid.tsv"),
+            _VALID_SYSTEMS_FIELDS,
+            [{"sys_id": "sys_1", "ss_type": "T2SS", "wholeness": "1.0"}],
+        )
+        out_filtered = os.path.join(tmp_dir, "substrates_filtered.tsv")
+        out_all = os.path.join(tmp_dir, "substrates_all.tsv")
+        out_verdicts = os.path.join(tmp_dir, "gate_verdicts.tsv")
+        run_script_main(
+            monkeypatch,
+            system_filtering_main,
+            [
+                "system_filtering",
+                "--proximity-substrates",
+                proximity,
+                "--t5ss-substrates",
+                t5ss,
+                "--valid-systems",
+                valid,
+                "--predictions",
+                predictions,
+                "--ss-components",
+                ss_components,
+                "--sample",
+                "test_sample",
+                "--out-filtered",
+                out_filtered,
+                "--out-all",
+                out_all,
+                "--out-gate-verdicts",
+                out_verdicts,
+            ],
+        )
+        # Gate ran end-to-end; verdicts file exists with at least the header row.
+        with open(out_verdicts) as f:
+            assert f.readline().strip(), "gate verdicts file is empty"

@@ -25,6 +25,7 @@ from ssign_lib.localization_gate import (  # noqa: E402
     evaluate_system,
     load_component_localizations,
 )
+from ssign_lib.tsv_io import load_tsv_by_key  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
