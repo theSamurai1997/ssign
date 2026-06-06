@@ -111,6 +111,11 @@ def run_bakta(contigs_fasta, db_path, sample_id, output_dir, threads=None, local
         str(threads),
         "--force",  # Overwrite if exists
         "--skip-plot",  # Skip plot (not needed in pipeline)
+        # Without this, Bakta renames every contig to contig_1, contig_2, ...
+        # which breaks the GenBank -> Bakta coordinate-overlap mapping in
+        # map_gbff_to_bakta_cds.py (it groups by contig name to limit the
+        # overlap search). Result was empty gbff_annotation on every row.
+        "--keep-contig-headers",
         contigs_fasta,
     ]
 

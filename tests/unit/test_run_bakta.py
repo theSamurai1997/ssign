@@ -315,3 +315,18 @@ class TestRunBaktaThreadDefault:
         cmd = captured[0]
         i = cmd.index("--threads")
         assert cmd[i + 1] == "7"
+
+    def test_keep_contig_headers_always_passed(self, tmp_dir, monkeypatch):
+        """Regression: see run_bakta.py for the contig-rename rationale."""
+        import subprocess
+
+        from run_bakta import run_bakta as _run
+
+        captured = []
+        monkeypatch.setattr(subprocess, "run", self._stub_subprocess_run(captured))
+        self._patch_bakta_outputs(monkeypatch, tmp_dir, "s")
+
+        _run(os.path.join(tmp_dir, "in.fa"), "/db", "s", tmp_dir, threads=4)
+
+        cmd = captured[0]
+        assert "--keep-contig-headers" in cmd
