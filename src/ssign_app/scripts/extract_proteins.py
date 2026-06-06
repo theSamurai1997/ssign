@@ -96,6 +96,29 @@ def extract_from_gff3(gff_path: str, fasta_path: str, sample_id: str):
     for record in SeqIO.parse(fasta_path, "fasta"):
         genome_seqs[record.id] = str(record.seq)
 
+    # GFF3 column-1 IDs must overlap FASTA record IDs or every CDS lookup
+    # silently misses and we return 0 proteins. Common trap is mixing
+    # GenBank vs RefSeq downloads (e.g. CP123 vs NZ_CP123) or an older
+    # GFF3 against a re-versioned FASTA. Catch it loudly up-front.
+    gff_contigs: set[str] = set()
+    with open(gff_path) as _f:
+        for _line in _f:
+            if _line.startswith("#") or not _line.strip():
+                continue
+            _tab = _line.find("\t")
+            if _tab > 0:
+                gff_contigs.add(_line[:_tab])
+    if gff_contigs and not (gff_contigs & set(genome_seqs)):
+        logger.error(
+            "GFF3 contig IDs and FASTA record IDs do not overlap. "
+            "GFF3 has %d distinct contig(s) (e.g. %s); FASTA has %d record(s) (e.g. %s). "
+            "Are both files from the same assembly version?",
+            len(gff_contigs),
+            sorted(gff_contigs)[:3],
+            len(genome_seqs),
+            sorted(genome_seqs.keys())[:3],
+        )
+
     # Parse GFF3
     with open(gff_path) as f:
         for line in f:

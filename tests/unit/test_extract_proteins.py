@@ -284,6 +284,29 @@ class TestExtractFromGff3:
         entries = list(extract_from_gff3(gff, fasta, "sample"))
         assert entries[0]["sequence"] == "MPROTEIN"
 
+    def test_contig_id_mismatch_logs_error_and_yields_nothing(self, tmp_dir, caplog):
+        """Silent-skip guard: when GFF3 contig column doesn't overlap any
+        FASTA record id (common when mixing GenBank/RefSeq downloads), we
+        must log an explicit error and return 0 proteins rather than
+        producing an empty result with no signal."""
+        import logging
+
+        fasta_path = os.path.join(tmp_dir, "g.fna")
+        with open(fasta_path, "w") as f:
+            f.write(">CHROMOSOME_X\n" + "ATG" + "AAA" * 10 + "\n")
+        gff_path = os.path.join(tmp_dir, "g.gff3")
+        with open(gff_path, "w") as f:
+            f.write("##gff-version 3\n")
+            f.write("NZ_CHROMOSOME_X\t.\tCDS\t1\t30\t.\t+\t0\tlocus_tag=G1\n")
+
+        with caplog.at_level(logging.ERROR):
+            entries = list(extract_from_gff3(gff_path, fasta_path, "sample"))
+
+        assert entries == []
+        assert any("do not overlap" in r.message for r in caplog.records), (
+            f"expected mismatch error in logs, got: {[r.message for r in caplog.records]}"
+        )
+
     def test_minus_strand_uses_revcomp(self, tmp_dir):
         # ATGAAATAA on minus strand → revcomp = TTATTTCAT → translate "LFH"
         # We don't pin the exact translation; we pin the property that the
