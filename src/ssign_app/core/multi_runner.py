@@ -234,6 +234,7 @@ class MultiGenomeRunner:
 
         # === Segment E (per-genome) ===
         self._run_per_genome_segment(runners, "E", skip_steps=skip_e_steps)
+        self._copy_per_genome_outputs(runners)
 
         if self.write_combined_summary:
             self._write_combined_summary(runners, top_outdir)
@@ -572,6 +573,20 @@ class MultiGenomeRunner:
             for sid, path in paths.items():
                 if sid in runners:
                     runners[sid].files[key] = str(path)
+
+    def _copy_per_genome_outputs(self, runners: dict[str, PipelineRunner]) -> None:
+        """Materialise per-genome user-facing files.
+
+        Single-genome runs get this via ``PipelineRunner.run()``;
+        multi-genome bypasses ``run()`` and drives ``_execute_stages``
+        directly, so the finaliser has to be invoked explicitly. One
+        genome failing shouldn't block the others.
+        """
+        for sid, runner in runners.items():
+            try:
+                runner._copy_outputs()
+            except Exception as e:
+                logger.warning("copy_outputs failed for genome %s: %s", sid, str(e)[:120])
 
     def _write_combined_summary(self, runners: dict[str, PipelineRunner], top_outdir: Path) -> None:
         """Concatenate per-genome master CSVs into ``combined_results.csv``.

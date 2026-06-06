@@ -384,6 +384,40 @@ class TestMultiGenomeFlow:
         assert out["g1"] == ["g1_result"]
         assert out["g2"] == ["g2_result"]
 
+    def test_copy_outputs_called_per_genome(self, n2_runner):
+        """Regression for #107: multi-genome runs were producing
+        combined_results.csv at top level but no per-genome
+        ``<sid>_results.csv`` because ``_copy_outputs`` only fires inside
+        ``PipelineRunner.run()`` — and multi-genome bypasses that and
+        goes straight to ``_execute_stages``. The fix is to call
+        ``runner._copy_outputs()`` per genome after segment E.
+        """
+        mgr, per_genome, pool, log, spies = n2_runner
+        _seed_two_genome_files(per_genome)
+
+        with patch("ssign_app.scripts.ssign_lib.substrates.load_substrate_ids", return_value=set()):
+            mgr.run(resume=True)
+
+        for sid, runner in per_genome.items():
+            runner._copy_outputs.assert_called_once()
+        # Pool runner has no user-facing outputs — it must NOT be touched.
+        pool._copy_outputs.assert_not_called()
+
+    def test_copy_outputs_failure_isolated_per_genome(self, n2_runner):
+        """One genome's _copy_outputs raising must not stop the others
+        from getting theirs written. Mirrors the
+        ``_write_combined_summary`` skip-with-warning posture."""
+        mgr, per_genome, pool, log, spies = n2_runner
+        _seed_two_genome_files(per_genome)
+
+        per_genome["g1"]._copy_outputs.side_effect = RuntimeError("boom")
+
+        with patch("ssign_app.scripts.ssign_lib.substrates.load_substrate_ids", return_value=set()):
+            mgr.run(resume=True)
+
+        per_genome["g1"]._copy_outputs.assert_called_once()
+        per_genome["g2"]._copy_outputs.assert_called_once()
+
     def test_each_runner_builds_its_own_stages(self, n2_runner):
         """Regression for the 2026-06-05 bound-method bug.
 
