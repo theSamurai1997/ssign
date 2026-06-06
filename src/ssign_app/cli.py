@@ -102,7 +102,7 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
         help=(
             "Output directory (default: ./results). For multi-genome runs, "
             "per-genome outputs land in <outdir>/<sample_id>/ and a "
-            "combined_summary.tsv is written at the top level."
+            "combined_results.csv is written at the top level."
         ),
     )
     g.add_argument(
@@ -120,9 +120,9 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
         action=argparse.BooleanOptionalAction,
         default=True,
         help=(
-            "Write a top-level combined_summary.tsv aggregating all genomes' "
+            "Write a top-level combined_results.csv aggregating all genomes' "
             "substrates with a source_genome column (multi-genome only; "
-            "default on)."
+            "default on). Flag is still named --combined-summary for back-compat."
         ),
     )
     g.add_argument(

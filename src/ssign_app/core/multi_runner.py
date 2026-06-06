@@ -574,15 +574,20 @@ class MultiGenomeRunner:
                     runners[sid].files[key] = str(path)
 
     def _write_combined_summary(self, runners: dict[str, PipelineRunner], top_outdir: Path) -> None:
-        """Concatenate per-genome master CSVs into ``combined_summary.tsv``.
+        """Concatenate per-genome master CSVs into ``combined_results.csv``.
 
         Each row gets a ``source_genome`` column tagging which genome the
         substrate came from. Genomes whose ``integrated`` CSV is missing
         (e.g. segment-E failed for that genome) are skipped with a warning.
+
+        Matches the single-genome ``<sample>_results.csv`` schema +
+        delimiter so downstream consumers can use the same parser. Method
+        name and ``write_combined_summary`` flag still say "summary" for
+        backward compat with callers; the file on disk is the results table.
         """
         import csv
 
-        out_path = top_outdir / "combined_summary.tsv"
+        out_path = top_outdir / "combined_results.csv"
         all_fields: list[str] = ["source_genome"]
         seen: set[str] = {"source_genome"}
         rows: list[dict[str, str]] = []
@@ -590,7 +595,7 @@ class MultiGenomeRunner:
         for sid, runner in runners.items():
             integrated = runner.files.get("integrated")
             if not integrated or not os.path.exists(integrated):
-                logger.warning("combined_summary: no integrated CSV for genome %s", sid)
+                logger.warning("combined_results: no integrated CSV for genome %s", sid)
                 continue
             with open(integrated) as f:
                 # integrated_annotations.py writes a comma-separated CSV.
@@ -604,15 +609,15 @@ class MultiGenomeRunner:
                     rows.append(row)
 
         if not rows:
-            logger.warning("combined_summary: no rows to write")
+            logger.warning("combined_results: no rows to write")
             return
 
         with open(out_path, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=all_fields, delimiter="\t")
+            writer = csv.DictWriter(f, fieldnames=all_fields)
             writer.writeheader()
             writer.writerows(rows)
         logger.info(
-            "combined_summary: wrote %d rows across %d genomes -> %s",
+            "combined_results: wrote %d rows across %d genomes -> %s",
             len(rows),
             len(runners),
             out_path,

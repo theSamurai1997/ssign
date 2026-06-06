@@ -11,7 +11,7 @@
 #        scripts/cx3/run_batched_multi.pbs
 #
 # Per-genome outputs land in $RUN_DIR/<sample_id>/; a top-level
-# combined_summary.tsv aggregates all substrates with a source_genome column.
+# combined_results.csv aggregates all substrates with a source_genome column.
 
 #PBS -l select=1:ncpus=64:mem=120gb:ngpus=1
 #PBS -l walltime=16:00:00
@@ -67,6 +67,6 @@ echo "===== ssign run END (rc=$SSIGN_RC) $(date -Is) ====="
 
 echo "===== Output layout ====="
 ls -la "$RUN_DIR"
-test -f "$RUN_DIR/combined_summary.tsv" && echo "combined_summary.tsv: $(wc -l < "$RUN_DIR/combined_summary.tsv") rows"
+test -f "$RUN_DIR/combined_results.csv" && echo "combined_results.csv: $(wc -l < "$RUN_DIR/combined_results.csv") rows"
 
 exit $SSIGN_RC
