@@ -10,7 +10,8 @@ Two modes:
   long-running cohorts or paper-grade reproducibility.
 
 Output columns: locus_tag, predicted_localization, extracellular_prob,
-periplasmic_prob, outer_membrane_prob, cytoplasmic_prob, product
+periplasmic_prob, outer_membrane_prob, cytoplasmic_prob,
+cytoplasmic_membrane_prob, product
 """
 
 import argparse
@@ -74,7 +75,7 @@ def run_local_deeplocpro(input_fasta, deeplocpro_path, output_dir, organism="gra
             f.write(
                 "locus_tag\tpredicted_localization\textracellular_prob\t"
                 "periplasmic_prob\touter_membrane_prob\tcytoplasmic_prob\t"
-                "cytoplasmic_membrane_prob\tmax_localization\tmax_probability\n"
+                "cytoplasmic_membrane_prob\tproduct\n"
             )
         return empty_out
 
@@ -306,7 +307,7 @@ def run_remote_deeplocpro(input_fasta, output_dir):
             f.write(
                 "locus_tag\tpredicted_localization\textracellular_prob\t"
                 "periplasmic_prob\touter_membrane_prob\tcytoplasmic_prob\t"
-                "cytoplasmic_membrane_prob\tmax_localization\tmax_probability\n"
+                "cytoplasmic_membrane_prob\tproduct\n"
             )
         return empty_out
 
@@ -396,12 +397,23 @@ def parse_deeplocpro_output(results_path):
                     peri_prob = float(row.get("Periplasmic", row.get("Periplasm", row.get("periplasmic", 0))))
                     om_prob = float(row.get("Outer Membrane", row.get("OuterMembrane", row.get("outer_membrane", 0))))
                     cyto_prob = float(row.get("Cytoplasmic", row.get("Cytoplasm", row.get("cytoplasmic", 0))))
+                    # DeepLocPro emits a 5th class "Cytoplasmic Membrane" (inner
+                    # membrane). The localization-correctness gate (#58c) needs
+                    # it to score T1SS ABC transporter, T2SS GspF/L/M, T4SS
+                    # VirB3/6/8, T6SS TssM/L, etc. Without this column those
+                    # components are unscoreable.
+                    cyto_mem_prob = float(
+                        row.get(
+                            "Cytoplasmic Membrane", row.get("CytoplasmicMembrane", row.get("cytoplasmic_membrane", 0))
+                        )
+                    )
 
                     probs = {
                         "Extracellular": ext_prob,
                         "Periplasmic": peri_prob,
                         "Outer Membrane": om_prob,
                         "Cytoplasmic": cyto_prob,
+                        "Cytoplasmic Membrane": cyto_mem_prob,
                     }
                     predicted = max(probs, key=lambda k: probs[k])
 
@@ -413,6 +425,7 @@ def parse_deeplocpro_output(results_path):
                             "periplasmic_prob": round(peri_prob, 4),
                             "outer_membrane_prob": round(om_prob, 4),
                             "cytoplasmic_prob": round(cyto_prob, 4),
+                            "cytoplasmic_membrane_prob": round(cyto_mem_prob, 4),
                             "product": row.get("annotation", row.get("product", "")),
                         }
                     )
@@ -461,6 +474,7 @@ def main():
             "periplasmic_prob",
             "outer_membrane_prob",
             "cytoplasmic_prob",
+            "cytoplasmic_membrane_prob",
             "product",
         ]
         with open(args.output, "w", newline="") as f:

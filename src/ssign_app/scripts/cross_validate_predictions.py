@@ -193,6 +193,7 @@ FIELDNAMES = [
     "periplasmic_prob",
     "outer_membrane_prob",
     "cytoplasmic_prob",
+    "cytoplasmic_membrane_prob",
     # DeepSecE
     "dse_ss_type",
     "dse_max_prob",
@@ -274,6 +275,7 @@ def cross_validate(
             "periplasmic_prob": dlp.get("periplasmic_prob", ""),
             "outer_membrane_prob": dlp.get("outer_membrane_prob", ""),
             "cytoplasmic_prob": dlp.get("cytoplasmic_prob", ""),
+            "cytoplasmic_membrane_prob": dlp.get("cytoplasmic_membrane_prob", ""),
             "dse_ss_type": dse_type,
             "dse_max_prob": dse_max,
             "dse_T3SS_flagged": t3ss_flagged,

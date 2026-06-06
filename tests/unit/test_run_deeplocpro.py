@@ -99,7 +99,42 @@ class TestParseDeeplocproOutput:
         assert len(entries) == 1
         assert entries[0]["locus_tag"] == "GENE_001"
 
-    def test_extracts_all_four_localisation_probabilities(self, tmp_dir):
+    def test_extracts_all_five_localisation_probabilities(self, tmp_dir):
+        path = _write_csv(
+            os.path.join(tmp_dir, "out.csv"),
+            [
+                "ACC",
+                "Extracellular",
+                "Periplasmic",
+                "Outer Membrane",
+                "Cytoplasmic",
+                "Cytoplasmic Membrane",
+            ],
+            [
+                {
+                    "ACC": "GENE_001",
+                    "Extracellular": "0.05",
+                    "Periplasmic": "0.05",
+                    "Outer Membrane": "0.07",
+                    "Cytoplasmic": "0.03",
+                    "Cytoplasmic Membrane": "0.80",
+                }
+            ],
+        )
+        entry = parse_deeplocpro_output(path)[0]
+        assert entry["extracellular_prob"] == 0.05
+        assert entry["periplasmic_prob"] == 0.05
+        assert entry["outer_membrane_prob"] == 0.07
+        assert entry["cytoplasmic_prob"] == 0.03
+        assert entry["cytoplasmic_membrane_prob"] == 0.80
+        # 5-class argmax: Cytoplasmic Membrane wins (without it the wrapper
+        # used to fall back to Outer Membrane at 0.07, silently misclassifying
+        # T1SS/T2SS/T4SS/T6SS inner-membrane components.
+        assert entry["predicted_localization"] == "Cytoplasmic Membrane"
+
+    def test_missing_cytoplasmic_membrane_column_defaults_to_zero(self, tmp_dir):
+        # DLP outputs older than the 5-class wrapper (or DTU web variants that
+        # don't include the column) must still parse, with cytoplasmic_membrane_prob = 0.
         path = _write_csv(
             os.path.join(tmp_dir, "out.csv"),
             ["ACC", "Extracellular", "Periplasmic", "Outer Membrane", "Cytoplasmic"],
@@ -114,10 +149,8 @@ class TestParseDeeplocproOutput:
             ],
         )
         entry = parse_deeplocpro_output(path)[0]
-        assert entry["extracellular_prob"] == 0.85
-        assert entry["periplasmic_prob"] == 0.05
-        assert entry["outer_membrane_prob"] == 0.07
-        assert entry["cytoplasmic_prob"] == 0.03
+        assert entry["cytoplasmic_membrane_prob"] == 0
+        assert entry["predicted_localization"] == "Extracellular"
 
     def test_predicted_localisation_is_argmax(self, tmp_dir):
         path = _write_csv(
