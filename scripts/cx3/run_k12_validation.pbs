@@ -24,7 +24,7 @@
 # ~60-90 m; annotation (esp. pLM-BLAST) may take an additional 2-4 h on
 # autotransporter-heavy genomes — see task #46/#4.
 
-#PBS -l select=1:ncpus=64:mem=120gb:ngpus=1
+#PBS -l select=1:ncpus=32:mem=64gb:ngpus=1
 #PBS -l walltime=16:00:00
 #PBS -N ssign_validation
 #PBS -j oe
