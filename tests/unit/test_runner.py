@@ -907,9 +907,10 @@ class TestStepSampleNullProteins:
 
 
 class TestWriteStepTimings:
-    """`_write_step_timings` produces outdir/step_timings.csv after every
-    run. Companion to resources.csv (sampler thread output) so the user
-    can see per-tool wallclocks without grepping the log."""
+    """`_write_step_timings` produces outdir/runtime_data/step_timings.csv
+    after every run. Companion to runtime_data/resource_samples.csv
+    (sampler thread output) so the user can see per-tool wallclocks
+    without grepping the log."""
 
     def test_writes_one_row_per_step_with_duration(self, tmp_dir):
         c = PipelineConfig(outdir=tmp_dir, sample_id="x")
@@ -921,7 +922,7 @@ class TestWriteStepTimings:
         ]
         r._write_step_timings()
 
-        path = os.path.join(tmp_dir, "step_timings.csv")
+        path = os.path.join(tmp_dir, "runtime_data", "step_timings.csv")
         assert os.path.exists(path)
         with open(path) as fh:
             import csv as _csv
@@ -940,7 +941,7 @@ class TestWriteStepTimings:
         r = PipelineRunner(c)
         r.results = []
         r._write_step_timings()
-        assert not os.path.exists(os.path.join(tmp_dir, "step_timings.csv"))
+        assert not os.path.exists(os.path.join(tmp_dir, "runtime_data", "step_timings.csv"))
 
     def test_incremental_write_survives_midpipeline_kill(self, tmp_dir):
         # If the pipeline is killed (SIGKILL, OOM, PBS walltime) before the
@@ -948,7 +949,7 @@ class TestWriteStepTimings:
         # for every step that did complete instead of an empty file.
         c = PipelineConfig(outdir=tmp_dir, sample_id="x")
         r = PipelineRunner(c)
-        path = os.path.join(tmp_dir, "step_timings.csv")
+        path = os.path.join(tmp_dir, "runtime_data", "step_timings.csv")
         completed = [
             StepResult("detect_format", True, "ok", duration_s=0.5),
             StepResult("extract_proteins", True, "ok", duration_s=12.0),
@@ -973,7 +974,8 @@ class TestWriteStepTimings:
         r = PipelineRunner(c)
         r.results = [StepResult("step1", True, "ok", duration_s=1.0)]
         r._write_step_timings()
-        leftover = [p for p in os.listdir(tmp_dir) if p.startswith("step_timings.csv.tmp")]
+        runtime_dir = os.path.join(tmp_dir, "runtime_data")
+        leftover = [p for p in os.listdir(runtime_dir) if p.startswith("step_timings.csv.tmp")]
         assert leftover == []
 
 

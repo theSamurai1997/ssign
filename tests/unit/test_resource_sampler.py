@@ -1,6 +1,6 @@
 """Unit tests for ResourceSampler — the in-process resource sampler that
 the runner spins up as a daemon thread so every run produces
-``outdir/resources.csv`` without the user having to launch anything.
+``outdir/runtime_data/resource_samples.csv`` without the user having to launch anything.
 
 We don't test the actual sampling values (host-dependent); we test that
 the thread starts, writes a CSV with the expected header, picks up the

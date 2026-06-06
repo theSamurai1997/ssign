@@ -243,7 +243,7 @@ class PipelineConfig:
     sp_whole_genome: bool = False
     plme_whole_genome: bool = False
 
-    # Resource sampling — writes outdir/resources.csv during a run with
+    # Resource sampling — writes outdir/runtime_data/resource_samples.csv during a run with
     # system CPU/RAM/GPU/disk samples tagged with the active step. Disable
     # if a tier-1 install is missing psutil or you don't want the
     # background thread.
@@ -822,16 +822,17 @@ class PipelineRunner:
         # Create output directory
         os.makedirs(self.config.outdir, exist_ok=True)
 
-        # Spin up the in-process resource sampler. Writes resources.csv
-        # to outdir in real time (system CPU/RAM/GPU/disk, tagged with
-        # the active step). Daemon thread; sampling failures never crash
-        # the pipeline. Disable with `monitor_resources=False`.
+        # Spin up the in-process resource sampler. Writes
+        # runtime_data/resource_samples.csv to outdir in real time
+        # (system CPU/RAM/GPU/disk, tagged with the active step).
+        # Daemon thread; sampling failures never crash the pipeline.
+        # Disable with `monitor_resources=False`.
         self._sampler = None
         if self.config.monitor_resources:
             from ssign_app.core.resource_sampler import ResourceSampler
 
             self._sampler = ResourceSampler(
-                out_path=os.path.join(self.config.outdir, "resources.csv"),
+                out_path=os.path.join(self.config.outdir, "runtime_data", "resource_samples.csv"),
                 interval=self.config.monitor_interval_s,
             )
             self._sampler.start()
@@ -851,8 +852,8 @@ class PipelineRunner:
 
         # Copy final outputs to outdir BEFORE reporting 100% — otherwise the
         # progress bar hits 100 while files are still being written.
-        # step_timings.csv is up-to-date already; _record_result wrote it
-        # incrementally as each step finished.
+        # runtime_data/step_timings.csv is up-to-date already; _record_result
+        # wrote it incrementally as each step finished.
         self._copy_outputs()
         self._save_progress()
         if self._sampler is not None:
@@ -1175,7 +1176,7 @@ class PipelineRunner:
         return core_failed
 
     def _record_result(self, result: "StepResult") -> None:
-        """Append a step result and flush step_timings.csv to disk.
+        """Append a step result and flush runtime_data/step_timings.csv to disk.
 
         Callers in the parallel group hold ``self._state_lock`` already;
         callers in the sequential path are single-threaded. Either way
@@ -1187,12 +1188,12 @@ class PipelineRunner:
         self._write_step_timings()
 
     def _write_step_timings(self) -> None:
-        """Write per-step wallclock data to outdir/step_timings.csv.
+        """Write per-step wallclock data to outdir/runtime_data/step_timings.csv.
 
-        Companion to resources.csv: that one is sampled over time;
-        step_timings is one row per step with start/duration. Together
-        they let the operator slice the per-second sampler data by step
-        without grep-tagging.
+        Companion to runtime_data/resource_samples.csv: that one is
+        sampled over time; step_timings is one row per step with
+        start/duration. Together they let the operator slice the
+        per-second sampler data by step without grep-tagging.
 
         Called after every step finishes (not just at pipeline end) so
         a mid-pipeline crash or PBS walltime kill still leaves timings
@@ -1205,7 +1206,8 @@ class PipelineRunner:
             return
         import csv
 
-        out_path = os.path.join(self.config.outdir, "step_timings.csv")
+        out_path = os.path.join(self.config.outdir, "runtime_data", "step_timings.csv")
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
         tmp_path = f"{out_path}.tmp.{os.getpid()}"
         try:
             with open(tmp_path, "w", newline="") as fh:

@@ -342,13 +342,13 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
         "--monitor-resources",
         action=argparse.BooleanOptionalAction,
         default=True,
-        help="Write outdir/resources.csv + step_timings.csv during a run. On by default.",
+        help="Write outdir/runtime_data/{step_timings,resource_samples}.csv during a run. On by default.",
     )
     g.add_argument(
         "--monitor-interval-s",
         type=float,
         default=5.0,
-        help="Sampling interval for resources.csv (seconds, default 5).",
+        help="Sampling interval for resource_samples.csv (seconds, default 5).",
     )
 
     # ── Phase 5: Annotation tools ───────────────────────────────────────

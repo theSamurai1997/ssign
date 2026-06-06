@@ -1,4 +1,4 @@
-"""In-process resource sampler: writes per-tool resources.csv during a run.
+"""In-process resource sampler: writes per-tool resource_samples.csv during a run.
 
 Spawned as a daemon thread by PipelineRunner. Samples system CPU / RAM /
 GPU / disk every N seconds and tags each row with the step that's
@@ -42,7 +42,7 @@ class ResourceSampler:
     """Background sampling thread.
 
     Usage:
-        sampler = ResourceSampler(out_path="resources.csv", interval=5.0)
+        sampler = ResourceSampler(out_path="runtime_data/resource_samples.csv", interval=5.0)
         sampler.start()
         sampler.set_step("parallel: dlp, dse, signalp")
         ...
