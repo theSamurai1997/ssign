@@ -1252,6 +1252,21 @@ class PipelineRunner:
             for record in SeqIO.parse(gbff_path, "genbank"):
                 f.write(f">{record.id}\n{str(record.seq)}\n")
 
+    def _find_companion_fasta(self, gff_path: str) -> Optional[str]:
+        """Locate the genomic FASTA that pairs with a GFF3 input.
+
+        NCBI ships GFF3 + FASTA together with the same stem (e.g.
+        ``ecoli_k12.gff`` + ``ecoli_k12.fna``); extract_proteins.py
+        translates CDS coordinates against the FASTA, so the runner
+        has to hand both files over.
+        """
+        base, _ = os.path.splitext(gff_path)
+        for ext in (".fna", ".fa", ".fasta"):
+            candidate = base + ext
+            if os.path.isfile(candidate):
+                return candidate
+        return None
+
     def _run_extract_proteins_script(self, proteins_out: str, gene_info_out: str, metadata_out: str) -> tuple:
         """Invoke extract_proteins.py with this run's input + sample id.
 
@@ -1272,6 +1287,15 @@ class PipelineRunner:
         ]
         if self.config.original_filename:
             args.extend(["--original-filename", self.config.original_filename])
+        if self.files.get("format", "") == "gff3":
+            fasta = self._find_companion_fasta(self.config.input_path)
+            if not fasta:
+                return 1, (
+                    "GFF3 input requires a companion nucleotide FASTA "
+                    "with the same stem (e.g. ecoli_k12.gff + ecoli_k12.fna). "
+                    "Place one alongside the GFF3 file."
+                )
+            args.extend(["--fasta", fasta])
         rc, _, stderr = run_script("extract_proteins.py", args)
         return rc, stderr
 

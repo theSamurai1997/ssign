@@ -436,6 +436,79 @@ class TestRunnerInit:
         assert r.api_sem == {"dtu": sem}
 
 
+class TestGff3CompanionFasta:
+    """Regression: GFF3 input failed at step 2/24 because the runner never
+    passed --fasta to extract_proteins.py. extract_proteins.py refuses to
+    translate CDS from a GFF3 without the matching nucleotide FASTA.
+    """
+
+    def test_finds_fna_companion_by_stem(self, tmp_dir):
+        gff = os.path.join(tmp_dir, "ecoli.gff")
+        fna = os.path.join(tmp_dir, "ecoli.fna")
+        for p in (gff, fna):
+            open(p, "w").close()
+        r = PipelineRunner(PipelineConfig(outdir=tmp_dir, sample_id="t"))
+        assert r._find_companion_fasta(gff) == fna
+
+    def test_prefers_fna_over_fa_and_fasta(self, tmp_dir):
+        gff = os.path.join(tmp_dir, "g.gff")
+        for ext in (".fna", ".fa", ".fasta"):
+            open(os.path.join(tmp_dir, "g" + ext), "w").close()
+        open(gff, "w").close()
+        r = PipelineRunner(PipelineConfig(outdir=tmp_dir, sample_id="t"))
+        assert r._find_companion_fasta(gff).endswith(".fna")
+
+    def test_returns_none_when_no_companion(self, tmp_dir):
+        gff = os.path.join(tmp_dir, "lonely.gff")
+        open(gff, "w").close()
+        r = PipelineRunner(PipelineConfig(outdir=tmp_dir, sample_id="t"))
+        assert r._find_companion_fasta(gff) is None
+
+    def test_extract_proteins_args_include_fasta_for_gff3(self, tmp_dir, monkeypatch):
+        """When format=='gff3' and a companion FASTA is found, the runner
+        must pass --fasta to extract_proteins.py."""
+        gff = os.path.join(tmp_dir, "g.gff")
+        fna = os.path.join(tmp_dir, "g.fna")
+        for p in (gff, fna):
+            open(p, "w").close()
+
+        captured: list[list[str]] = []
+
+        def _fake_run_script(name, args, **kw):
+            captured.append(list(args))
+            return 0, "", ""
+
+        from ssign_app.core import runner as _runner
+
+        monkeypatch.setattr(_runner, "run_script", _fake_run_script)
+
+        r = PipelineRunner(PipelineConfig(outdir=tmp_dir, sample_id="t", input_path=gff))
+        r.files["format"] = "gff3"
+        rc, _ = r._run_extract_proteins_script("p.faa", "g.tsv", "m.json")
+        assert rc == 0
+        assert captured, "extract_proteins.py was not invoked"
+        args = captured[0]
+        assert "--fasta" in args
+        assert args[args.index("--fasta") + 1] == fna
+
+    def test_extract_proteins_errors_when_gff3_has_no_companion(self, tmp_dir, monkeypatch):
+        gff = os.path.join(tmp_dir, "no_fna.gff")
+        open(gff, "w").close()
+
+        def _fake_run_script(*a, **kw):
+            raise AssertionError("run_script should not be called when companion FASTA is missing")
+
+        from ssign_app.core import runner as _runner
+
+        monkeypatch.setattr(_runner, "run_script", _fake_run_script)
+
+        r = PipelineRunner(PipelineConfig(outdir=tmp_dir, sample_id="t", input_path=gff))
+        r.files["format"] = "gff3"
+        rc, stderr = r._run_extract_proteins_script("p.faa", "g.tsv", "m.json")
+        assert rc == 1
+        assert "companion" in stderr.lower() or "fasta" in stderr.lower()
+
+
 class TestProgressMonotonic:
     """`progress(...)` must never go backwards. Parallel-group `as_completed`
     is non-deterministic, so a step that finishes after a higher-ordinal
