@@ -258,3 +258,48 @@ class TestRunLocalBlastpThreadDefault:
         cmd = captured[0]
         i = cmd.index("-num_threads")
         assert cmd[i + 1] == "7"
+
+
+class TestEmptySubstratesShortCircuit:
+    """Mirror of run_interproscan's zero-substrate guard. Empty substrate
+    input must short-circuit before BLASTp is spawned (otherwise the
+    wrapper crashes downstream on an empty results set)."""
+
+    def test_empty_substrates_writes_header_only_csv(self, tmp_path, monkeypatch):
+        import subprocess
+
+        import run_blastp
+
+        substrates = tmp_path / "substrates.tsv"
+        substrates.write_text("locus_tag\tss_type\n")
+
+        proteins = tmp_path / "proteins.faa"
+        proteins.write_text(">X\nM\n")
+
+        output = tmp_path / "blastp.csv"
+
+        def _no_subprocess(*a, **kw):
+            raise AssertionError("subprocess.run must NOT fire when there are no substrates")
+
+        monkeypatch.setattr(subprocess, "run", _no_subprocess)
+        monkeypatch.setattr(
+            "sys.argv",
+            [
+                "run_blastp.py",
+                "--substrates",
+                str(substrates),
+                "--proteins",
+                str(proteins),
+                "--db",
+                "/fake/nr",
+                "--sample",
+                "buchnera",
+                "--output",
+                str(output),
+            ],
+        )
+        run_blastp.main()
+
+        body = output.read_text()
+        assert body.splitlines()[0].startswith("locus_tag,blastp_hit_accession,")
+        assert len(body.splitlines()) == 1

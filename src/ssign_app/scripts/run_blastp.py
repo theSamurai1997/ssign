@@ -12,6 +12,16 @@ import tempfile
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
+_OUTPUT_FIELDNAMES = (
+    "locus_tag",
+    "blastp_hit_accession",
+    "blastp_hit_description",
+    "blastp_pident",
+    "blastp_qcov",
+    "blastp_evalue",
+    "blastp_bitscore",
+)
+
 _scripts_dir = os.path.dirname(os.path.abspath(__file__))
 if _scripts_dir not in sys.path:
     sys.path.insert(0, _scripts_dir)
@@ -208,8 +218,16 @@ def main():
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
 
-    # Extract substrate sequences into temp FASTA
     substrate_ids = load_substrate_ids(args.substrates)
+    if not substrate_ids:
+        # Reduced-genome endosymbionts and other zero-substrate inputs
+        # would otherwise hand BLASTp an empty FASTA and crash downstream.
+        logger.info(f"No substrates for {args.sample}; writing empty BLASTp output.")
+        with open(args.output, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=_OUTPUT_FIELDNAMES)
+            writer.writeheader()
+        return
+
     all_seqs = read_fasta(args.proteins)
     sub_seqs = {k: v for k, v in all_seqs.items() if k in substrate_ids}
 
@@ -238,17 +256,8 @@ def main():
     filtered = expand_results_dict(filtered, seq_groups)
     logger.info(f"{len(filtered)}/{len(hits)} hits pass filters for {args.sample}")
 
-    fieldnames = [
-        "locus_tag",
-        "blastp_hit_accession",
-        "blastp_hit_description",
-        "blastp_pident",
-        "blastp_qcov",
-        "blastp_evalue",
-        "blastp_bitscore",
-    ]
     with open(args.output, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer = csv.DictWriter(f, fieldnames=_OUTPUT_FIELDNAMES)
         writer.writeheader()
         for hit in filtered.values():
             writer.writerow(hit)

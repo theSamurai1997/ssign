@@ -37,6 +37,14 @@ _COL_GO_TERMS = 13
 _MISSING = "-"
 _GO_ID_RE = re.compile(r"(GO:\d+)")
 
+_OUTPUT_FIELDNAMES = (
+    "locus_tag",
+    "interpro_domains",
+    "interpro_go_terms",
+    "interpro_pfam_ids",
+    "interpro_descriptions",
+)
+
 # Bacteria-relevant member DBs. PANTHER (eukaryote-leaning, slowest IPS
 # member) is excluded by default. Pass --applications "" to run all DBs.
 DEFAULT_IPS_APPLICATIONS = (
@@ -285,13 +293,24 @@ def main():
     )
     args = parser.parse_args()
 
-    # Stage InterProScan install dir to local SSD if on network FS.
+    # Short-circuit on empty substrate input BEFORE the DB stage. Reduced-
+    # genome endosymbionts (e.g. Buchnera) yield zero substrates; staging
+    # ~10 GB of IPS data to local SSD only to throw it away is pure waste.
+    # Previous bug here: empty FASTA -> IPS produced no results.tsv -> the
+    # wrapper crashed with FileNotFoundError on parse.
+    substrate_ids = load_substrate_ids(args.substrates)
+    if not substrate_ids:
+        logger.info(f"No substrates for {args.sample}; writing empty InterProScan output.")
+        with open(args.output, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=_OUTPUT_FIELDNAMES)
+            writer.writeheader()
+        return
+
     if args.local_cache_dir and args.db:
         from ssign_lib.resources import stage_directory_tree_to_local_ssd_if_remote
 
         args.db = stage_directory_tree_to_local_ssd_if_remote(args.db, args.local_cache_dir)
 
-    substrate_ids = load_substrate_ids(args.substrates)
     all_seqs = read_fasta(args.proteins)
     sub_seqs = {k: v for k, v in all_seqs.items() if k in substrate_ids}
 
@@ -318,15 +337,8 @@ def main():
 
     logger.info(f"Annotated {len(results)}/{len(substrate_ids)} substrates for {args.sample}")
 
-    fieldnames = [
-        "locus_tag",
-        "interpro_domains",
-        "interpro_go_terms",
-        "interpro_pfam_ids",
-        "interpro_descriptions",
-    ]
     with open(args.output, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer = csv.DictWriter(f, fieldnames=_OUTPUT_FIELDNAMES)
         writer.writeheader()
         for r in results.values():
             writer.writerow(r)

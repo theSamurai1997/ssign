@@ -337,6 +337,56 @@ class TestRunLocalInterproscanFailureSurface:
         assert str(tmp_path / "interproscan_failure.log") in str(exc.value)
 
 
+class TestEmptySubstratesShortCircuit:
+    """Regression: when substrates_filtered.tsv has zero rows (e.g. a
+    reduced-genome endosymbiont like Buchnera with no detected substrates),
+    the IPS wrapper used to feed Java an empty FASTA, fail to find the
+    expected results.tsv, and crash with FileNotFoundError. It must now
+    short-circuit, write a header-only CSV, and exit cleanly."""
+
+    def test_empty_substrates_writes_header_only_csv(self, tmp_path, monkeypatch):
+        import subprocess
+
+        import run_interproscan
+
+        # substrates_filtered.tsv with header but no rows.
+        substrates = tmp_path / "substrates.tsv"
+        substrates.write_text("locus_tag\tss_type\n")
+
+        proteins = tmp_path / "proteins.faa"
+        proteins.write_text(">X\nM\n")
+
+        output = tmp_path / "ips.csv"
+
+        # If anything tries to invoke IPS, fail loudly.
+        def _no_subprocess(*a, **kw):
+            raise AssertionError("subprocess.run must NOT fire when there are no substrates")
+
+        monkeypatch.setattr(subprocess, "run", _no_subprocess)
+        monkeypatch.setattr(
+            "sys.argv",
+            [
+                "run_interproscan.py",
+                "--substrates",
+                str(substrates),
+                "--proteins",
+                str(proteins),
+                "--sample",
+                "buchnera",
+                "--output",
+                str(output),
+            ],
+        )
+        run_interproscan.main()
+
+        body = output.read_text()
+        assert (
+            body.splitlines()[0]
+            == "locus_tag,interpro_domains,interpro_go_terms,interpro_pfam_ids,interpro_descriptions"
+        )
+        assert len(body.splitlines()) == 1  # header only
+
+
 class TestJavaOptsHeapAutoScale:
     """IPS hard-codes -Xmx15G in its bundled launcher (verified against
     upstream interproscan.sh) and does NOT read $JAVA_OPTS. The JVM
