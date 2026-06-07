@@ -141,6 +141,36 @@ ssign run /path/to/genome.gbff \
 
 Submit with `qsub ssign-job.sh`.
 
+### Make `--outdir` unique per job
+
+Both templates above use a fixed `--outdir`. That's fine for a one-shot
+submission, but the moment you submit multiple jobs that could land
+concurrently — array jobs, overnight bursts, parameter sweeps — each
+job needs its own output directory.
+
+If two jobs share the same `--outdir`, both ssign processes will read
+and write the same intermediate files concurrently. The pipeline emits
+no error (writes succeed individually) but the final results table
+silently mixes data from both runs. We hit this internally with a
+multi-genome burst submission: jobs released in the same second
+collided on a `date +%s`-derived output path and corrupted each
+other's pool step.
+
+Use the scheduler's job id in the path:
+
+```bash
+# SLURM
+ssign run /path/to/genome.gbff --outdir $SCRATCH/ssign-out/$SLURM_JOB_ID ...
+
+# PBS — strip everything after the first dot in case PBS reports
+# JOBID.server-name (e.g., 12345.pbs-7 -> 12345)
+ssign run /path/to/genome.gbff --outdir $EPHEMERAL/ssign-out/${PBS_JOBID%%.*} ...
+```
+
+For job arrays, also include the array index so per-task outputs
+don't overlap (`$SLURM_ARRAY_TASK_ID` / `$PBS_ARRAY_INDEX`). See § 6
+for the full array pattern.
+
 ## 4. GPU access
 
 DeepSecE, PLM-Effector, and pLM-BLAST all benefit from a GPU:
