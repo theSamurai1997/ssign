@@ -567,6 +567,26 @@ class TestMainProteinFastaDispatch:
         # Description is preserved as the product when present
         assert "some product" in by_locus["P1"]["product"]
 
+    def test_faa_synth_contig_and_positions(self, monkeypatch, tmp_dir):
+        """Regression: .faa input must set a non-empty contig and monotonic
+        positions. extract_neighborhood's load_gene_order drops every row
+        with empty contig, so empty contigs silently produce an empty
+        neighborhood and the downstream prediction tools crash."""
+        faa = os.path.join(tmp_dir, "proteins.faa")
+        with open(faa, "w") as f:
+            f.write(">P1\nMKTLLLT\n")
+            f.write(">P2\nMFVFLVL\n")
+            f.write(">P3\nMGGGGGG\n")
+        _, gene_info, _ = _run_main(monkeypatch, tmp_dir, faa)
+        rows = read_tsv_rows(gene_info)
+        # All rows have a non-empty contig (so load_gene_order keeps them)
+        assert all(r["contig"] for r in rows), [r["contig"] for r in rows]
+        # Positions are distinct + monotonic in FASTA order so
+        # extract_gene_order's sort yields the input ordering.
+        by_locus = {r["locus_tag"]: r for r in rows}
+        starts = [int(by_locus[lt]["start"]) for lt in ("P1", "P2", "P3")]
+        assert starts == sorted(set(starts)), starts
+
 
 class TestMainErrorPaths:
     def test_unsupported_extension_exits(self, monkeypatch, tmp_dir):

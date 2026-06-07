@@ -288,7 +288,12 @@ def main():
         logger.info("FASTA contigs detected — running Pyrodigal gene prediction")
         entries = list(extract_from_fasta_contigs(args.input, args.sample))
     elif ext == ".faa":
-        # Pre-translated protein FASTA — read directly
+        # Pre-translated protein FASTA — read directly. There's no
+        # genomic context, so synthesise a single contig name + monotonic
+        # positions from FASTA order. Without these, extract_gene_order
+        # and extract_neighborhood silently drop every row (empty contig
+        # fails their truthiness check), the neighborhood ends up empty,
+        # and DeepSecE / PLM-Effector crash on zero inputs.
         entries = []
         counter = 0
         for record in SeqIO.parse(args.input, "fasta"):
@@ -300,9 +305,9 @@ def main():
                     "protein_id": "",
                     "gene": "",
                     "product": record.description if record.description != record.id else "hypothetical protein",
-                    "contig": "",
-                    "start": 0,
-                    "end": len(record.seq),
+                    "contig": "fasta",
+                    "start": counter,
+                    "end": counter + 1,
                     "strand": "+",
                     "sequence": str(record.seq),
                 }
