@@ -325,3 +325,38 @@ class TestSelectDevice:
         monkeypatch.setenv("SSIGN_DEEPSECE_FORCE_CPU", "1")
         monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
         assert _select_device().type == "cpu"
+
+
+class TestEmptyInputShortCircuit:
+    """Regression: an empty neighborhood.faa reaches `np.concatenate([])`
+    inside run_deepsece and crashes. The wrapper must short-circuit
+    BEFORE model loading and write a header-only output."""
+
+    def test_main_writes_header_only_csv_on_empty_input(self, tmp_dir, monkeypatch):
+        empty = os.path.join(tmp_dir, "empty.faa")
+        open(empty, "w").close()
+        output = os.path.join(tmp_dir, "dse.tsv")
+
+        def _no_torch_import(*a, **kw):
+            raise AssertionError("torch must NOT be imported when input is empty")
+
+        # If main attempts to import torch (or run_deepsece) we trip the assertion.
+        monkeypatch.setattr(rd, "run_deepsece", _no_torch_import)
+
+        monkeypatch.setattr(
+            "sys.argv",
+            [
+                "run_deepsece.py",
+                "--input",
+                empty,
+                "--sample",
+                "buchnera",
+                "--output",
+                output,
+            ],
+        )
+        rd.main()
+        body = open(output).read().splitlines()
+        # Header only; DSE TSV is tab-delimited
+        assert len(body) == 1
+        assert body[0].startswith("locus_tag")

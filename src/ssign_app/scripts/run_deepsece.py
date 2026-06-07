@@ -520,6 +520,21 @@ def main():
     parser.add_argument("--checkpoint", default="", help="Path to checkpoint.pt")
     args = parser.parse_args()
 
+    # Empty-input short-circuit. An empty neighborhood.faa (e.g. when
+    # MacSyFinder finds nothing, or a pipeline upstream bug produces an
+    # empty FASTA) would otherwise reach `np.concatenate([])` inside
+    # run_deepsece and crash. Skip model load entirely; write the
+    # header-only output the cross_validate step expects.
+    from ssign_lib.fasta_io import count_sequences
+
+    if count_sequences(args.input) == 0:
+        logger.info(f"No sequences in {args.input}; writing empty DeepSecE output.")
+        fieldnames = list(_COLUMN_MAP.values())
+        with open(args.output, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter="\t")
+            writer.writeheader()
+        return
+
     # DSE uses PyTorch internally with no thread-count flag; cap via
     # torch.set_num_threads + OMP/MKL so it doesn't oversubscribe when
     # running concurrently with DLP and SignalP in the parallel

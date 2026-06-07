@@ -347,3 +347,60 @@ class TestCliWrapper:
         )
         assert rc == 0
         assert os.path.isdir(nested_out_dir)
+
+
+class TestEmptyInputShortCircuit:
+    """Regression: an empty FASTA reaches the per-PLM extraction
+    subprocess and crashes with 'PLM extraction subprocess for esm1
+    exited successfully but wrote no chunk files'. The wrapper must
+    short-circuit BEFORE invoking `predict()` and emit header-only
+    per-type TSVs so the downstream merge step still finds the
+    expected files.
+    """
+
+    def test_empty_input_writes_header_only_per_type_tsvs(self, tmp_dir, monkeypatch):
+        import sys as _sys
+
+        from run_plm_effector import main
+
+        # Empty FASTA + weights dir that exists (but main shouldn't reach it).
+        empty = os.path.join(tmp_dir, "empty.faa")
+        open(empty, "w").close()
+        weights = os.path.join(tmp_dir, "weights")
+        os.makedirs(weights, exist_ok=True)
+        out_dir = os.path.join(tmp_dir, "plme_out")
+
+        # Trip if anything tries to invoke predict().
+        import ssign_app.scripts.plm_effector as plm_pkg
+
+        def _no_predict(*a, **kw):
+            raise AssertionError("predict() must NOT fire on empty input")
+
+        monkeypatch.setattr(plm_pkg, "predict", _no_predict, raising=False)
+        monkeypatch.setattr(
+            _sys,
+            "argv",
+            [
+                "run_plm_effector",
+                "--input",
+                empty,
+                "--weights-dir",
+                weights,
+                "--effector-types",
+                "T1SE",
+                "T2SE",
+                "T6SE",
+                "--out-dir",
+                out_dir,
+            ],
+        )
+
+        rc = main()
+        assert rc == 0
+        # Each effector type got a header-only TSV
+        for eff_type in ("T1SE", "T2SE", "T6SE"):
+            path = os.path.join(out_dir, f"{eff_type}.tsv")
+            assert os.path.isfile(path)
+            lines = open(path).read().splitlines()
+            assert len(lines) == 1
+            assert lines[0].split("\t")[0] == "seq_id"

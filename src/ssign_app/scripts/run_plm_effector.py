@@ -130,6 +130,23 @@ def main() -> int:
     if not os.path.exists(args.input):
         print(f"ERROR: Input FASTA not found: {args.input}", file=sys.stderr)
         return 2
+
+    # Empty-input short-circuit. An empty FASTA reaches the per-PLM
+    # extraction subprocess and then crashes with "no chunk files
+    # written" because there were no proteins to chunk. Write
+    # header-only per-type TSVs so the downstream merge step still
+    # finds the expected files and produces an empty merged output.
+    os.makedirs(args.out_dir, exist_ok=True)
+    from ssign_app.scripts.ssign_lib.fasta_io import count_sequences
+
+    if count_sequences(args.input) == 0:
+        print(f"INFO: No sequences in {args.input}; writing empty per-type TSVs.", file=sys.stderr)
+        for eff_type in args.effector_types:
+            path = os.path.join(args.out_dir, f"{eff_type}.tsv")
+            with open(path, "w") as f:
+                f.write("seq_id\tstacking\tpasses_threshold\teffector_type\n")
+        return 0
+
     if not os.path.isdir(args.weights_dir):
         print(
             f"ERROR: Weights directory not found: {args.weights_dir}\n"
@@ -138,8 +155,6 @@ def main() -> int:
             file=sys.stderr,
         )
         return 2
-
-    os.makedirs(args.out_dir, exist_ok=True)
 
     # Resolve --batch-size auto -> integer via VRAM tier table.
     if str(args.batch_size).strip().lower() == "auto":
