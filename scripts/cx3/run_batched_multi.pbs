@@ -29,7 +29,12 @@ for g in "${GENOME_LIST[@]}"; do
 done
 
 : "${GPU_TYPE:=L40S}"
-RUN_DIR="$HOME/runs/batched_${GPU_TYPE}_$(date +%Y%m%d_%H%M%S)"
+# Include PBS_JOBID so simultaneously-released jobs in the same second
+# don't collide on the same RUN_DIR and clobber each other's outputs.
+# Without it, an overnight batch where N jobs land in <1s gives N-K
+# silently-overwritten output dirs, where K is the number of distinct
+# seconds the jobs started in.
+RUN_DIR="$HOME/runs/batched_${GPU_TYPE}_$(date +%Y%m%d_%H%M%S)_${PBS_JOBID%%.*}"
 VENV="$HOME/blastp_t5a/ssign/.venv"
 
 mkdir -p "$RUN_DIR" && cd "$RUN_DIR"

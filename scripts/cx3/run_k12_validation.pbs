@@ -46,7 +46,9 @@ SAMPLE_TAG="$(basename "$INPUT_GBFF" | sed 's/\.[^.]*$//')"
 # submitting multiple jobs to compare GPU types in parallel. The default
 # matches the #PBS gpu_type=L40S directive above.
 : "${GPU_TYPE:=L40S}"
-RUN_DIR="$HOME/runs/${SAMPLE_TAG}_${GPU_TYPE}_$(date +%Y%m%d_%H%M%S)"
+# Include PBS_JOBID so simultaneously-released jobs in the same second
+# don't collide on the same RUN_DIR and clobber each other's outputs.
+RUN_DIR="$HOME/runs/${SAMPLE_TAG}_${GPU_TYPE}_$(date +%Y%m%d_%H%M%S)_${PBS_JOBID%%.*}"
 VENV="$HOME/blastp_t5a/ssign/.venv"
 
 mkdir -p "$RUN_DIR" && cd "$RUN_DIR"
