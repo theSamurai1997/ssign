@@ -172,6 +172,26 @@ full source-organism metadata.
 | T6 | 308 | 236 (77%) | **50** (SecReT6 subtype join; rest need PFAM-cluster or lit curation) |
 | **Total** | **1652** | **1061** | **637** + 186 validation = **~820** |
 
+### Curation pass (2026-06-08): five per-SS-type background agents
+
+After the de-anonymization pass, we ran 5 per-SS-type curation agents
+to fill the remaining gaps by literature + UniProt + per-organism DB
+mining. Results saved at `data/curated/<sstype>_curated.tsv`.
+
+| Type | Pre-curation cluster-labeled | Post-curation cluster-labeled (curated TSV) | Validated / Predicted |
+|---|---|---|---|
+| T1 | 0 | **212** | 26 / 186 |
+| T2 | 0 | **101** | 91 / 10 |
+| T3 | 83 | **355** | 237 / 118 |
+| T4 | 504 | 504 + **104 net-new** = 608 | curated TSV has 131 entries; ~27 overlap with existing Legionella/Coxiella ground truth |
+| T6 | 50 | **150** | 119 / 16 |
+| **Total** | **637** | **~1,400-1,500** (after dedup against SecReT4 + SecReT6 + ground_truth) | mostly validated |
+
+T1SS curation note: only 26 of 212 are translocation-validated; the
+remaining 186 are TrEMBL-annotated homologs of validated RTX-toxin,
+metalloprotease, and adhesin families. Introduces some label noise;
+filter on `evidence_level=validated` if a stricter set is needed.
+
 ### Bottlenecks
 
 - **T1SS / T2SS instance training is not feasible from public data**

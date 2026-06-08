@@ -1,0 +1,356 @@
+gene	uniprot	locus_tag	organism	refseq_genome	ss_type	sys_instance_id	evidence_level	primary_ref
+SipA	P0CL52	STM2882	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-1	validated	10.1128/iai.73.1.146-154.2005
+SipB	Q56019	STM2885	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-1	validated	10.1128/iai.73.1.146-154.2005
+SipC	P0CL47	STM2884	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-1	validated	10.1128/iai.73.1.146-154.2005
+SipD	Q56026	STM2883	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-1	validated	10.1073/pnas.0511093103
+InvJ_SpaN	P40613	STM2892	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-1	validated	10.1046/j.1365-2958.1998.00997.x
+SptP	P74873	STM2878	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-1	validated	10.1016/S0092-8674(00)80692-3
+AvrA	Q8ZMI3	STM2865	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-1	validated	10.1073/pnas.97.16.8814
+SopA	Q8ZNR3	STM2066	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-1	validated	10.1046/j.1365-2958.2000.02103.x
+SopB_SigD	O30916	STM1091	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-1	validated	10.1128/iai.73.1.146-154.2005
+SopD	P40722	STM2945	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-1	validated	10.1128/iai.73.1.146-154.2005
+SopE2	Q7CQD4	STM1855	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-1	validated	10.1128/iai.73.1.146-154.2005
+SseA	O84944	STM1397	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1016/j.chom.2017.07.009
+SseB	Q7BVH7	STM1398	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1016/j.chom.2017.07.009
+SseC	O84947	STM1400	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1016/j.chom.2017.07.009
+SseD	Q9R803	STM1401	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1016/j.chom.2017.07.009
+SseE	H9L446	STM1402	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1016/j.chom.2017.07.009
+SseF	H9L407	STM1404	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1016/j.chom.2017.07.009
+SseG	H9L486	STM1405	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1016/j.chom.2017.07.009
+SseI_SrfH	Q8ZQ79	STM1051	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1016/j.chom.2017.07.009
+SseJ	Q9FD10	STM1631	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1016/j.chom.2017.07.009
+SseK1	Q9L9J3	STM4157	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1038/nature11433
+SseK2	Q8ZNP4	STM2137	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1038/nature11433
+SseK3	-	STM2137a	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1038/nature11433
+SseL	Q8ZNG2	STM2287	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1016/j.chom.2017.07.009
+SifA	Q56061	STM1224	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1016/j.chom.2017.07.009
+SifB	Q9KIB9	STM1602	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1016/j.chom.2017.07.009
+SopD2	Q8ZQC8	STM0972	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1016/j.chom.2017.07.009
+SteA	Q8ZPD7	STM1583	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1016/j.chom.2017.07.009
+SteB	Q8ZPA6	STM1629	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1016/j.chom.2017.07.009
+SteC	Q8ZP57	STM1698	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1016/j.chom.2017.07.009
+SteD	-	STM1630	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1126/science.aaf3284
+SteE	-	STM1554	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1371/journal.ppat.1005484
+PipA	-	STM1087	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1371/journal.pone.0248975
+PipB	Q8ZQ59	STM1088	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1016/j.chom.2017.07.009
+PipB2	Q8ZMM8	STM2780	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1016/j.chom.2017.07.009
+SspH2	P0CE12	STM2241	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1016/j.chom.2017.07.009
+CigR	H9L434	STM3762	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1016/j.chom.2017.07.009
+SlrP	Q8ZQQ2	STM0800	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-1_2	validated	10.1099/mic.0.27212-0
+SspH1	-	STM_GIFSY-3	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-1_2	validated	10.1126/science.1102610
+GtgA	-	STM_GIFSY-2	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-1_2	validated	10.1371/journal.ppat.1005484
+GtgE	-	STM_GIFSY-2	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-1_2	validated	10.1073/pnas.1208140109
+GogA	-	STM_GIFSY-1	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1371/journal.ppat.1005484
+GogB	Q8ZN18	STM2584	Salmonella enterica Typhimurium LT2	NC_003197.2	T3SS	SPI-2	validated	10.1371/journal.ppat.1005484
+SpvB	H9L477	PSLT039	Salmonella enterica Typhimurium LT2	NC_003277.2	T3SS	SPV	validated	10.1111/j.1365-2958.2008.06262.x
+SpvC	P0A2M9	PSLT038	Salmonella enterica Typhimurium LT2	NC_003277.2	T3SS	SPV	validated	10.1111/j.1365-2958.2008.06262.x
+SpvD	H9L476	PSLT035	Salmonella enterica Typhimurium LT2	NC_003277.2	T3SS	SPV	validated	10.1111/j.1365-2958.2008.06262.x
+YopE	P31493	YPCD1.06	Yersinia pestis CO92	NC_003131.1	T3SS	Ysc-Yop	validated	10.1126/science.282.5390.1126
+YopK_YopQ	O68704	YPCD1.19c	Yersinia pestis CO92	NC_003131.1	T3SS	Ysc-Yop	validated	10.1016/j.chom.2007.08.002
+YopT	O68703	YPCD1.20	Yersinia pestis CO92	NC_003131.1	T3SS	Ysc-Yop	validated	10.1126/science.1075484
+YopM	P17778	YPCD1.26c	Yersinia pestis CO92	NC_003131.1	T3SS	Ysc-Yop	validated	10.1073/pnas.93.18.9596
+YopH	O68720	YPCD1.67c	Yersinia pestis CO92	NC_003131.1	T3SS	Ysc-Yop	validated	10.1016/0092-8674(91)90504-r
+YopJ_YopP	Q9RI13	YPCD1.71c	Yersinia pestis CO92	NC_003131.1	T3SS	Ysc-Yop	validated	10.1126/science.290.5496.1594
+YopO_YpkA	Q9RI12	YPCD1.72c	Yersinia pestis CO92	NC_003131.1	T3SS	Ysc-Yop	validated	10.1093/emboj/19.20.5365
+YopE	P31492	YE_pYV0050	Yersinia enterocolitica 8081	NC_008791.1	T3SS	Ysc-Yop	validated	10.1146/annurev.mi.45.100191.001233
+YopH	P15273	YE_pYV0027	Yersinia enterocolitica 8081	NC_008791.1	T3SS	Ysc-Yop	validated	10.1016/0092-8674(91)90504-r
+YopT	P27475	YE_pYV0061	Yersinia enterocolitica 8081	NC_008791.1	T3SS	Ysc-Yop	validated	10.1126/science.1075484
+YopM	Q93KU8	YE_pYV0064	Yersinia enterocolitica 8081	NC_008791.1	T3SS	Ysc-Yop	validated	10.1073/pnas.93.18.9596
+YopO_YpkA	Q93KQ6	YE_pYV0062	Yersinia enterocolitica 8081	NC_008791.1	T3SS	Ysc-Yop	validated	10.1093/emboj/19.20.5365
+YopP_YopJ	Q93KQ5	YE_pYV0063	Yersinia enterocolitica 8081	NC_008791.1	T3SS	Ysc-Yop	validated	10.1126/science.290.5496.1594
+YspA	Q8KQ82	YE3563	Yersinia enterocolitica 8081	NC_008800.1	T3SS	Ysa	validated	10.1128/JB.184.4.1119-1128.2002
+YspE	-	YE3556	Yersinia enterocolitica 8081	NC_008800.1	T3SS	Ysa	validated	10.1128/JB.01816-08
+YspF	-	YE3559	Yersinia enterocolitica 8081	NC_008800.1	T3SS	Ysa	validated	10.1128/JB.01816-08
+YspI	-	YE3560	Yersinia enterocolitica 8081	NC_008800.1	T3SS	Ysa	validated	10.1128/JB.01816-08
+YspK	-	YE3561	Yersinia enterocolitica 8081	NC_008800.1	T3SS	Ysa	validated	10.1128/JB.01816-08
+YspL	-	YE3562	Yersinia enterocolitica 8081	NC_008800.1	T3SS	Ysa	validated	10.1128/JB.01816-08
+YspM	-	YE3564	Yersinia enterocolitica 8081	NC_008800.1	T3SS	Ysa	validated	10.1128/jb.00861-08
+YspP	-	YE0529	Yersinia enterocolitica 8081	NC_008800.1	T3SS	Ysa	validated	10.1128/JB.01816-08
+Tir	Q7DB77	ECs4561	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	LEE	validated	10.1016/S0092-8674(00)81784-5
+Map	Q7DB76	ECs4562	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	LEE	validated	10.1046/j.1365-2958.2001.02513.x
+EspF	Q7DB85	ECs4550	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	LEE	validated	10.1046/j.1462-5822.2001.00126.x
+EspG	Q7DB50	ECs4590	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	LEE	validated	10.1099/mic.0.27866-0
+EspH	Q7DB74	ECs4564	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	LEE	validated	10.1111/j.1462-5822.2008.01173.x
+EspZ	-	ECs4571	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	LEE	validated	10.1073/pnas.0510322103
+EspA	-	ECs4555	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	LEE	validated	10.1093/emboj/17.8.2166
+EspB	-	ECs4554	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	LEE	validated	10.1073/pnas.95.13.7860
+EspD	-	ECs4553	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	LEE	validated	10.1073/pnas.95.13.7860
+NleA_EspI	Q8XAJ5	ECs1812	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp9	validated	10.1099/mic.0.2006/003707-0
+NleB1	-	ECs3857	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_SpLE3	validated	10.1073/pnas.0604891103
+NleB2-1	-	ECs0846	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp4	predicted	10.1073/pnas.0604891103
+NleB2-2	-	ECs1566	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp9	predicted	10.1073/pnas.0604891103
+NleC	Q8X834	ECs0847	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp4	validated	10.1073/pnas.0604891103
+NleD	A0A0H3JGR6	ECs0850	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp4	validated	10.1073/pnas.0604891103
+NleE	Q7DBA6	ECs3858	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_SpLE3	validated	10.1073/pnas.0604891103
+NleF	Q8XAL7	ECs1815	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp9	validated	10.1073/pnas.0604891103
+NleG	Q8XAN6	ECs1824	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp9	validated	10.1073/pnas.0604891103
+NleG2-1	-	ECs1810	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp9	predicted	10.1073/pnas.0604891103
+NleG2-2	Q8X4X1	ECs1994	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp11	predicted	10.1073/pnas.0604891103
+NleG2-3	Q8X509	ECs2156	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp13	predicted	10.1073/pnas.0604891103
+NleG2-4	-	ECs2229	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp14	predicted	10.1073/pnas.0604891103
+NleG3	-	ECs2227	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp14	predicted	10.1073/pnas.0604891103
+NleG5-1	Q8X4X3	ECs1996	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp11	predicted	10.1073/pnas.0604891103
+NleG5-2	Q8X507	ECs2154	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp13	predicted	10.1073/pnas.0604891103
+NleG6-1	Q8X4X2	ECs1995	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp11	predicted	10.1073/pnas.0604891103
+NleG6-2	A0A0H3JE38	ECs2155	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp13	predicted	10.1073/pnas.0604891103
+NleG6-3	-	ECs3488	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_SpLE3	predicted	10.1073/pnas.0604891103
+NleG7	-	ECs2226	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp14	predicted	10.1073/pnas.0604891103
+NleG8-2	Q8X9A7	ECs3486	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_SpLE3	predicted	10.1073/pnas.0604891103
+NleG9	-	ECs1828	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp9	predicted	10.1073/pnas.0604891103
+NleH1-1	Q8X831	ECs0848	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp4	validated	10.1128/JB.01602-07
+NleH1-2	Q8XAL6	ECs1814	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp9	validated	10.1128/JB.01602-07
+EspJ	Q8XB62	ECs2714	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_CP-933U	validated	10.1073/pnas.0604891103
+EspK	Q8X782	ECs1568	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp9	validated	10.1073/pnas.0604891103
+EspL1	A0A0H3JEK5	ECs2427	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp15	predicted	10.1073/pnas.0604891103
+EspL2	A0A0H3JP21	ECs3855	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_SpLE3	validated	10.1073/pnas.0604891103
+EspL3	-	ECs4642	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_SpLE4	predicted	10.1073/pnas.0604891103
+EspL4	Q8X606	ECs4935	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_SpLE5	predicted	10.1073/pnas.0604891103
+EspM1	Q8X4Q6	ECs1825	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp9	validated	10.1111/j.1462-5822.2008.01161.x
+EspM2	Q8X4W3	ECs3485	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_SpLE3	validated	10.1111/j.1462-5822.2008.01161.x
+EspN	A0A0H3JD33	ECs1561	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp9	predicted	10.1073/pnas.0604891103
+EspO1-1	A0A0H3JFN8	ECs1567	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp9	validated	10.1073/pnas.0604891103
+EspO1-2	A0A0H3JDI4	ECs1821	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp9	validated	10.1073/pnas.0604891103
+EspR1	Q8X9Y4	ECs2073	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp12	predicted	10.1073/pnas.0604891103
+EspR3	A0A109YPI1	ECs2672	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_CP-933U	predicted	10.1073/pnas.0604891103
+EspR4	Q8X519	ECs2674	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_CP-933U	predicted	10.1073/pnas.0604891103
+EspV	-	ECs1127	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_CP-933X	predicted	10.1073/pnas.0604891103
+EspW	Q8X9A5	ECs3487	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_SpLE3	predicted	10.1073/pnas.0604891103
+EspX1	Q8XA51	ECs0025	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	CRISPR_locus	predicted	10.1073/pnas.0604891103
+EspX2	A0A0H3JC80	ECs0876	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp4	predicted	10.1073/pnas.0604891103
+EspX3	-	ECs4654	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_SpLE4	predicted	10.1073/pnas.0604891103
+EspX4	Q8X5W5	ECs5021	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_SpLE5	predicted	10.1073/pnas.0604891103
+EspX5	Q8X5T9	ECs5048	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_SpLE5	predicted	10.1073/pnas.0604891103
+EspX6	A0A0H3JMY9	ECs5295	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_SpLE6	predicted	10.1073/pnas.0604891103
+EspX7	A0A0H3JDV8	ECs1560	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_Sp9	predicted	10.1073/pnas.0604891103
+EspY1	Q8XA11	ECs0061	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	unclassified	predicted	10.1073/pnas.0604891103
+EspY2	Q8XA03	ECs0073	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	unclassified	predicted	10.1073/pnas.0604891103
+EspY3	Q8XE85	ECs0472	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	unclassified	predicted	10.1073/pnas.0604891103
+EspY4	Q8XB17	ECs4653	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	unclassified	predicted	10.1073/pnas.0604891103
+EspY5	-	ECs4657	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	unclassified	predicted	10.1073/pnas.0604891103
+TccP_EspFu	P0DJ88	ECs2715	Escherichia coli O157:H7 Sakai	NC_002695.2	T3SS	prophage_CP-933U	validated	10.1038/nature03477
+EspP	-	pO157_p65	Escherichia coli O157:H7 Sakai	NC_002128.1	T3SS	pO157	validated	10.1046/j.1365-2958.1997.5191596.x
+Tir	B7UM99	E2348C_3941	Escherichia coli O127:H6 E2348/69 (EPEC)	NC_011601.1	T3SS	LEE	validated	10.1016/S0092-8674(00)81784-5
+Map	B7UMA0	E2348C_3942	Escherichia coli O127:H6 E2348/69 (EPEC)	NC_011601.1	T3SS	LEE	validated	10.1046/j.1365-2958.2001.02513.x
+EspF	B7UM88	E2348C_3930	Escherichia coli O127:H6 E2348/69 (EPEC)	NC_011601.1	T3SS	LEE	validated	10.1046/j.1462-5822.2001.00126.x
+EspG	B7UMC8	E2348C_3970	Escherichia coli O127:H6 E2348/69 (EPEC)	NC_011601.1	T3SS	LEE	validated	10.1099/mic.0.27866-0
+EspH	B7UMA2	E2348C_3944	Escherichia coli O127:H6 E2348/69 (EPEC)	NC_011601.1	T3SS	LEE	validated	10.1111/j.1462-5822.2008.01173.x
+EspZ	B7UMA9	E2348C_3951	Escherichia coli O127:H6 E2348/69 (EPEC)	NC_011601.1	T3SS	LEE	validated	10.1073/pnas.0510322103
+EspA	B7UM94	E2348C_3936	Escherichia coli O127:H6 E2348/69 (EPEC)	NC_011601.1	T3SS	LEE	validated	10.1093/emboj/17.8.2166
+EspB	Q05129	E2348C_3934	Escherichia coli O127:H6 E2348/69 (EPEC)	NC_011601.1	T3SS	LEE	validated	10.1073/pnas.95.13.7860
+EspD	B7UM93	E2348C_3935	Escherichia coli O127:H6 E2348/69 (EPEC)	NC_011601.1	T3SS	LEE	validated	10.1073/pnas.95.13.7860
+NleB1	B7UI21	E2348C_3231	Escherichia coli O127:H6 E2348/69 (EPEC)	NC_011601.1	T3SS	prophage_PP4	validated	10.1038/nature12436
+NleE	B7UI22	E2348C_3232	Escherichia coli O127:H6 E2348/69 (EPEC)	NC_011601.1	T3SS	prophage_PP4	validated	10.1073/pnas.0604891103
+Cif	-	E2348C_1721	Escherichia coli O127:H6 E2348/69 (EPEC)	NC_011601.1	T3SS	prophage_PP6	validated	10.1111/j.1462-5822.2010.01435.x
+NleA_EspI	-	E2348C_1707	Escherichia coli O127:H6 E2348/69 (EPEC)	NC_011601.1	T3SS	prophage_PP6	validated	10.1099/mic.0.2006/003707-0
+NleC	-	E2348C_0985	Escherichia coli O127:H6 E2348/69 (EPEC)	NC_011601.1	T3SS	prophage_PP3	validated	10.1073/pnas.0604891103
+NleD	-	E2348C_0988	Escherichia coli O127:H6 E2348/69 (EPEC)	NC_011601.1	T3SS	prophage_PP3	validated	10.1073/pnas.0604891103
+NleF	-	E2348C_1710	Escherichia coli O127:H6 E2348/69 (EPEC)	NC_011601.1	T3SS	prophage_PP6	validated	10.1073/pnas.0604891103
+NleH1	-	E2348C_0986	Escherichia coli O127:H6 E2348/69 (EPEC)	NC_011601.1	T3SS	prophage_PP3	validated	10.1128/JB.01602-07
+NleH2	-	E2348C_3233	Escherichia coli O127:H6 E2348/69 (EPEC)	NC_011601.1	T3SS	prophage_PP4	validated	10.1128/JB.01602-07
+Tir	Q9ETI1	ROD_30201	Citrobacter rodentium ICC168	NC_013716.1	T3SS	LEE	validated	10.1128/JB.01001-09
+Map	Q93FK1	ROD_30221	Citrobacter rodentium ICC168	NC_013716.1	T3SS	LEE	validated	10.1128/JB.01001-09
+EspF	-	ROD_30151	Citrobacter rodentium ICC168	NC_013716.1	T3SS	LEE	validated	10.1128/JB.01001-09
+EspH	Q93FK3	ROD_30231	Citrobacter rodentium ICC168	NC_013716.1	T3SS	LEE	validated	10.1128/JB.01001-09
+EspG	-	ROD_30391	Citrobacter rodentium ICC168	NC_013716.1	T3SS	LEE	validated	10.1128/JB.01001-09
+EspZ	-	ROD_30281	Citrobacter rodentium ICC168	NC_013716.1	T3SS	LEE	validated	10.1128/JB.01001-09
+EspB	-	ROD_30181	Citrobacter rodentium ICC168	NC_013716.1	T3SS	LEE	validated	10.1128/JB.01001-09
+EspD	-	ROD_30171	Citrobacter rodentium ICC168	NC_013716.1	T3SS	LEE	validated	10.1128/JB.01001-09
+EspA	-	ROD_30191	Citrobacter rodentium ICC168	NC_013716.1	T3SS	LEE	validated	10.1128/JB.01001-09
+NleA_EspI	Q6T6T6	ROD_12161	Citrobacter rodentium ICC168	NC_013716.1	T3SS	prophage_CRP1	validated	10.1099/mic.0.2006/003707-0
+NleB	-	ROD_29651	Citrobacter rodentium ICC168	NC_013716.1	T3SS	prophage_CRP3	validated	10.1128/iai.74.4.2328-2337.2006
+NleC	Q6RYA8	ROD_06241	Citrobacter rodentium ICC168	NC_013716.1	T3SS	prophage_CRP2	validated	10.1073/pnas.0604891103
+NleD	Q6RYA7	ROD_06251	Citrobacter rodentium ICC168	NC_013716.1	T3SS	prophage_CRP2	validated	10.1073/pnas.0604891103
+NleE	Q5XMK7	ROD_29641	Citrobacter rodentium ICC168	NC_013716.1	T3SS	prophage_CRP3	validated	10.1073/pnas.0604891103
+NleF	Q6Q513	ROD_12141	Citrobacter rodentium ICC168	NC_013716.1	T3SS	prophage_CRP1	validated	10.1073/pnas.0604891103
+NleG	-	ROD_31501	Citrobacter rodentium ICC168	NC_013716.1	T3SS	unclassified	predicted	10.1073/pnas.0604891103
+NleG1	-	ROD_21621	Citrobacter rodentium ICC168	NC_013716.1	T3SS	unclassified	predicted	10.1073/pnas.0604891103
+NleG7	-	ROD_25881	Citrobacter rodentium ICC168	NC_013716.1	T3SS	unclassified	predicted	10.1073/pnas.0604891103
+NleG8	-	ROD_15971	Citrobacter rodentium ICC168	NC_013716.1	T3SS	unclassified	predicted	10.1073/pnas.0604891103
+NleH	Q6Q512	ROD_29661	Citrobacter rodentium ICC168	NC_013716.1	T3SS	prophage_CRP3	validated	10.1128/JB.01602-07
+EspJ	-	ROD_25861	Citrobacter rodentium ICC168	NC_013716.1	T3SS	prophage_CRP4	validated	10.1073/pnas.0604891103
+EspL	-	ROD_07221	Citrobacter rodentium ICC168	NC_013716.1	T3SS	prophage_CRP2	validated	10.1073/pnas.0604891103
+IpaA	P18010	CP0125	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	validated	10.1016/j.chom.2008.04.013
+IpaB	P18011	CP0128	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	validated	10.1146/annurev-micro-092611-150111
+IpaC	P18012	CP0127	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	validated	10.1146/annurev-micro-092611-150111
+IpaD	P18013	CP0126	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	validated	10.1146/annurev-micro-092611-150111
+IpaH7.8	P18014	CP0078	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	validated	10.1146/annurev-micro-092611-150111
+IpaH9.8	Q8VSC3	CP0226	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	validated	10.1146/annurev-micro-092611-150111
+IpaH1.4	A0A0H2USG1	CP0265	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	validated	10.1146/annurev-micro-092611-150111
+IpaH2.5	A0A0H2USC0	CP0054	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	validated	10.1146/annurev-micro-092611-150111
+IpaJ	Q54150	CP0122	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	validated	10.1016/j.chom.2012.10.011
+IpgB1	Q6XVY7	CP0129	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	validated	10.1126/science.1147719
+IpgB2	Q6XW05	CP0008	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	validated	10.1126/science.1147719
+IpgD	Q07566	CP0133	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	validated	10.1126/science.1106158
+IcsB	P33546	CP0132	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	validated	10.1016/j.chom.2009.08.004
+VirA	Q7BU69	CP0181	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	validated	10.1126/science.1116848
+OspB	-	CP0009	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	validated	10.1128/iai.00594-06
+OspC1	Q8VSJ7	CP0094	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	validated	10.1128/iai.00594-06
+OspC2	-	CP0095	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	validated	10.1128/iai.00594-06
+OspC3	-	CP0096	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	validated	10.1038/nature11210
+OspD1	Q99QN6	CP0023	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	validated	10.1126/science.1175302
+OspD2	-	CP0024	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	predicted	10.1126/science.1175302
+OspD3	-	CP0025	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	predicted	10.1126/science.1175302
+OspE1	-	CP0085	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	validated	10.1016/j.chom.2011.06.014
+OspE2	Q6XVT7	CP0086	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	validated	10.1016/j.chom.2011.06.014
+OspF	Q8VSP9	CP0010	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	validated	10.1128/iai.00594-06
+OspG	Q99PZ6	CP0227	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	validated	10.1016/j.chom.2005.06.003
+OspI	-	CP0143	Shigella flexneri 2a 301	NC_004851.1	T3SS	Mxi-Spa	validated	10.1038/nature11018
+OspZ	A0A3T2V133	-	Shigella flexneri 2a 301	NC_004337.2	T3SS	Mxi-Spa	validated	10.1099/mic.0.026666-0
+VopQ	A0AAW8Q7J7	VP1680	Vibrio parahaemolyticus RIMD 2210633	NC_004603.1	T3SS	T3SS-1	validated	10.1073/pnas.0606133103
+VopS	A0AAW8Q5J6	VP1686	Vibrio parahaemolyticus RIMD 2210633	NC_004603.1	T3SS	T3SS-1	validated	10.1126/science.1166382
+VopR	A0A9Q3YJ50	VP1683	Vibrio parahaemolyticus RIMD 2210633	NC_004603.1	T3SS	T3SS-1	predicted	10.3389/fcimb.2013.00114
+VPA0450	-	VPA0450	Vibrio parahaemolyticus RIMD 2210633	NC_004605.1	T3SS	T3SS-1	validated	10.1016/j.chom.2011.04.012
+VopA_VopP	I7AZV7	VPA1346	Vibrio parahaemolyticus RIMD 2210633	NC_004605.1	T3SS	T3SS-2	validated	10.1126/science.1132403
+VopC	A0A411PZ35	VPA1321	Vibrio parahaemolyticus RIMD 2210633	NC_004605.1	T3SS	T3SS-2	validated	10.1371/journal.ppat.1003567
+VopL	B9A807	VPA1370	Vibrio parahaemolyticus RIMD 2210633	NC_004605.1	T3SS	T3SS-2	validated	10.1126/science.1188072
+VopT	-	VPA1327	Vibrio parahaemolyticus RIMD 2210633	NC_004605.1	T3SS	T3SS-2	validated	10.1099/mic.0.029967-0
+VopV	-	VPA1357	Vibrio parahaemolyticus RIMD 2210633	NC_004605.1	T3SS	T3SS-2	validated	10.1016/j.chom.2012.04.014
+VopZ	-	VPA1336	Vibrio parahaemolyticus RIMD 2210633	NC_004605.1	T3SS	T3SS-2	validated	10.1371/journal.ppat.1003581
+VopO	-	VPA1335	Vibrio parahaemolyticus RIMD 2210633	NC_004605.1	T3SS	T3SS-2	validated	10.1128/IAI.01396-13
+VopG	-	VPA1379	Vibrio parahaemolyticus RIMD 2210633	NC_004605.1	T3SS	T3SS-2	validated	10.1128/iai.00131-21
+VgpA	-	VPA1387	Vibrio parahaemolyticus RIMD 2210633	NC_004605.1	T3SS	T3SS-2	validated	10.1128/IAI.00130-20
+VopX	-	VPA1374	Vibrio parahaemolyticus RIMD 2210633	NC_004605.1	T3SS	T3SS-2	predicted	10.3389/fcimb.2013.00114
+VopM	-	VPA1380	Vibrio parahaemolyticus RIMD 2210633	NC_004605.1	T3SS	T3SS-2	validated	10.1101/2020.12.11.418251
+BopA	A0A8A4DV84	BPSS1524	Burkholderia pseudomallei K96243	NC_006351.1	T3SS	Bsa	validated	10.1128/JB.187.18.6556-6560.2005
+BopC	-	BPSS1516	Burkholderia pseudomallei K96243	NC_006351.1	T3SS	Bsa	validated	10.1128/IAI.00761-09
+BopE	A0A1S0SJK0	BPSS1525	Burkholderia pseudomallei K96243	NC_006351.1	T3SS	Bsa	validated	10.1099/mic.0.26375-0
+BipB	A0A8A4DZ70	BPSS1532	Burkholderia pseudomallei K96243	NC_006351.1	T3SS	Bsa	validated	10.1099/mic.0.26396-0
+BipC	A0A8A4DTS9	BPSS1531	Burkholderia pseudomallei K96243	NC_006351.1	T3SS	Bsa	validated	10.3389/fcimb.2017.00333
+BipD	-	BPSS1529	Burkholderia pseudomallei K96243	NC_006351.1	T3SS	Bsa	validated	10.1099/mic.0.26396-0
+BapA	A0A8A4DYN5	BPSS1528	Burkholderia pseudomallei K96243	NC_006351.1	T3SS	Bsa	validated	10.1371/journal.pone.0143916
+BapB	-	BPSS1527	Burkholderia pseudomallei K96243	NC_006351.1	T3SS	Bsa	validated	10.1371/journal.pone.0143916
+BapC	-	BPSS1526	Burkholderia pseudomallei K96243	NC_006351.1	T3SS	Bsa	validated	10.1371/journal.pone.0143916
+RipP1_PopP1	-	RSp1388	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	validated	10.1094/MPMI-22-5-0538
+RipP2_PopP2	-	RSc0826	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	validated	10.1094/MPMI-22-5-0538
+RipP3_PopP3	A0A0S4UY40	RSp0876	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipAA_AvrA	A0A0S4UFN8	RSp1130	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	validated	10.1094/MPMI-22-5-0538
+RipAB	-	RSc1357	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipAC_PopC	A0ABY6NJB5	RSc0608	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	validated	10.1186/1471-2164-14-859
+RipAE	A0A0S4V1L0	RSp0822	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipA1_Awr1	A0A0S4WMH3	RSp0099	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	validated	10.1186/1471-2164-14-859
+RipA2_Awr2	A0A0S4TV77	RSp0100	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipA3_Awr3	-	RSp0101	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipA4_Awr4	-	RSp0102	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipA5_Awr5	-	RSp0103	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipB	A0A5A4RJF6	RSc0826	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	validated	10.1111/mpp.12816
+RipE1	-	RSp1023	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	validated	10.3389/fmicb.2014.00499
+RipG1	-	RSp0099	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipG2	-	RSp1239	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipG3	-	RSp0212	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipG4	-	RSc1813	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipG5	-	RSc2101	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipG6	-	RSc1801	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipG7	-	RSc2776	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipH1	-	RSc0064	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipH2	-	RSc1386	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipH3	-	RSc2683	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipI	-	RSc3290	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	validated	10.1111/mpp.12947
+RipJ	A0ABY6NGA6	RSp0871	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	validated	10.1094/MPMI-09-20-0256-R
+PopA	Q84IE8	RSc1080	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	validated	10.1094/MPMI-22-5-0538
+PopB	-	RSc1085	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	validated	10.1094/MPMI-22-5-0538
+PopC	Q84IE6	RSc1086	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	validated	10.1094/MPMI-22-5-0538
+PopF1	-	RSp1284	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	validated	10.1099/mic.0.029967-0
+PopF2	-	RSc0080	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+GalA	-	RSc1801	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	validated	10.1094/MPMI-21-9-1142
+RipAK	-	RSc1492	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	validated	10.1111/mpp.12530
+RipAL	-	RSc2139	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipAM	-	RSc2140	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipAN	-	RSc2145	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipAO	-	RSc2155	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipAP	-	RSc2300	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipAQ	-	RSc2435	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipAR	-	RSc2532	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipAS	-	RSc2776	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipAT	-	RSc2783	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipAU	-	RSc2814	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipAV	-	RSc3174	Ralstonia solanacearum GMI1000	NC_003295.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipAW	-	RSp0098	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipAX1	-	RSp0227	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipAY	-	RSp0237	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	validated	10.1111/mpp.12530
+RipAZ1	-	RSp0269	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipBA	-	RSp0297	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipBB	-	RSp0304	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipBC	-	RSp0750	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipBD	-	RSp0827	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipBE	-	RSp0840	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipBF	-	RSp1023	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipBG	-	RSp1130	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipBH	-	RSp1281	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipBI	-	RSp1284	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+RipBJ	-	RSp1281	Ralstonia solanacearum GMI1000	NC_003296.1	T3SS	Hrp	predicted	10.1186/1471-2164-14-859
+AvrPto	-	PSPTO_4001	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1073/pnas.96.5.2249
+AvrPtoB_HopAB2	Q8RSY1	PSPTO_3087	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1126/science.1085671
+AvrE1	Q887C9	PSPTO_1377	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1094/MPMI.2004.17.5.447
+HopM1	Q887D0	PSPTO_1375	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1094/MPMI.2004.17.5.447
+HopAA1-1	G3XDB9	PSPTO_1372	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1094/MPMI-22-11-1341
+HopAA1-2	Q87W48	PSPTO_4718	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	predicted	10.1094/MPMI-22-11-1341
+HopN1	G3XDC5	PSPTO_1370	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1094/MPMI-22-11-1341
+HopB1	G3XDC6	PSPTO_1406	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1128/JB.187.2.649-663.2005
+HopC1	Q88A08	PSPTO_0589	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1094/MPMI.2004.17.5.447
+HopD2	Q79LY0	PSPTO_4722	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1094/MPMI-22-11-1341
+HopE1	Q87X57	PSPTO_4331	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1094/MPMI-22-11-1341
+HopF2	Q88A90	PSPTO_0502	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1094/MPMI.2004.17.5.447
+HopG1	Q87W42	PSPTO_4727	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1094/MPMI-22-11-1341
+HopH1	Q88A09	PSPTO_0588	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1094/MPMI-22-11-1341
+HopI1	Q87W07	PSPTO_4776	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1094/MPMI-22-11-1341
+HopK1	Q88BH0	PSPTO_0044	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1094/MPMI-22-11-1341
+HopAB1	-	PSPTO_5354	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	predicted	10.1094/MPMI-22-11-1341
+HopAD1	-	PSPTO_1022	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	predicted	10.1094/MPMI-22-11-1341
+HopAE1	-	PSPTO_3294	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	predicted	10.1094/MPMI-22-11-1341
+HopAF1	Q886L1	PSPTO_1568	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1094/MPMI-22-11-1341
+HopAH1	-	PSPTO_5366	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	predicted	10.1094/MPMI-22-11-1341
+HopAH2-1	Q87ZY0	PSPTO_3292	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	predicted	10.1094/MPMI-22-11-1341
+HopAH2-2	Q87ZX9	PSPTO_3293	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	predicted	10.1094/MPMI-22-11-1341
+HopAI1	Q888W0	PSPTO_0906	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1126/science.1138960
+HopAM1-1	Q877R9	PSPTO_1022	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1094/MPMI-22-11-1341
+HopAM1-2	-	PSPTO_A0005	Pseudomonas syringae pv tomato DC3000	NC_004632.1	T3SS	Hrp1	predicted	10.1094/MPMI-22-11-1341
+HopAO1	-	PSPTO_0992	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1094/MPMI-22-11-1341
+HopAR1	-	PSPTO_5354	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	predicted	10.1094/MPMI-22-11-1341
+HopAS1	-	PSPTO_2691	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	predicted	10.1094/MPMI-22-11-1341
+HopO1-1	Q88BP8	PSPTO_A0018	Pseudomonas syringae pv tomato DC3000	NC_004632.1	T3SS	Hrp1	predicted	10.1094/MPMI-22-11-1341
+HopO1-2	Q87WF6	PSPTO_4594	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	predicted	10.1094/MPMI-22-11-1341
+HopO1-3	Q87WF8	PSPTO_4592	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	predicted	10.1094/MPMI-22-11-1341
+HopQ1-1	Q888Y7	PSPTO_0877	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1094/MPMI-22-11-1341
+HopQ1-2	Q87W41	PSPTO_4732	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	predicted	10.1094/MPMI-22-11-1341
+HopR1	-	PSPTO_5356	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	predicted	10.1094/MPMI-22-11-1341
+HopS1	Q87WF4	PSPTO_4597	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	predicted	10.1094/MPMI-22-11-1341
+HopT1-1	Q88BP7	PSPTO_A0019	Pseudomonas syringae pv tomato DC3000	NC_004632.1	T3SS	Hrp1	predicted	10.1094/MPMI-22-11-1341
+HopT1-2	Q87WF7	PSPTO_4593	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	predicted	10.1094/MPMI-22-11-1341
+HopU1	Q88A91	PSPTO_0501	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1126/science.1126867
+HopV1	-	PSPTO_5355	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	predicted	10.1094/MPMI-22-11-1341
+HopX1	Q88BQ2	PSPTO_A0012	Pseudomonas syringae pv tomato DC3000	NC_004632.1	T3SS	Hrp1	predicted	10.1094/MPMI-22-11-1341
+HopY1	-	PSPTO_1131	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	predicted	10.1094/MPMI-22-11-1341
+HopZ3	-	PSPTO_1014	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1094/MPMI-22-11-1341
+HrpK1	-	PSPTO_1380	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1128/JB.187.2.649-663.2005
+HrpW1	Q7C4I5	PSPTO_1373	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1094/MPMI.2004.17.5.447
+HrpZ1	-	PSPTO_1381	Pseudomonas syringae pv tomato DC3000	NC_004578.1	T3SS	Hrp1	validated	10.1094/MPMI-22-11-1341
+AvrD1	-	PSPTO_A0018	Pseudomonas syringae pv tomato DC3000	NC_004632.1	T3SS	Hrp1	predicted	10.1094/MPMI-22-11-1341
+Tarp	-	CT456	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		validated	10.1073/pnas.0400752101
+TepP	-	CT875	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		validated	10.1371/journal.ppat.1003954
+TmeA_CT694	K0G9U7	CT694	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		validated	10.1111/j.1365-2958.2009.06732.x
+TmeB	-	CT695	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		validated	10.1128/IAI.00410-18
+CopN	-	CT089	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		validated	10.1074/jbc.M610343200
+IncA	P0DPS5	CT119	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		validated	10.1046/j.1365-2958.1997.4581795.x
+IncB	-	CT232	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		validated	10.1099/mic.0.27713-0
+IncC	-	CT233	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		validated	10.1099/mic.0.27713-0
+IncD	B7SCD2	CT115	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		validated	10.1111/j.1365-2958.2007.06078.x
+IncE	B7SCF5	CT116	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		validated	10.1111/j.1365-2958.2007.06078.x
+IncF	B7SCI0	CT117	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		validated	10.1111/j.1365-2958.2007.06078.x
+IncG	B7SCI1	CT118	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		validated	10.1111/j.1365-2958.2007.06078.x
+CT005	-	CT005	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		predicted	10.1371/journal.pone.0040104
+CT006	-	CT006	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		predicted	10.1371/journal.pone.0040104
+CT053	-	CT053	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		predicted	10.1371/journal.pone.0178856
+CT105	-	CT105	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		predicted	10.1371/journal.pone.0178856
+CT142	-	CT142	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		validated	10.1371/journal.pone.0178856
+CT143	-	CT143	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		validated	10.1371/journal.pone.0178856
+CT144	-	CT144	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		validated	10.1371/journal.pone.0178856
+CT161	-	CT161	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		predicted	10.1371/journal.pone.0178856
+CT338	-	CT338	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		predicted	10.1371/journal.pone.0178856
+CT429	-	CT429	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		predicted	10.1371/journal.pone.0178856
+CT656	-	CT656	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		predicted	10.1371/journal.pone.0178856
+CT813	K0G2R0	CT813	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		predicted	10.1099/mic.0.27713-0
+CT849	-	CT849	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		predicted	10.1371/journal.pone.0178856
+CteG	-	CT105	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		validated	10.1111/cmi.13153
+ChlaDub1	-	CT868	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		validated	10.1126/science.aag1029
+ChlaOTU	-	CT223	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		validated	10.1099/mic.0.038331-0
+Pgp3	-	pCT_06	Chlamydia trachomatis D/UW-3/CX	NC_000117.1	T3SS		validated	10.1128/JB.183.2.564-570.2001

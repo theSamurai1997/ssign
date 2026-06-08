@@ -1,0 +1,132 @@
+gene	uniprot	locus_tag	organism	refseq_genome	ss_type	sys_instance_id	evidence_level	primary_ref
+BepA	Q6G2A9	BH13370	Bartonella henselae Houston-1	NC_005956.1	T4SS	VirB-Bep	validated	10.1126/science.1239671
+BepB	A0A0R4J835	BH13390	Bartonella henselae Houston-1	NC_005956.1	T4SS	VirB-Bep	validated	10.1126/science.1239671
+BepC	A0A0R4J7V3	BH13400	Bartonella henselae Houston-1	NC_005956.1	T4SS	VirB-Bep	validated	10.1073/pnas.2310348121
+BepD	A0A0R4J6P7	BH13410	Bartonella henselae Houston-1	NC_005956.1	T4SS	VirB-Bep	validated	10.1371/journal.ppat.1004187
+BepE	A0A0R4J6H0	BH13420	Bartonella henselae Houston-1	NC_005956.1	T4SS	VirB-Bep	validated	10.1371/journal.ppat.1003788
+BepF	A0A0R4J737	BH13430	Bartonella henselae Houston-1	NC_005956.1	T4SS	VirB-Bep	validated	10.1371/journal.ppat.1004187
+BepG	A0A0H3M6L4	BH13440	Bartonella henselae Houston-1	NC_005956.1	T4SS	VirB-Bep	validated	10.1371/journal.ppat.1004187
+BepH	-	BH13450	Bartonella henselae Houston-1	NC_005956.1	T4SS	VirB-Bep	predicted	10.1073/pnas.2310348121
+TrwJ1	-	BH09700	Bartonella henselae Houston-1	NC_005956.1	T4SS	Trw	predicted	10.1111/cmi.12530
+VbhT	E6Z0R3	B11C_100026	Bartonella schoenbuchensis R1	NZ_CP019789.1	T4SS	VbhB-VbhT	validated	10.1128/mBio.00405-13
+VirD2	P18592	Atu6182	Agrobacterium tumefaciens C58	NC_003065.3	T4SS	VirB-Ti	validated	10.1016/j.cell.2005.08.046
+VirE2	P08062	Atu6190	Agrobacterium tumefaciens C58	NC_003065.3	T4SS	VirB-Ti	validated	10.1126/science.290.5493.979
+VirE3	P08061	Atu6188	Agrobacterium tumefaciens C58	NC_003065.3	T4SS	VirB-Ti	validated	10.1111/j.1365-2958.2005.04686.x
+VirF	Q7D2D9	Atu6154	Agrobacterium tumefaciens C58	NC_003065.3	T4SS	VirB-Ti	validated	10.1126/science.290.5493.979
+VirD5	-	-	Agrobacterium tumefaciens (non-C58)	-	T4SS	VirB-Ti	validated	10.1016/j.jbiotec.2014.04.026
+GALLS	-	-	Agrobacterium rhizogenes	-	T4SS	VirB-Ri	validated	10.1094/MPMI-19-1145
+CagA	P55980	HP_0547	Helicobacter pylori 26695	NC_000915.1	T4SS	Cag	validated	10.1126/science.287.5457.1497
+CagF	O25257	HP_0543	Helicobacter pylori 26695	NC_000915.1	T4SS	Cag	validated	10.1074/jbc.M501633200
+TcpB_Btp1	Q8YF53	BMEI1674	Brucella melitensis 16M	NC_003317.1	T4SS	VirB	validated	10.1128/IAI.00750-12
+TcpB_Btp1_Ba	Q2YPC4	BAB1_0279	Brucella abortus 2308	NC_007618.1	T4SS	VirB	validated	10.1128/IAI.00750-12
+BtpB	-	BAB1_0782	Brucella abortus 2308	NC_007618.1	T4SS	VirB	validated	10.1128/IAI.00750-12
+RicA_Ba	Q2YQG1	BAB1_1279	Brucella abortus 2308	NC_007618.1	T4SS	VirB	validated	10.1111/j.1462-5822.2010.01539.x
+NyxA	-	BAB1_0244	Brucella abortus 2308	NC_007618.1	T4SS	VirB	validated	10.1371/journal.ppat.1009800
+NyxB	-	BAB1_1090	Brucella abortus 2308	NC_007618.1	T4SS	VirB	validated	10.1371/journal.ppat.1009800
+BspA	-	BAB1_1671	Brucella abortus 2308	NC_007618.1	T4SS	VirB	validated	10.1371/journal.ppat.1003473
+BspB	-	BAB1_1232	Brucella abortus 2308	NC_007618.1	T4SS	VirB	validated	10.1371/journal.ppat.1003473
+BspC	-	BAB1_1325	Brucella abortus 2308	NC_007618.1	T4SS	VirB	validated	10.1371/journal.ppat.1003473
+BspE	-	BAB1_1043	Brucella abortus 2308	NC_007618.1	T4SS	VirB	validated	10.1371/journal.ppat.1003473
+BspF	-	BAB1_1305	Brucella abortus 2308	NC_007618.1	T4SS	VirB	validated	10.1371/journal.ppat.1003473
+BspK	-	BAB1_0260	Brucella abortus 2308	NC_007618.1	T4SS	VirB	predicted	10.1371/journal.ppat.1003473
+BspL	-	BAB1_0466	Brucella abortus 2308	NC_007618.1	T4SS	VirB	validated	10.1371/journal.pone.0079361
+VceA	-	BAB2_0466	Brucella abortus 2308	NC_007624.1	T4SS	VirB	validated	10.1111/j.1462-5822.2008.01172.x
+VceC	-	BAB2_0123	Brucella abortus 2308	NC_007624.1	T4SS	VirB	validated	10.1111/j.1462-5822.2008.01172.x
+BPE043	-	BAB2_0541	Brucella abortus 2308	NC_007624.1	T4SS	VirB	validated	10.1111/cmi.12077
+BPE123	-	BAB1_0123	Brucella abortus 2308	NC_007618.1	T4SS	VirB	validated	10.1111/cmi.12077
+BPE275	-	BAB1_0275	Brucella abortus 2308	NC_007618.1	T4SS	VirB	validated	10.1111/cmi.12077
+BPE005	-	BAB1_0005	Brucella abortus 2308	NC_007618.1	T4SS	VirB	predicted	10.1111/cmi.12077
+SepA	-	BAB1_1492	Brucella abortus 2308	NC_007618.1	T4SS	VirB	validated	10.1111/cmi.12077
+BspH	-	BAB1_0850	Brucella abortus 2308	NC_007618.1	T4SS	VirB	predicted	10.1371/journal.ppat.1003473
+BspI	-	BAB1_0789	Brucella abortus 2308	NC_007618.1	T4SS	VirB	predicted	10.1371/journal.ppat.1003473
+BspJ	-	BAB1_0073	Brucella abortus 2308	NC_007618.1	T4SS	VirB	predicted	10.1371/journal.ppat.1003473
+AnkA	Q2GJY2	APH_0740	Anaplasma phagocytophilum HZ	NC_007797.1	T4SS	VirB	validated	10.1371/journal.ppat.1000142
+Ats-1	Q2GJL5	APH_0859	Anaplasma phagocytophilum HZ	NC_007797.1	T4SS	VirB	validated	10.1371/journal.ppat.1000774
+AmpA	Q2GIB5	APH_1387	Anaplasma phagocytophilum HZ	NC_007797.1	T4SS	VirB	validated	10.1371/journal.ppat.1001284
+AptA	-	APH_0233	Anaplasma phagocytophilum HZ	NC_007797.1	T4SS	VirB	validated	10.1111/j.1462-5822.2011.01642.x
+APH_0455	-	APH_0455	Anaplasma phagocytophilum HZ	NC_007797.1	T4SS	VirB	predicted	10.1111/cmi.13405
+APH_0915	-	APH_0915	Anaplasma phagocytophilum HZ	NC_007797.1	T4SS	VirB	predicted	10.1111/cmi.13405
+HGE-14	-	APH_0625	Anaplasma phagocytophilum HZ	NC_007797.1	T4SS	VirB	predicted	10.1099/mic.0.000186
+TRP120	Q2GI62	ECH_0039	Ehrlichia chaffeensis Arkansas	NC_007799.1	T4SS	VirB	validated	10.1371/journal.ppat.1003666
+TRP47	Q2GHU2	ECH_0166	Ehrlichia chaffeensis Arkansas	NC_007799.1	T4SS	VirB	validated	10.1128/IAI.05225-11
+TRP32	Q2GHT8	ECH_0170	Ehrlichia chaffeensis Arkansas	NC_007799.1	T4SS	VirB	validated	10.1128/IAI.00153-10
+Etf-1	Q2GG12	ECH_0825	Ehrlichia chaffeensis Arkansas	NC_007799.1	T4SS	VirB	validated	10.1073/pnas.1218674110
+Etf-2	-	ECH_1027	Ehrlichia chaffeensis Arkansas	NC_007799.1	T4SS	VirB	validated	10.1371/journal.ppat.1005523
+Etf-3	-	ECH_1136	Ehrlichia chaffeensis Arkansas	NC_007799.1	T4SS	VirB	predicted	10.1371/journal.ppat.1005523
+ECH_0664	-	ECH_0664	Ehrlichia chaffeensis Arkansas	NC_007799.1	T4SS	VirB	predicted	10.1128/IAI.00513-13
+ECH_0379	Q2GH84	ECH_0379	Ehrlichia chaffeensis Arkansas	NC_007799.1	T4SS	VirB	predicted	10.1128/IAI.00513-13
+NlmA	-	ECH_0822	Ehrlichia chaffeensis Arkansas	NC_007799.1	T4SS	VirB	validated	10.1111/cmi.12733
+EBP	-	ECH_0660	Ehrlichia chaffeensis Arkansas	NC_007799.1	T4SS	VirB	predicted	10.1128/IAI.00513-13
+WalE1	A0A6I6CL34	E0495_06075	Wolbachia pipientis wMel	NC_002978.6	T4SS	VirB	validated	10.1038/s41467-024-50776-1
+CifA	A0A6I6CU84	E0495_02270	Wolbachia pipientis wMel	NC_002978.6	T4SS	VirB	validated	10.1038/nature21391
+CifB	A0A6I6CLL5	E0495_02275	Wolbachia pipientis wMel	NC_002978.6	T4SS	VirB	validated	10.1038/nature21391
+CidA	-	WP1346	Wolbachia pipientis wPip	-	T4SS	VirB	validated	10.1038/nature21391
+CidB	-	WP1347	Wolbachia pipientis wPip	-	T4SS	VirB	validated	10.1038/nature21391
+Sca4	Q52658	RC0667	Rickettsia conorii Malish 7	NC_003103.1	T4SS	VirB	validated	10.1126/science.abm9836
+RalF_Rp	B0BX96	RrIowa_0604	Rickettsia rickettsii Iowa	NC_010263.3	T4SS	VirB	validated	10.1073/pnas.0511167103
+Risk1	-	RPR_07770	Rickettsia parkeri	-	T4SS	VirB	validated	10.1126/sciadv.abp9929
+RARP-1	-	RPR_RS04075	Rickettsia parkeri	-	T4SS	VirB	validated	10.1128/IAI.00782-19
+RalF_Lp	Q5ZXQ7	lpg1950	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1126/science.1067025
+MavL	Q5ZSJ1	lpg2526	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s44320-024-00076-z
+MavC	-	lpg2147	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/nature25178
+MvcA	Q5ZTL4	lpg2148	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s41594-020-0444-2
+SdjA	-	lpg2155	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s41589-020-0700-0
+SdcA	-	lpg2510	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s44320-024-00076-z
+SdcB	-	lpg3022	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s44320-024-00076-z
+AnkB	-	lpg2144	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1111/cmi.12482
+SidD	Q5ZSQ2	lpg2465	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/nature10335
+SidH	-	lpg2829	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1126/science.aab4151
+SidI	-	lpg2504	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1073/pnas.1810122115
+VipA	-	lpg0390	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1371/journal.ppat.1002500
+VipD	-	lpg2831	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/nature11724
+VipF	-	lpg0589	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1126/science.1067025
+LegU1	-	lpg2887	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/emboj.2010.21
+LegA9	-	lpg2452	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1111/cmi.12480
+LegC4	-	lpg2410	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1371/journal.ppat.1006744
+LegL7	-	lpg2098	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s44320-024-00076-z
+Lem4	-	lpg0928	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1073/pnas.1810122115
+Lem8	-	lpg0945	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s44320-024-00076-z
+Lem14	-	lpg1851	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s44320-024-00076-z
+Lem27	-	lpg2552	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s44320-024-00076-z
+PieG_LegG1	-	lpg2603	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/emboj.2012.241
+PieE	-	lpg1924	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s44320-024-00076-z
+PieF	-	lpg1959	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s44320-024-00076-z
+PieC	-	lpg1962	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s44320-024-00076-z
+WipB	-	lpg2718	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s44320-024-00076-z
+Ceg9	-	lpg0246	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1371/journal.ppat.1004261
+RidL	-	lpg2311	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1083/jcb.201406048
+MitF	-	lpg2818	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1126/science.aab1567
+LpdA	-	lpg1888	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1111/j.1462-5822.2007.00928.x
+Lgt1	-	lpg1368	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1126/science.1158333
+Lgt2	-	lpg2862	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1126/science.1158333
+Lgt3	-	lpg1488	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1126/science.1158333
+MavQ	-	lpg2813	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1083/jcb.201906133
+RavD	-	lpg0160	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1074/jbc.M113.502120
+RavZ	Q5ZUV9	lpg1683	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1126/science.1227026
+LegC3	-	lpg1701	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1371/journal.ppat.1006039
+LnaB	-	lpg2455	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s41586-024-07572-0
+MavM	-	lpg2522	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s44320-024-00076-z
+LotA	-	lpg2248	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.15252/embj.2019103258
+LotB	-	lpg1621	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.15252/embj.2020107656
+LotC	-	lpg2529	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.15252/embj.2020107656
+SidU	-	lpg2965	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s44320-024-00076-z
+SidL	-	lpg2580	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s44320-024-00076-z
+SidP	-	lpg0130	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1074/jbc.M111.291849
+Lem3	-	lpg0696	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/nature10337
+Lem25	-	lpg2422	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s44320-024-00076-z
+MavE	-	lpg2456	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s44320-024-00076-z
+MavF	-	lpg2391	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s44320-024-00076-z
+MavG	-	lpg0962	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s44320-024-00076-z
+MavN	-	lpg2815	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.7554/eLife.16793
+MavS	-	lpg0376	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s44320-024-00076-z
+Ceg14	-	lpg0437	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s44320-024-00076-z
+Ceg19	-	lpg0621	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s44320-024-00076-z
+Ceg23	-	lpg0758	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s44320-024-00076-z
+Ceg29	-	lpg2240	Legionella pneumophila Philadelphia 1	NC_002942.5	T4SS	DotIcm	validated	10.1038/s44320-024-00076-z
+CinF	-	CBU0041	Coxiella burnetii RSA493	NC_002971.4	T4SS	DotIcm	validated	10.1073/pnas.2102337118
+CirD	-	CBU0937	Coxiella burnetii RSA493	NC_002971.4	T4SS	DotIcm	validated	10.1371/journal.ppat.1010660
+CBU0626	-	CBU0626	Coxiella burnetii RSA493	NC_002971.4	T4SS	DotIcm	validated	10.1128/IAI.00558-19
+CBU1216a	-	CBU1216a	Coxiella burnetii RSA493	NC_002971.4	T4SS	DotIcm	predicted	10.1371/journal.ppat.1002056
+CoxB1	-	CBU1633	Coxiella burnetii RSA493	NC_002971.4	T4SS	DotIcm	predicted	10.1073/pnas.2217602120
+CoxC1	-	CBU0388	Coxiella burnetii RSA493	NC_002971.4	T4SS	DotIcm	predicted	10.1073/pnas.2217602120
+NopA	-	CBU1217	Coxiella burnetii RSA493	NC_002971.4	T4SS	DotIcm	validated	10.1371/journal.ppat.1006027
