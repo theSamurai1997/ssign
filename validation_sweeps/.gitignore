@@ -1,0 +1,16 @@
+# Run outputs, analysis scripts, and figures stay local.
+# Only the structural skeleton + README ship.
+
+*.tar.gz
+proximity_window/*
+fragmentation/*
+copies/*
+benchmarking/*
+analysis/*
+
+# Keep the empty-dir markers visible to git.
+!proximity_window/.gitkeep
+!fragmentation/.gitkeep
+!copies/.gitkeep
+!benchmarking/.gitkeep
+!analysis/.gitkeep
