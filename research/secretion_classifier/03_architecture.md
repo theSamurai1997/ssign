@@ -102,6 +102,32 @@ The multi-task head conditions on the system type so the same model
 serves all SS types. Only the head corresponding to the input system's
 type contributes loss for that pair.
 
+## Two-tier training (data-availability constraint)
+
+The 2026-06-08 audit found that only ~600 of ~2,150 NR positives have
+recoverable instance labels (full breakdown in
+[`02_data_audit.md`](02_data_audit.md#instance-label-recoverability-2026-06-08-audit)).
+Train in two stages:
+
+**Tier 1: type-level pre-training**. Train the multi-task head on all
+~1,850 PLM-E + DeepSecE positives. Standard substrate-type classifier
+(no instance features). Establishes the PLM-embedding-to-effector
+mapping with the maximum available data.
+
+**Tier 2: instance-aware fine-tune**. Initialize from Tier 1 weights.
+Train the full architecture (protein + system + pair features) on the
+~600 instance-labeled entries (SecReT4 single-cluster organisms +
+SecReT6 coordinate-joined + literature-curated from validation
+genomes). Outputs P(this protein is substrate of THIS system
+instance).
+
+At inference, only Tier 2 runs.
+
+Side-effect: this also gives us a useful intermediate checkpoint. If
+Tier 2 underperforms (instance signal is too noisy / 600 examples too
+few), fall back to Tier 1 + the genomic-context features as soft
+priors, and document the limitation.
+
 ## Multi-task vs per-system models
 
 Per Teo's request, benchmark both:

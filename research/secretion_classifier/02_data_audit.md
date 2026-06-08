@@ -141,6 +141,62 @@ On CX3 v1_gpu72 (32 cores, L40S or RTX 6000):
 **Whole pipeline: under 2 hours on one node.** Build the dataset once,
 cache the result, train any number of models off it.
 
+## Instance-label recoverability (2026-06-08 audit)
+
+The multimodal-with-system-instance architecture needs labels of the
+form `(genome, protein_locus_tag, sys_id) -> 1/0`. Most public data is
+type-level only. Recoverability per source:
+
+| Source | Instance label status | Effectors recoverable for instance-aware training |
+|---|---|---|
+| PLM-Effector | Anonymized IDs, no sidecar | 0 of 1,744 |
+| DeepSecE | Anonymized IDs, no sidecar | 0 of 1,341 (lead: positional join with SecReT6 may de-anonymize, worth verifying) |
+| SecReT4 | Headers preserve organism + locus tag; cluster only via single-cluster-organism imputation | ~285 of 540 |
+| SecReT6 | Coordinate-overlap join with Table S1 T6SS-cluster sheet | ~331 of 331 |
+| MacSyFinder v2 | Natural `sys_id = <replicon>_<model>_<N>` in `best_solution.tsv` | n/a (join key for everything else) |
+
+**Total instance-labeled effectors recoverable: ~600 across T3/T4/T6**
+(SecReT4 single-cluster slice + SecReT6 cluster join + literature
+curation of validation genomes).
+
+**PAO1 T6SS nomenclature note**: SecReT6 uses TssBfm subtypes (i1/i3/i4a)
+which do NOT order by chromosomal coordinate the way the H1/H2/H3 names
+do. Correct mapping per Mougous lab atlases:
+- i3 (≈82-121 kb on PAO1 chromosome) = H1
+- i4a (≈2570-2627 kb) = H2
+- i1 (≈1803-1824 kb) = H3
+
+## Two-tier training recipe
+
+To work around the instance-label scarcity:
+
+**Tier 1: Bulk type-level pre-training** on all ~1,850 PLM-E +
+DeepSecE entries. Predicts per-type substrate probability. Frozen PLM
+backbone + multi-task MLP head over T1/T2/T3/T4/T6.
+
+**Tier 2: Instance-aware fine-tune** on the ~600 instance-labeled
+entries plus literature-curated effectors from validation genomes
+(see `data/ground_truth/`). Takes (protein features, system features,
+pair features) as input; outputs P(this protein is substrate of THIS
+system instance). Initialize head weights from Tier 1, fine-tune all
+classifier layers.
+
+## Recommended additional multi-instance genomes
+
+For the Tier-2 fine-tune corpus (in addition to PAO1 + Salmonella LT2
+which are already in `data/ground_truth/`):
+
+| Genome | Why useful |
+|---|---|
+| *Burkholderia thailandensis* E264 | 5 T6SS clusters cleanly mapped to effectors (Schwarz 2010 + 2024 follow-ups) |
+| *Agrobacterium tumefaciens* C58 | VirB/D4 + Trb + AvhB; canonical Vir effectors map to VirB/D4 |
+| *Bartonella henselae* Houston-1 | VirB + Trw; 8-10 Bep effectors on VirB only |
+| *Serratia marcescens* Db10 | Single-cluster gold standard with >10 mapped effectors |
+| *Edwardsiella piscicida* EIB202 | T3 + T6 (EVP cluster), catalogued |
+
+Curating their ground-truth TSVs is a Tier-2 prerequisite. Defer
+until Tier 1 is trained and we know Tier 2 is worth pursuing.
+
 ## Reproducibility
 
 Pin tool versions in `scripts/build_dataset.sh`:
