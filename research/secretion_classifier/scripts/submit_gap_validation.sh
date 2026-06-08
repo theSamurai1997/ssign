@@ -58,8 +58,12 @@ done
 echo "All 6 genomes ready."
 
 # ---- 2. Submit 12 jobs (6 genomes × 2 configs) ----
-PBS_SCRIPT="$HOME/ssign/scripts/cx3/run_k12_validation.pbs"
-test -f "$PBS_SCRIPT" || { echo "FATAL: ssign repo not at \$HOME/ssign"; exit 1; }
+# Locate the PBS template relative to this script so it works regardless
+# of where the ssign repo is cloned on CX3.
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &>/dev/null && pwd )"
+SSIGN_ROOT="$( cd "$SCRIPT_DIR/../../.." &>/dev/null && pwd )"
+PBS_SCRIPT="$SSIGN_ROOT/scripts/cx3/run_k12_validation.pbs"
+test -f "$PBS_SCRIPT" || { echo "FATAL: PBS template not found at $PBS_SCRIPT"; exit 1; }
 
 # Skip every optional annotation tool: we only need the substrate-prediction
 # core (Bakta + MacSyFinder + DLP + DSE + SignalP + PLM-E + proximity filter)
