@@ -141,23 +141,58 @@ On CX3 v1_gpu72 (32 cores, L40S or RTX 6000):
 **Whole pipeline: under 2 hours on one node.** Build the dataset once,
 cache the result, train any number of models off it.
 
-## Instance-label recoverability (2026-06-08 audit)
+## Instance-label recoverability (2026-06-08 audit + de-anon)
 
 The multimodal-with-system-instance architecture needs labels of the
 form `(genome, protein_locus_tag, sys_id) -> 1/0`. Most public data is
-type-level only. Recoverability per source:
+type-level only.
 
-| Source | Instance label status | Effectors recoverable for instance-aware training |
+**De-anonymization update**: the DeepSecE FASTAs preserve SecReT6's
+insertion order (with `*` stop-codon stripping). After
+`s.rstrip('*').upper()` normalization, exact-sequence joins between
+DSE/PLM-E and SecReT4 / SecReT6 / VFDB recover ~64% of entries with
+full source-organism metadata.
+
+| Source | Instance label status | Recovered |
 |---|---|---|
-| PLM-Effector | Anonymized IDs, no sidecar | 0 of 1,744 |
-| DeepSecE | Anonymized IDs, no sidecar | 0 of 1,341 (lead: positional join with SecReT6 may de-anonymize, worth verifying) |
-| SecReT4 | Headers preserve organism + locus tag; cluster only via single-cluster-organism imputation | ~285 of 540 |
-| SecReT6 | Coordinate-overlap join with Table S1 T6SS-cluster sheet | ~331 of 331 |
+| SecReT4 verified | Headers preserve organism + locus tag; cluster via single-cluster-organism imputation | 379 of 540 directly + 136 from SecReT4-all (predicted) |
+| SecReT6 experimental | Coordinate-overlap join with Table S1 only resolves 50 of 331 (most experimentally-validated effectors come from strains not in SecReT6's predicted T6SS sheet) | 50 directly cluster-labeled, 228 species-recovered |
+| VFDB setB | Species metadata in headers | 322 additional species attributions |
+| DSE / PLM-E (de-anonymized) | Recovered via exact-sequence join | 1061 of 1652 species-recovered |
 | MacSyFinder v2 | Natural `sys_id = <replicon>_<model>_<N>` in `best_solution.tsv` | n/a (join key for everything else) |
 
-**Total instance-labeled effectors recoverable: ~600 across T3/T4/T6**
-(SecReT4 single-cluster slice + SecReT6 cluster join + literature
-curation of validation genomes).
+### Per-SS-type recovery
+
+| Type | Total | Species known | Cluster-imputable (instance-aware-trainable) |
+|---|---|---|---|
+| T1 | 164 | 5 (3%) | 0 (BastionHub-only; effectively unavailable) |
+| T2 | 70 | 10 (14%) | 0 |
+| T3 | 549 | 287 (52%) | **83** (Chlamydia + EPEC/EHEC LEE + Erwinia + others) |
+| T4 | 561 | 523 (93%) | **504** (Legionella, Coxiella, Brucella, Agro, Wolbachia, Bordetella) |
+| T6 | 308 | 236 (77%) | **50** (SecReT6 subtype join; rest need PFAM-cluster or lit curation) |
+| **Total** | **1652** | **1061** | **637** + 186 validation = **~820** |
+
+### Bottlenecks
+
+- **T1SS / T2SS instance training is not feasible from public data**
+  in 2026. Defer to type-level only. T2SS substrates use the Sec
+  pathway anyway, so SignalP carries the secretion signal.
+- **T6SS cluster assignment is the remaining gap.** 236 T6 effectors
+  are species-attributed but only 50 have a SecReT6-derived TssBfm
+  subtype. Fixes:
+  - PFAM-cluster the species-attributed effectors (group by VgrG /
+    Hcp / PAAR linkage) — feasible internally
+  - Manual literature curation for the 5 recommended multi-instance
+    genomes (Burkholderia, Agrobacterium, Bartonella, Serratia,
+    Edwardsiella) — already on the to-do list
+
+Raw join tables saved to `/tmp/ssign_data_audit/` (during the audit;
+mirror into the repo's data dir once verified).
+
+**Total instance-labeled effectors usable for Tier-2 training: ~820**
+(637 from de-anon + 186 from validation-genome ground-truth TSVs).
+Distributed unevenly across SS types: T4 has ~500+ (publishable on
+its own), T3 has ~130, T6 has ~100-150 after literature, T1/T2 ~0.
 
 **PAO1 T6SS nomenclature note**: SecReT6 uses TssBfm subtypes (i1/i3/i4a)
 which do NOT order by chromosomal coordinate the way the H1/H2/H3 names

@@ -104,29 +104,33 @@ type contributes loss for that pair.
 
 ## Two-tier training (data-availability constraint)
 
-The 2026-06-08 audit found that only ~600 of ~2,150 NR positives have
-recoverable instance labels (full breakdown in
-[`02_data_audit.md`](02_data_audit.md#instance-label-recoverability-2026-06-08-audit)).
-Train in two stages:
+The 2026-06-08 audit + de-anonymization (see
+[`02_data_audit.md`](02_data_audit.md#instance-label-recoverability-2026-06-08-audit-de-anon))
+recovered ~820 instance-labeled positives, but distribution is
+heavily skewed by SS type. Train in two stages, with the second stage
+SS-type-specific:
 
 **Tier 1: type-level pre-training**. Train the multi-task head on all
-~1,850 PLM-E + DeepSecE positives. Standard substrate-type classifier
+1652 PLM-E + DeepSecE positives. Standard substrate-type classifier
 (no instance features). Establishes the PLM-embedding-to-effector
-mapping with the maximum available data.
+mapping with the maximum available data. All 5 SS types covered.
 
-**Tier 2: instance-aware fine-tune**. Initialize from Tier 1 weights.
-Train the full architecture (protein + system + pair features) on the
-~600 instance-labeled entries (SecReT4 single-cluster organisms +
-SecReT6 coordinate-joined + literature-curated from validation
-genomes). Outputs P(this protein is substrate of THIS system
-instance).
+**Tier 2: instance-aware fine-tune** (per SS type, due to uneven data):
 
-At inference, only Tier 2 runs.
+| SS type | Tier 2 plan | Cluster-labeled training data |
+|---|---|---|
+| T4SS | Full instance-aware fine-tune | 504 + Legionella/Coxiella ground-truth |
+| T3SS | Instance-aware fine-tune (tight) | 83 cluster-imputable + Salmonella SPI labels + literature |
+| T6SS | Defer until more data curated | 50 + 5 additional genomes (Burkholderia, etc.) when curated |
+| T1SS | Skip Tier 2; ship type-level only | 0 instance-labeled (Sec pathway carries signal via SignalP) |
+| T2SS | Skip Tier 2; ship type-level only | 0 instance-labeled |
 
-Side-effect: this also gives us a useful intermediate checkpoint. If
-Tier 2 underperforms (instance signal is too noisy / 600 examples too
-few), fall back to Tier 1 + the genomic-context features as soft
-priors, and document the limitation.
+Initialize Tier-2 weights from Tier 1. Train each SS-type Tier-2 head
+separately so type-specific signal isn't diluted by data-poor types.
+
+At inference, the user sees: type-level scores from Tier 1 for all 5
+types, plus instance-aware scores from Tier 2 where it's been trained
+(T4 always; T3 if confidence is high; T6 once curated; T1/T2 never).
 
 ## Multi-task vs per-system models
 
