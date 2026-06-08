@@ -1,8 +1,0 @@
-gene	uniprot	locus_tag	ss_type	evidence	primary_ref
-YopE	P31493	YPCD1.06	T3SS	validated	10.1126/science.282.5390.1126
-YopK_YopQ	O68704	YPCD1.19c	T3SS	validated	10.1016/j.chom.2007.08.002
-YopT	O68703	YPCD1.20	T3SS	validated	10.1126/science.1075484
-YopM	P17778	YPCD1.26c	T3SS	validated	10.1073/pnas.93.18.9596
-YopH	O68720	YPCD1.67c	T3SS	validated	10.1016/0092-8674(91)90504-r
-YopJ_YopP	Q9RI13	YPCD1.71c	T3SS	validated	10.1126/science.290.5496.1594
-YopO_YpkA	Q9RI12	YPCD1.72c	T3SS	validated	10.1093/emboj/19.20.5365
