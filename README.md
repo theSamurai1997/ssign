@@ -17,29 +17,6 @@ Zenodo-DOI'd. See [Roadmap to v1.0.0](#roadmap-to-v100).
 
 ---
 
-## Statement of need
-
-Identifying which proteins a bacterium secretes — and through which of its
-secretion systems — is a recurring need across pathogen biology, microbial
-ecology, and synthetic-biology strain engineering. Doing this well requires
-combining at least three independent pieces of evidence: (1) which secretion
-systems the genome encodes, (2) which proteins look like secretion substrates,
-and (3) whether the candidates sit near a relevant system in genomic space.
-Each piece has well-established tools (MacSyFinder + TXSScan for systems;
-DeepLocPro, DeepSecE, SignalP, PLM-Effector for secretion prediction; BLAST,
-HH-suite, InterProScan, Bakta, EggNOG for functional annotation), but stitching
-them together is a manual, error-prone task that gets re-done in every lab.
-
-ssign exists to make that pipeline a single command. It runs the tools above,
-cross-validates their predictions, filters by per-component genomic proximity
-(rather than the looser system-span used by earlier pipelines), and produces
-a ranked, evidence-linked list of candidate secreted proteins plus an HTML
-report. It is targeted at biologists who want to interrogate a Gram-negative
-genome without writing glue code, and at HPC users who need the same workflow
-to run reproducibly on batches of hundreds of genomes.
-
----
-
 ## Hosted web service: coming soon
 
 A public web service for browser-based genome submission is planned alongside
