@@ -17,7 +17,7 @@ mkdir -p "$GENOME_DIR"
 # ---- 1. Stage genomes ----
 # Use what we already have where possible; otherwise fetch from NCBI.
 declare -A GENOMES=(
-    [legionella_pneumophila]="$TUT/legionella_pneumophila.gbff"
+    [legionella_pneumophila]="$GENOME_DIR/legionella_pneumophila.gbff"
     [pseudomonas_pao1]="$TUT/pseudomonas_pao1.gbff"
     [salmonella_lt2]="$GENOME_DIR/salmonella_lt2.gbff"
     [coxiella_rsa493]="$GENOME_DIR/coxiella_rsa493.gbff"
@@ -26,6 +26,7 @@ declare -A GENOMES=(
 )
 
 declare -A REFSEQ=(
+    [legionella_pneumophila]="NC_002942"
     [salmonella_lt2]="NC_003197"
     [coxiella_rsa493]="NC_002971"
     [yersinia_pestis_co92]="NC_003143"
