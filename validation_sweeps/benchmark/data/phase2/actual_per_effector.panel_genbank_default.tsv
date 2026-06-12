@@ -354,7 +354,7 @@ P15377	apxIIA	T1SS	NC_010939.1	APP7_RS05125	APP7_RS05125	locus_tag	1.000	not_emi
 P55131	apxIIIA	T1SS	NZ_CP031859.1	D1108_RS06660	D1108_RS06660	locus_tag	1.000	emitted_secreted	yes	true	true	true		T1SS	proximity	Extracellular	0.9862	T1SS	OTHER	0.0	True	T1SE,T6SE	1	Low
 Q57506	cya	T1SS	BX470250	BB0324	BB0324	locus_tag	1.000	emitted_secreted	yes	true	true	true		T1SS	proximity	Extracellular	0.9432	T1SS	OTHER	0.0	False		1	Low
 P0DKX7	cya	T1SS	BX470248	BP0760	BP0760	locus_tag	1.000	emitted_secreted	yes	true	true	true		T1SS	proximity	Extracellular	0.9305	T1SS	OTHER	0.0	True	T3SE	1	Low
-Q9JYV5	frpC	T1SS	AE002098	NMB1415	NMB1415	locus_tag	1.000	not_emitted	yes	false	false	false												
+Q9JYV5	frpC	T1SS	AE002098	NMB1415	NMB1415	locus_tag	1.000	not_emitted	no				machinery_unanchored											
 Q54450	hasA	T1SS	NZ_CP018927.1	BVG90_RS01585	BVG90_RS01585	locus_tag	1.000	emitted_secreted	yes	true	true	true		T1SS	proximity	Extracellular	0.9977	T1SS	OTHER	0.0006	False		1	Low
 P16462	ltxA	T1SS	NZ_JABJZG010000001.1	IMM52_RS00555	IMM52_RS00555	locus_tag	1.000	not_emitted	yes	true	true	true												
 P55117	lktA	T1SS	NZ_SMAM01000003.1	EDC51_RS04180	EDC51_RS04180	locus_tag	1.000	not_emitted	yes	true	true	true												
@@ -453,8 +453,8 @@ Q2GJY2	AnkA	T4SS	NC_007797.1	APH_RS03050	APH_RS03050	locus_tag	1.000	not_emitted
 Q2GIB5	AmpA	T4SS	NC_007797.1	APH_RS05645	APH_RS05645	locus_tag	1.000	not_emitted	yes	false	false	false												
 Q2GLA1	AptA	T4SS	NC_007797.1	APH_RS01025	APH_RS01025	locus_tag	1.000	not_emitted	yes	false	false	false												
 Q2GI62	TRP120	T4SS	NC_007799.1	ECH_RS00200	ECH_RS00200	locus_tag	1.000	not_emitted	yes	true	true	true												
-Q2GHU2	TRP47	T1SS	NC_007799.1	ECH_RS00695	ECH_RS00695	locus_tag	1.000	not_emitted	yes	false	false	false												
-Q2GHT8	TRP32	T1SS	NC_007799.1	ECH_RS00715	ECH_RS00715	locus_tag	1.000	not_emitted	yes	false	false	false												
+Q2GHU2	TRP47	T1SS	NC_007799.1	ECH_RS00695	ECH_RS00695	locus_tag	1.000	not_emitted	no				machinery_unanchored											
+Q2GHT8	TRP32	T1SS	NC_007799.1	ECH_RS00715	ECH_RS00715	locus_tag	1.000	not_emitted	no				machinery_unanchored											
 Q2GG12	Etf-1	T4SS	NC_007799.1	ECH_RS03425	ECH_RS03425	locus_tag	1.000	not_emitted	yes	false	false	false												
 Q2GFH0	Etf-2	T4SS	NC_007799.1			unmatched		not_in_input	no				effector_locus_not_found											
 Q2GG15	NlmA	T4SS	NC_007799.1	ECH_RS03415	ECH_RS03415	locus_tag	1.000	not_emitted	yes	false	false	false												

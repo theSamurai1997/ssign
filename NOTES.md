@@ -141,10 +141,9 @@ Denominator honesty: 14 no_run (effectors with no genome accession, all non-test
 
 **On the frpC/TolC question (Teo):** ssign detected NO T1SS in the Neisseria genome and there's no TolC/HlyB/HlyD adjacent to frpC — the apparatus is real but genome-scattered, so nothing to detect nearby. The answer-key "TolC at 1340 genes" is a spurious product-tier match.
 
-**3 ACTIONABLE FOLLOW-UPS surfaced (deferred):**
-1. **Answer-key bug:** TRP47/TRP32 (Ehrlichia, T1SS) machinery anchored on **VirB8 (a T4SS gene)** — the cited paper explicitly rejects T4SS for these. Re-anchor on the Hly T1SS or mark machinery_unanchored. Reachability verdict (unreachable) unchanged.
-2. **T6SS ceiling likely UNDERCOUNTED:** we anchor on the core tss cluster (TssM/ClpV), but many T6SS effectors sit beside an orphan vgrG/paar/hcp far from the core, with cognate immunity downstream. Add a nearest-vgrG/paar + immunity-pair anchor and recompute T6SS reachable@3 (likely rises; ssign detects vgrG so some "unreachable" T6SS may be reachable). The one system where apparent proximity-failure is partly a benchmark-anchor choice, not biology.
-3. **frpC** answer-key TolC anchor (1340 genes) is spurious — drop/mark unanchored.
+**3 ACTIONABLE FOLLOW-UPS surfaced:**
+1. **[DONE 2026-06-12]** TRP47/TRP32 (Ehrlichia, T1SS) were anchored on **VirB8 (a T4SS gene)**; +3. **[DONE]** frpC anchored on a spurious TolC 1340 genes away. `scripts/34_answer_key_corrections.py` reclassifies all 3 → `machinery_unanchored` / non-testable (correct machinery not anchorable; checked: ssign detects NO secretion system in either the Ehrlichia or Neisseria genome, and no Hly/TolC is adjacent — ssign could not have found them regardless). Found count unchanged (all not_emitted); testable 499→496; T1SS unreachable 5→2 (now just the genuine-biology Serralysin + apxIIA). Backups `*.pre_anchor_fix`. Figures 01/04 regenerated.
+2. **[STILL OPEN] T6SS ceiling likely UNDERCOUNTED:** we anchor on the core tss cluster (TssM/ClpV), but many T6SS effectors sit beside an orphan vgrG/paar/hcp far from the core, with cognate immunity downstream. Add a nearest-vgrG/paar + immunity-pair anchor and recompute T6SS reachable@3 (likely rises; ssign detects vgrG so some "unreachable" T6SS may be reachable). The one system where apparent proximity-failure is partly a benchmark-anchor choice, not biology.
 
 **Next (now unblocked):** 6.6/6.7 figures + docs; dataset group-4 4.1 feature join (the `actual_per_effector.*.tsv` tables ARE the per-protein tool signals). Benchmark-side bridge/SUBMIT/script changes still UNCOMMITTED (not yet approved).
 

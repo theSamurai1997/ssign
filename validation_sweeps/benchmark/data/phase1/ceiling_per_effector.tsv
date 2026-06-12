@@ -354,7 +354,7 @@ apxIIA	P15377	T1SS	NC_010939.1	T1SS_R03	adjacency_scan	APP7_RS05125					adjacenc
 apxIIIA	P55131	T1SS	NZ_CP031859.1	T1SS_R04	adjacency_scan	D1108_RS06660			D1108_RS06655		adjacency	1	true	true	true	yes		ipg_identical	exact
 cya	Q57506	T1SS	BX470250	T1SS_05	answer_key	BB0324	319	locus_tag	BB0325	CyaB	alias	1	true	true	true	yes			
 cya	P0DKX7	T1SS	BX470248	T1SS_04	answer_key	BP0760	745	locus_tag	BP0761	CyaB	alias	1	true	true	true	yes			
-frpC	Q9JYV5	T1SS	AE002098	T1SS_01	answer_key	NMB1415	1410	locus_tag	NMB0071	TolC	product	1340	false	false	false	yes			
+frpC	Q9JYV5	T1SS	AE002098	T1SS_01	answer_key	NMB1415	1410	locus_tag	NMB0071	TolC	product	1340				no	machinery_unanchored		
 hasA	Q54450	T1SS	NZ_CP018927.1	T1SS_R05	adjacency_scan	BVG90_RS01585			BVG90_RS01590		adjacency	1	true	true	true	yes		ipg_identical	exact
 ltxA	P16462	T1SS	NZ_JABJZG010000001.1	T1SS_R10	adjacency_scan	IMM52_RS00555			IMM52_RS00550		adjacency	1	true	true	true	yes		representative_strain	exact
 lktA	P55117	T1SS	NZ_SMAM01000003.1	T1SS_R08	adjacency_scan	EDC51_RS04180			EDC51_RS04185		adjacency	1	true	true	true	yes		representative_strain	exact
@@ -453,8 +453,8 @@ AnkA	Q2GJY2	T4SS	NC_007797.1	T4SS_10	answer_key	APH_RS03050	621	locus_tag	APH_RS
 AmpA	Q2GIB5	T4SS	NC_007797.1	T4SS_10	answer_key	APH_RS05645	1142	locus_tag	APH_RS05715	VirB11	alias	13	false	false	false	yes			
 AptA	Q2GLA1	T4SS	NC_007797.1	T4SS_10	answer_key	APH_RS01025	204	locus_tag	APH_RS01625	VirB3	product	127	false	false	false	yes			
 TRP120	Q2GI62	T4SS	NC_007799.1	T4SS_11	answer_key	ECH_RS00200	38	locus_tag	ECH_RS00210	VirB11	alias	2	true	true	true	yes			
-TRP47	Q2GHU2	T1SS	NC_007799.1	T1SS_08	answer_key	ECH_RS00695	143	locus_tag	ECH_RS00225	VirB8	product	100	false	false	false	yes			
-TRP32	Q2GHT8	T1SS	NC_007799.1	T1SS_08	answer_key	ECH_RS00715	147	locus_tag	ECH_RS00225	VirB8	product	104	false	false	false	yes			
+TRP47	Q2GHU2	T1SS	NC_007799.1	T1SS_08	answer_key	ECH_RS00695	143	locus_tag	ECH_RS00225	VirB8	product	100				no	machinery_unanchored		
+TRP32	Q2GHT8	T1SS	NC_007799.1	T1SS_08	answer_key	ECH_RS00715	147	locus_tag	ECH_RS00225	VirB8	product	104				no	machinery_unanchored		
 Etf-1	Q2GG12	T4SS	NC_007799.1	T4SS_11	answer_key	ECH_RS03425	708	locus_tag	ECH_RS02065	VirB6-1	product	287	false	false	false	yes			
 Etf-2	Q2GFH0	T4SS	NC_007799.1	T4SS_11	answer_key											no	effector_locus_not_found		
 NlmA	Q2GG15	T4SS	NC_007799.1	T4SS_11	answer_key	ECH_RS03415	706	locus_tag	ECH_RS02065	VirB6-1	product	285	false	false	false	yes			
