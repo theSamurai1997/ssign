@@ -4,7 +4,8 @@
 01  recall @ window 3 (as shipped)  : per SS type, of the literature-curated effectors, how many ssign
                                        FOUND, how many it COULD have (reachable within +/-3 of the
                                        machinery but missed), how many it could NEVER (machinery >3
-                                       genes away = unreachable@3, or no genome staged = non-testable).
+                                       genes away = unreachable@3, or never put in front of ssign at
+                                       all = non-testable: no genome, ORF absent, or no machinery anchor).
 02  the T3SS story                   : T3SS effectors, default (excluded) vs included, showing both the
                                        exclusion AND that most are genome-dispersed (unreachable@3).
 03  emission quality                 : of everything ssign emits (proximity calls), how many are
@@ -83,7 +84,7 @@ def fig01_recall(tab):
         ("found", "found by ssign"),
         ("reach_miss", "reachable @±3, missed"),
         ("unreach", "unreachable @±3 (machinery >3 genes away)"),
-        ("nontest", "non-testable (no genome staged)"),
+        ("nontest", "non-testable (no genome / ORF absent / no machinery anchor)"),
     ]
     fig, ax = plt.subplots(figsize=(9.5, 5.2))
     x = np.arange(len(TYPES))
@@ -158,7 +159,7 @@ def fig02_t3ss(dft, t3t):
     ax.text(
         0.5,
         -0.22,
-        "Enabling T3SS lifts found 3→15, but ~73% of T3SS effectors are\ngenome-dispersed (unreachable @±3 of the injectisome) — proximity\ncan't reach them. T3SS is excluded by default because MacSyFinder\nfinds ~0 real injectisomes here and DeepSecE over-calls flagellar.",
+        "The T3SS-on run works: MacSyFinder detects 30 injectisomes and found\nrises 3→15. But ~73% of T3SS effectors are genome-dispersed (unreachable\n@±3 of the injectisome), so proximity can't reach them. T3SS is OFF by\ndefault not because MacSyFinder can't find it — it can — but because\nDeepSecE floods T3SS with misclassified flagellar proteins.",
         transform=ax.transAxes,
         ha="center",
         va="top",

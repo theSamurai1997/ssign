@@ -133,6 +133,10 @@ Headline: even within +/-7 genes (ceiling 25%), as-shipped ssign emits 8% (T3SS-
 
 Denominator honesty: 14 no_run (effectors with no genome accession, all non-testable) + 75 not_in_input (only 6 testable; ssign's ORF set didn't carry those 6 loci = forced misses already counted against recall). Nothing inflated.
 
+**T3SS detection CLARIFIED (2026-06-12), corrects the CLAUDE.md "MacSyFinder found 0 T3SS" framing for THIS panel.** `excluded_systems` (default `Flagellum,Tad,T3SS`) is a DOWNSTREAM FILTER, not a detection switch (`system_filtering.py:39`, `validate_macsyfinder_systems.py:148` separates included vs excluded AFTER parsing all MacSyFinder results). MacSyFinder/TXSScan models T3SS and runs it every time. In the t3ss-included panel run it **detected 30 real T3SS systems** (Pseudomonas/Bordetella/Chlamydia/Salmonella/Shigella, `excluded=False`); the default run shows 0 only because the filter drops them. So T3SS is OFF by default NOT because MacSyFinder can't find injectisomes (it can) but because DeepSecE over-predicts T3SS by misclassifying flagellar proteins (CLAUDE.md bug #4) — excluding it protects precision. Even with T3SS on, found only 3→15 because ~73% of T3SS effectors are genome-dispersed (unreachable @±3). The CLAUDE.md "0 across 74 genomes" note is about an older/different dev set; don't treat it as true for the benchmark panel.
+
+**"Non-testable" (83) ≠ "no genome" — it's a mix** (corrects the figure-01 shorthand): effector_locus_not_found 26, own_instance_unknown 25 (the dropped net-new T6SS multi-instance effectors), no_genome 11+2 divergent, machinery_unanchored 10, no_instance_in_genome 8. All mean "couldn't fairly put it in front of ssign" (no assembly, ORF absent from the staged assembly, or no anchorable machinery to measure ±3 against), so excluded from the found/missed judgement.
+
 **Next (now unblocked):** 6.6/6.7 figures + docs; dataset group-4 4.1 feature join (the `actual_per_effector.*.tsv` tables ARE the per-protein tool signals). Benchmark-side bridge/SUBMIT/script changes still UNCOMMITTED (not yet approved).
 
 ## effector-recovery-benchmark — Phase 2 pilot results + FASTA bridge bug (2026-06-11)
