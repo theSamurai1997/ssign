@@ -79,44 +79,48 @@ def recall_tab(tag):
     return out
 
 
-def fig01_recall(tab):
+def fig01_recall(dft, t3t):
+    # Testable effectors only (drop non-testable — they were never put in front of ssign). T3SS uses
+    # the detection-enabled run; T1/T2/T4/T6 are identical across tags (only Flagellum/Tad/T3SS toggle).
+    tab = {ss: (t3t if ss == "T3SS" else dft)[ss] for ss in TYPES}
+    testable = {ss: tab[ss]["found"] + tab[ss]["reach_miss"] + tab[ss]["unreach"] for ss in TYPES}
     segs = [
         ("found", "found by ssign"),
         ("reach_miss", "reachable @±3, missed"),
         ("unreach", "unreachable @±3 (machinery >3 genes away)"),
-        ("nontest", "non-testable (no genome / ORF absent / no machinery anchor)"),
     ]
-    fig, ax = plt.subplots(figsize=(9.5, 5.2))
+    fig, ax = plt.subplots(figsize=(9.2, 5.0))
     x = np.arange(len(TYPES))
     bottom = np.zeros(len(TYPES))
     for key, lab in segs:
         vals = np.array([tab[ss][key] for ss in TYPES])
         ax.bar(x, vals, bottom=bottom, color=C[key], label=lab, width=0.62)
         for xi, v, b in zip(x, vals, bottom):
-            if v >= 6:
-                ax.text(
-                    xi,
-                    b + v / 2,
-                    str(v),
-                    ha="center",
-                    va="center",
-                    color="white" if key != "nontest" else "#555",
-                    fontsize=8,
-                    fontweight="bold",
-                )
+            if v >= 10:  # tiny segments collide on short bars; the found/reachable annotation covers them
+                ax.text(xi, b + v / 2, str(v), ha="center", va="center", color="white", fontsize=8.5, fontweight="bold")
         bottom += vals
     for xi, ss in zip(x, TYPES):
-        ch = tab[ss]["found"] + tab[ss]["reach_miss"]
-        ax.text(
-            xi, tab[ss]["total"] + 4, f"found {tab[ss]['found']}\ncould-have {ch}", ha="center", va="bottom", fontsize=8
-        )
+        reach = tab[ss]["found"] + tab[ss]["reach_miss"]
+        ax.text(xi, testable[ss] + 3, f"found {tab[ss]['found']}/{reach}", ha="center", va="bottom", fontsize=8.5)
+    labels = [f"{ss}*\n(n={testable[ss]})" if ss == "T3SS" else f"{ss}\n(n={testable[ss]})" for ss in TYPES]
     ax.set_xticks(x)
-    ax.set_xticklabels([f"{ss}\n(n={tab[ss]['total']})" for ss in TYPES])
-    ax.set_ylabel("literature-curated effectors")
-    ax.set_ylim(top=max(tab[ss]["total"] for ss in TYPES) * 1.22)
-    ax.legend(frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.1), ncol=2, fontsize=8.5)
+    ax.set_xticklabels(labels)
+    ax.set_ylabel("testable effectors")
+    ax.set_ylim(top=max(testable.values()) * 1.2)
+    tot_f = sum(tab[ss]["found"] for ss in TYPES)
+    tot_r = sum(tab[ss]["found"] + tab[ss]["reach_miss"] for ss in TYPES)
+    ax.legend(frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.12), ncol=3, fontsize=8.5)
     ax.set_title(
-        "What ssign finds vs could vs never (proximity ±3, as shipped)\nfound 39 · could-have 109 · structurally out of reach 390 · never staged 83  (of 582)"
+        f"Recall at proximity ±3: ssign found {tot_f} of {sum(testable.values())} testable effectors\n"
+        f"(proximity could reach {tot_r}; the bar above each is found / reachable)"
+    )
+    ax.text(
+        0.0,
+        -0.26,
+        "*T3SS shown with detection enabled (off by default).",
+        transform=ax.transAxes,
+        fontsize=7.5,
+        color="#666",
     )
     _save(fig, "01_recall_window3.png")
 
@@ -249,7 +253,7 @@ def main():
             stale.unlink()
     dft = recall_tab("panel_genbank_default")
     t3t = recall_tab("panel_genbank_t3ss")
-    fig01_recall(dft)
+    fig01_recall(dft, t3t)
     fig02_t3ss(dft, t3t)
     fig03_quality(emission_quality())
     print("Figure index:")
