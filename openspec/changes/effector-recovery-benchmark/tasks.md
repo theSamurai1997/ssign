@@ -124,3 +124,12 @@ construction and reported separately as a T5SS-detection sanity check.
   Surfaced 3 answer-key follow-ups (in NOTES): TRP47/32 anchored on T4SS VirB8 (should be T1SS Hly);
   T6SS ceiling undercounts (core-cluster anchor misses orphan-vgrG-adjacent effectors — add vgrG/paar +
   immunity-pair anchor); frpC TolC anchor (1340 genes) spurious.
+- [x] 8.6b Answer-key anchor fixes (`34_answer_key_corrections.py`): TRP47/32 + frpC reclassified
+  machinery_unanchored → non-testable (testable 499→496; T1SS unreachable 5→2). Backups `*.pre_anchor_fix`.
+- [x] 8.7 False-negative diagnosis (`35_false_negatives.py` → `figures/summary/05` + `FALSE_NEGATIVES.md`):
+  of the 62 reachable@3-but-missed effectors, **50 (81%) are DETECTION failures** — ssign detected no
+  secretion system, so the secreted-protein predictors (which run only on the ±3 neighborhood of a
+  detected system) never evaluated the effector. T1SS 5/5 detection misses on RTX toxins (HlyA: complete
+  hlyC-A-B-D operon present, no T1SS called — TXSScan needs a co-localized TolC, which is housekeeping/
+  distant). T6SS is the exception (9/11 processed-but-rejected). Recall is bottlenecked by SS detection,
+  not the predictors → ssign-side fix (T1SS TolC handling) + the per-protein-classifier argument.
