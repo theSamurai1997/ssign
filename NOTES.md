@@ -137,6 +137,15 @@ Denominator honesty: 14 no_run (effectors with no genome accession, all non-test
 
 **"Non-testable" (83) ≠ "no genome" — it's a mix** (corrects the figure-01 shorthand): effector_locus_not_found 26, own_instance_unknown 25 (the dropped net-new T6SS multi-instance effectors), no_genome 11+2 divergent, machinery_unanchored 10, no_instance_in_genome 8. All mean "couldn't fairly put it in front of ssign" (no assembly, ORF absent from the staged assembly, or no anchorable machinery to measure ±3 against), so excluded from the found/missed judgement.
 
+**UNREACHABLE-MISSED ANALYSIS DONE (2026-06-12)** — `data/phase2/UNREACHABLE_ANALYSIS.md` + `figures/summary/04_distance_to_machinery.png` (script 33) + 5 literature agents. **Distances to machinery (testable): T1SS median 1 gene (20/23 within ±3 = operonic, Teo's intuition correct); T2SS 302, T3SS 45, T4SS 203, T6SS 232.** So T2/T3/T4SS effectors are GENUINELY genome-dispersed → high unreachable@3 is EXPECTED biology, not a ssign/benchmark failure (T2 substrates recruited post-translationally in periplasm; T3 effectors horizontally acquired on prophages/islands, shared-regulon-coordinated; T4 effectors recognized by portable C-terminal signal, location decoupled — Legionella/Coxiella ~300 scattered). The 5 T1SS misses are all genuine biology (Serralysin=LipBCD generalist exporter at separate locus; ApxIIA=in-trans via apxI-BD; FrpC=functional but scattered T1SS, no adjacent TolC/HlyB to detect; TRP47/32=T1SS but Hly transporter at separate locus). Core argument for the classifier: a fixed proximity window is the wrong abstraction for the dispersed systems.
+
+**On the frpC/TolC question (Teo):** ssign detected NO T1SS in the Neisseria genome and there's no TolC/HlyB/HlyD adjacent to frpC — the apparatus is real but genome-scattered, so nothing to detect nearby. The answer-key "TolC at 1340 genes" is a spurious product-tier match.
+
+**3 ACTIONABLE FOLLOW-UPS surfaced (deferred):**
+1. **Answer-key bug:** TRP47/TRP32 (Ehrlichia, T1SS) machinery anchored on **VirB8 (a T4SS gene)** — the cited paper explicitly rejects T4SS for these. Re-anchor on the Hly T1SS or mark machinery_unanchored. Reachability verdict (unreachable) unchanged.
+2. **T6SS ceiling likely UNDERCOUNTED:** we anchor on the core tss cluster (TssM/ClpV), but many T6SS effectors sit beside an orphan vgrG/paar/hcp far from the core, with cognate immunity downstream. Add a nearest-vgrG/paar + immunity-pair anchor and recompute T6SS reachable@3 (likely rises; ssign detects vgrG so some "unreachable" T6SS may be reachable). The one system where apparent proximity-failure is partly a benchmark-anchor choice, not biology.
+3. **frpC** answer-key TolC anchor (1340 genes) is spurious — drop/mark unanchored.
+
 **Next (now unblocked):** 6.6/6.7 figures + docs; dataset group-4 4.1 feature join (the `actual_per_effector.*.tsv` tables ARE the per-protein tool signals). Benchmark-side bridge/SUBMIT/script changes still UNCOMMITTED (not yet approved).
 
 ## effector-recovery-benchmark — Phase 2 pilot results + FASTA bridge bug (2026-06-11)

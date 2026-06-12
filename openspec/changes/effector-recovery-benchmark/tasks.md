@@ -117,3 +117,10 @@ construction and reported separately as a T5SS-detection sanity check.
   ~73% of T3SS effectors are genome-dispersed = unreachable@±3 of the injectisome); **03** emission
   quality per assigned type (overall 13% reasonable / 62% unresolvable / 25% wrong; T4aP worst at 41%
   wrong, T1SS best at 23% reasonable).
+- [x] 8.6 Unreachable-missed deep dive (`33_distance_to_machinery.py` → `figures/summary/04`; 5 literature
+  agents → `data/phase2/UNREACHABLE_ANALYSIS.md`). Distance-to-machinery: **T1SS median 1 gene (operonic),
+  T2/T3/T4/T6 median 45-302 (genome-dispersed)** → high unreachable@3 is EXPECTED biology, not a failure;
+  the 5 T1SS misses are all genuine non-operonic exceptions (generalist exporter / in-trans / scattered).
+  Surfaced 3 answer-key follow-ups (in NOTES): TRP47/32 anchored on T4SS VirB8 (should be T1SS Hly);
+  T6SS ceiling undercounts (core-cluster anchor misses orphan-vgrG-adjacent effectors — add vgrG/paar +
+  immunity-pair anchor); frpC TolC anchor (1340 genes) spurious.
