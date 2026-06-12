@@ -1,0 +1,332 @@
+{
+"10.1128/JB.180.12.3062-3069.1998": {
+"in_crossref": true,
+"title": "The\n            <i>Caulobacter crescentus</i>\n            Paracrystalline S-Layer Protein Is Secreted by an ABC Transporter (Type I) Secretion Apparatus",
+"abstract": "<jats:title>ABSTRACT</jats:title>\n          <jats:p>\n            <jats:italic>Caulobacter crescentus</jats:italic>\n            is a gram-negative bacterium that produces a two-dimensional crystalline array on its surface composed of a single 98-kDa protein, RsaA. Secretion of RsaA to the cell surface relies on an uncleaved C-terminal secretion signal. In this report, we identify two genes encoding components of the RsaA secretion apparatus. These components are part of a type I secretion system involving an ABC transporter protein. These genes, lying immediately 3\u2032 of\n            <jats:italic>rsaA</jats:italic>\n            , were found by screening a Tn\n            <jats:italic>5</jats:italic>\n            transposon library for the loss of RsaA transport and characterizing the transposon-interrupted genes. The two proteins presumably encoded by these genes were found to have significant sequence similarity to ABC transporter and membrane fusion proteins of other type I secretion systems. The greatest sequence similarity was found to the alkaline protease (AprA) transport system of\n            <jats:italic>Pseudomonas aeruginosa</jats:italic>\n            and the metalloprotease (PrtB) transport system of\n            <jats:italic>Erwinia chrysanthemi</jats:italic>\n            . The\n            <jats:italic>prtB</jats:italic>\n            and\n            <jats:italic>aprA</jats:italic>\n            genes were introduced into\n            <jats:italic>C. crescentus</jats:italic>\n            , and their products were secreted by the RsaA transport system. Further, defects in the S-layer protein transport system led to the loss of this heterologous secretion. This is the first report of an S-layer protein secreted by a type I secretion apparatus. Unlike other type I secretion systems, the RsaA transport system secretes large amounts of its substrate protein (it is estimated that RsaA accounts for 10 to 12% of the total cell protein). Such levels are expected for bacterial S-layer proteins but are higher than for any other known type I secretion system.\n          </jats:p>",
+"container": "Journal of Bacteriology"
+},
+"10.1128/jb.179.15.4754-4760.1997": {
+"in_crossref": true,
+"title": "Lipase secretion by bacterial hybrid ATP-binding cassette exporters: molecular recognition of the LipBCD, PrtDEF, and HasDEF exporters",
+"abstract": "<jats:p>Serratia marcescens secretes several proteins, such as the lipase LipA, the metalloprotease PrtA, and the heme-binding protein HasA, which is required for heme acquisition, through two N-terminal signal peptide-independent systems that are classified as bacterial ATP-binding cassette (ABC) exporters. One is the ABC exporter for HasA, consisting of the ABC protein HasD, the membrane fusion protein (MFP) HasE, and the outer membrane protein (OMP) HasF. The second, composed of LipB (an ABC protein), LipC (an MFP), and LipD (an OMP), promotes secretion of LipA and PrtA in Escherichia coli recombinant clones. PrtA, which shows homology to the Erwinia chrysanthemi metalloproteases, is efficiently secreted by E. coli cells carrying the E. chrysanthemi ABC exporter PrtD (ABC protein)-PrtE (MFP)-PrtF (OMP). The existence of distinct systems in this bacterium and of various substrates for these systems allowed the study of protein secretion by heterologous Has, Lip, and Prt systems and by Has-Lip and Lip-Prt hybrid exporters in the genuine host as well as in E. coli. For that purpose, lipB-, lipC-, and lipD-deficient mutants were isolated from S. marcescens 8000 and their secretion of LipA and PrtA was analyzed. This demonstrated that a unique exporter, the Lip apparatus, in S. marcescens secretes both LipA and PrtA. Hybrid exporters were tested for secretion of HasA and LipA. The LipB-HasE-HasF exporter allowed secretion of LipA but not HasA, showing that the ABC protein LipB is responsible for the substrate specificity. LipA, HasA, and E. chrysanthemi PrtC were secreted via heterologous exporters and via some hybrid exporters. Analysis of secretion via hybrid exporters showed that specific interactions occur between MFPs and OMPs in these systems. These genetic experiments demonstrated that specific interactions between the ABC protein and the MFP are required for the formation of active exporters.</jats:p>",
+"container": "Journal of Bacteriology"
+},
+"10.1111/j.1462-2920.2009.02014.x": {
+"in_crossref": true,
+"title": "Spatial patterns of bacterial taxa in nature reflect ecological traits of deep branches of the 16S rRNA bacterial tree",
+"abstract": "<jats:title>Summary</jats:title>\n                  <jats:p>Whether bacteria display spatial patterns of distribution and at which level of taxonomic organization such patterns can be observed are central questions in microbial ecology. Here we investigated how the total and relative abundances of eight bacterial taxa at the phylum or class level were spatially distributed in a pasture by using quantitative PCR and geostatistical modelling. The distributions of the relative abundance of most taxa varied by a factor of 2.5\u20136.5 and displayed strong spatial patterns at the field scale. These spatial patterns were taxon\u2010specific and correlated to soil properties, which indicates that members of a bacterial clade defined at high taxonomical levels shared specific ecological traits in the pasture. Ecologically meaningful assemblages of bacteria at the phylum or class level in the environment provides evidence that deep branching patterns of the 16S rRNA bacterial tree are actually mirrored in nature.</jats:p>",
+"container": "Environmental Microbiology"
+},
+"10.1128/iai.73.1.146-154.2005": {
+"in_crossref": true,
+"title": "SipA, SopA, SopB, SopD, and SopE2 Contribute to<i>Salmonella enterica</i>Serotype Typhimurium Invasion of Epithelial Cells",
+"abstract": "<jats:title>ABSTRACT</jats:title><jats:p>The centisome 63 type III secretion system (T3SS-1) encoded by<jats:italic>Salmonella</jats:italic>pathogenicity island 1 (SPI1) mediates invasion of epithelial cells by<jats:italic>Salmonella enterica</jats:italic>serotype Typhimurium. Characterization of mutants lacking individual genes has revealed that T3SS-1 secreted proteins (effectors) SopE2 and SopB are required for invasion while the SipA protein accelerates entry into cells. Here we have revisited the question of which T3SS-1 effectors contribute to the invasion of epithelial cells by complementing a strain lacking all of the effector genes that are required to cause diarrhea in a calf (a<jats:italic>sipA sopABDE2</jats:italic>mutant). Introduction of either the cloned<jats:italic>sipA</jats:italic>, the cloned<jats:italic>sopB</jats:italic>, or the cloned<jats:italic>sopE2</jats:italic>gene increased the invasiveness of the<jats:italic>sipA sopABDE2</jats:italic>mutant for nonpolarized HT-29 cells. However, a contribution of<jats:italic>sopA</jats:italic>or<jats:italic>sopD</jats:italic>to invasion was not apparent when invasion assays were performed with the nonpolarized colon carcinoma cell lines T84 and HT-29. In contrast, introduction of either the<jats:italic>sopA</jats:italic>, the<jats:italic>sopB</jats:italic>, the<jats:italic>sopD</jats:italic>, or the<jats:italic>sopE2</jats:italic>gene increased the invasiveness of the<jats:italic>sipA sopABDE2</jats:italic>mutant for polarized T84 cells. Furthermore, introduction of a plasmid carrying<jats:italic>sipA</jats:italic>and<jats:italic>sopB</jats:italic>increased the invasiveness of the<jats:italic>sipA sopABDE2</jats:italic>mutant for polarized T84 cells significantly compared to the introduction of plasmids carrying only<jats:italic>sipA</jats:italic>or<jats:italic>sopB</jats:italic>. We conclude that SipA, SopA, SopB, SopD, and SopE2 contribute to<jats:italic>S. enterica</jats:italic>serotype Typhimurium invasion of epithelial cells in vitro.</jats:p>",
+"container": "Infection and Immunity"
+},
+"10.1038/nature11433": {
+"in_crossref": true,
+"title": "Codon-usage-based inhibition of HIV protein synthesis by human schlafen 11",
+"abstract": "",
+"container": "Nature"
+},
+"10.1046/j.1365-2958.2001.02513.x": {
+"in_crossref": true,
+"title": "TgM2AP participates in <i>Toxoplasma gondii</i> invasion of host cells and is tightly associated with the adhesive protein TgMIC2",
+"abstract": "<jats:p>Like other members of the medically important phylum Apicomplexa, <jats:italic>Toxoplasma gondii</jats:italic> is an obligate intracellular parasite that secretes several classes of proteins involved in the active invasion of target host cells. Proteins in apical secretory organelles known as micronemes have been strongly implicated in parasite attachment to host cells. TgMIC2 is a microneme protein with multiple adhesive domains that bind target cells and is mobilized onto the parasite surface during parasite attachment. Here, we describe a novel parasite protein, TgM2AP, which is physically associated with TgMIC2. TgM2AP complexes with TgMIC2 within 15\u2003min of synthesis and remains associated with TgMIC2 in the micronemes, on the parasite surface during invasion and in the culture medium after release from the parasite plasma membrane. TgM2AP is proteolytically processed initially when its propeptide is removed during transit through the golgi and later while it occupies the parasite surface after discharge from the micronemes. We show that TgM2AP is a member of a protein family expressed by coccidian parasites including <jats:italic>Neospora caninum</jats:italic> and <jats:italic>Eimeria tenella</jats:italic>. This phylogenic conservation and association with a key adhesive protein suggest that TgM2AP is a fundamental component of the <jats:italic>T. gondii</jats:italic> invasion machinery.</jats:p>",
+"container": "Molecular Microbiology"
+},
+"10.1111/j.1462-5822.2008.01173.x": {
+"in_crossref": true,
+"title": "<i>In vivo</i>virulence properties of bacterial cytolethal-distending toxin",
+"abstract": "",
+"container": "Cellular Microbiology"
+},
+"10.1126/science.1116848": {
+"in_crossref": true,
+"title": "Regulation of Mammalian Tooth Cusp Patterning by Ectodin",
+"abstract": "<jats:p>\n            Mammalian tooth crowns have precise functional requirements but cannot be substantially remodeled after eruption. In developing teeth, epithelial signaling centers, the enamel knots, form at future cusp positions and are the first signs of cusp patterns that distinguish species. We report that\n            <jats:italic>ectodin</jats:italic>\n            , a secreted bone morphogenetic protein (BMP) inhibitor, is expressed as a \u201cnegative\u201d image of mouse enamel knots. Furthermore, we show that\n            <jats:italic>ectodin</jats:italic>\n            -deficient mice have enlarged enamel knots, highly altered cusp patterns, and extra teeth. Unlike in normal teeth, excess BMP accelerates patterning in\n            <jats:italic>ectodin</jats:italic>\n            -deficient teeth. We propose that\n            <jats:italic>ectodin</jats:italic>\n            is critical for robust spatial delineation of enamel knots and cusps.\n          </jats:p>",
+"container": "Science"
+},
+"10.1099/mic.0.26396-0": {
+"in_crossref": true,
+"title": "The colicin G, H and X determinants encode microcins M and H47, which might utilize the catecholate siderophore receptors FepA, Cir, Fiu and IroN",
+"abstract": "<jats:p>The colicin G producer <jats:italic>Escherichia coli</jats:italic> CA46, the colicin H producer <jats:italic>E. coli</jats:italic> CA58 and <jats:italic>E. coli</jats:italic> Nissle 1917 (DSM 6601) were shown to produce microcin H47 and the newly described microcin M. Both microcins were exported like colicin V by an RND-type export system, including TolC. The gene cluster encoding microcins H47 and M in strains CA46 and CA58 is nearly identical to that in strain DSM 6601, except that two additional genes are included. A Fur box identified in front of the microcin-encoding genes explained the observed iron regulation of microcin production. The catecholate siderophore receptors Fiu, Cir and FepA from <jats:italic>E. coli</jats:italic> and IroN, Cir and FepA from <jats:italic>Salmonella</jats:italic> were identified as receptors for microcins M, H47 and E492. IroN takes up the glucose-containing catecholate siderophore salmochelin, whose synthesis is encoded in the <jats:italic>iro</jats:italic> gene cluster found in <jats:italic>Salmonella</jats:italic> and certain, often uropathogenic, <jats:italic>E. coli</jats:italic> strains. A gene in this <jats:italic>iro</jats:italic> cluster, <jats:italic>iroB</jats:italic>, which encodes a putative glycosyltransferase, was also found in the microcin H47/M and microcin E492 gene clusters. These microcins could aid the producing strain in competing against enterobacteria that utilize catecholate siderophores.</jats:p>",
+"container": "Microbiology"
+},
+"10.3389/fcimb.2017.00333": {
+"in_crossref": true,
+"title": "BipC, a Predicted Burkholderia pseudomallei Type 3 Secretion System Translocator Protein with Actin Binding Activity",
+"abstract": "",
+"container": "Frontiers in Cellular and Infection Microbiology"
+},
+"10.1094/MPMI-09-20-0256-R": {
+"in_crossref": true,
+"title": "<i>Ralstonia solanacearum</i> Type III Effector RipJ Triggers Bacterial Wilt Resistance in <i>Solanum pimpinellifolium</i>",
+"abstract": "<jats:p> Ralstonia solanacearum causes bacterial wilt disease in solanaceous crops. Identification of avirulence type III-secreted effectors recognized by specific disease resistance proteins in host plant species is an important step toward developing durable resistance in crops. In the present study, we show that R. solanacearum effector RipJ functions as an avirulence determinant in Solanum pimpinellifolium LA2093. In all, 10 candidate avirulence effectors were shortlisted based on the effector repertoire comparison between avirulent Pe_9 and virulent Pe_1 strains. Infection assays with transgenic strain Pe_1 individually carrying a candidate avirulence effector from Pe_9 revealed that only RipJ elicits strong bacterial wilt resistance in S. pimpinellifolium LA2093. Furthermore, we identified that several RipJ natural variants do not induce bacterial wilt resistance in S. pimpinellifolium LA2093. RipJ belongs to the YopJ family of acetyltransferases. Our sequence analysis indicated the presence of partially conserved putative catalytic residues. Interestingly, the conserved amino acid residues in the acetyltransferase catalytic triad are not required for effector-triggered immunity. In addition, we show that RipJ does not autoacetylate its lysine residues. Our study reports the identification of the first R. solanacearum avirulence protein that triggers bacterial wilt resistance in tomato. We expect that our discovery of RipJ as an avirulence protein will accelerate the development of bacterial wilt-resistant tomato varieties in the future. </jats:p><jats:p> [Formula: see text] Copyright \u00a9 2021 The Author(s). This is an open access article distributed under the CC BY 4.0 International license . </jats:p>",
+"container": "Molecular Plant-Microbe Interactions\u00ae"
+},
+"10.1073/pnas.1222783110": {
+"in_crossref": true,
+"title": "Identification of T6SS-dependent effector and immunity proteins by Tn-seq in\n                    <i>Vibrio cholerae</i>",
+"abstract": "<jats:p>\n                    Type VI protein secretion system (T6SS) is important for bacterial competition through contact-dependent killing of competitors. T6SS delivers effectors to neighboring cells and corresponding antagonistic proteins confer immunity against effectors that are delivered by sister cells. Although T6SS has been found in more than 100 gram-negative bacteria including many important human pathogens, few T6SS-dependent effector and immunity proteins have been experimentally determined. Here we report a high-throughput approach using transposon mutagenesis and deep sequencing (Tn-seq) to identify T6SS immunity proteins in\n                    <jats:italic>Vibrio cholerae</jats:italic>\n                    . Saturating transposon mutagenesis was performed in wild type and a T6SS null mutant. Genes encoding immunity proteins were predicted to be essential in the wild type but dispensable in the T6SS mutant. By comparing the relative abundance of each transposon mutant in the mutant library using deep sequencing, we identified three immunity proteins that render protection against killing by T6SS predatory cells. We also identified their three cognate T6SS-secreted effectors and show these are important for not only antibacterial and antieukaryotic activities but also assembly of T6SS apparatus. The lipase and muramidase T6SS effectors identified in this study underscore the diversity of T6SS-secreted substrates and the distinctly different mechanisms that target these for secretion by the dynamic T6SS organelle.\n                  </jats:p>",
+"container": "Proceedings of the National Academy of Sciences"
+},
+"10.1111/j.1365-2958.1992.tb01471.x": {
+"in_crossref": true,
+"title": "CooB is required for assembly but not transport of CS1 pilin",
+"abstract": "<jats:title>Summary</jats:title><jats:p>CS1 pili are filamentous proteinaceous appendages found on many enterotoxigenic <jats:italic>Escherichia coli</jats:italic> (ETEC) strains isolated from human diarrhoeal disease. They are thought to effect colonization of the upper intestine by facilitating binding to human ileal epithelial cells. We have identified a gene, <jats:italic>cooB</jats:italic>, which lies directly upstream of <jats:italic>cooA</jats:italic>, the gene that encodes the major structural CS1 protein. When translated <jats:italic>in vitro</jats:italic>, the protein product of <jats:italic>cooB</jats:italic> migrates in sodium dodecyl sulphate/polyacrylamide gel with an apparent molecular mass of 26 kDa, which is consistent with that predicted from its DNA sequence. We constructed a mutant allele (<jats:italic>cooB\u20101</jats:italic>) by insertion of the omega fragment, which inhibits transcription and translation, into the <jats:italic>cooB</jats:italic> gene <jats:italic>in vitro.</jats:italic> In a derivative of an ETEC strain with the <jats:italic>cooB\u20101</jats:italic> mutation (JEF100) and a plasmid that encodes Rns (pEU2030), the positive regulator required for CS1 expression, no <jats:italic>cooB</jats:italic> and a greatly reduced level of <jats:italic>cooA</jats:italic> product was detectable in total cell extracts. The reduction of <jats:italic>cooA</jats:italic> in this strain appears to result from polarity of the <jats:italic>cooB</jats:italic> mutation because introduction of the wild\u2010type <jats:italic>cooA</jats:italic> gene <jats:italic>in trans</jats:italic> causes production of CooA protein, which is found in cell pellet extracts, in extracts containing only surface proteins and in the culture supernatant. Therefore, in the absence of CooB, CooA is stable and it is transported through both inner and outer membranes. However, the <jats:italic>cooB\u20101</jats:italic> strain with <jats:italic>cooA in trans</jats:italic> does not cause haemagglutination of bovine erythrocytes (the model system used to assay adherence mediated by coli surface antigen 1 (CS1) pili). Electron microscopy reveals that there are no pili present on the cell surface or in the culture medium in which this strain was grown. Thus, although it is not required for stability or transport of the major CS1 pilin protein, CooB is needed for assembly of CooA into pili. The relationship of these gene products to those of other pili is discussed.</jats:p>",
+"container": "Molecular Microbiology"
+},
+"10.1128/iai.61.3.947-954.1993": {
+"in_crossref": true,
+"title": "Cloning and characterization of the Actinobacillus pleuropneumoniae-RTX-toxin III (ApxIII) gene",
+"abstract": "<jats:p>To study the role of Actinobacillus pleuropneumoniae-RTX-toxin III (ApxIII) in the pathogenesis of porcine pleuropneumonia, we cloned and characterized the gene encoding this toxin. For that purpose, we screened an expression library of genomic DNA of serotype 8 with an ApxIII-specific monoclonal antibody and isolated a 425-bp fragment of an immunoreactive clone. Using this fragment as a probe, we identified and cloned an overlapping chromosomal NsiI restriction fragment of 5.0 kbp. Escherichia coli cells that contained this fragment produced a protein similar to ApxIII. Like ApxIII, the protein had a molecular mass of approximately 120 kDa, was recognized by an ApxIII-specific antibody, killed porcine lung macrophages, and was not lytic for sheep erythrocytes. We concluded from these data that the 5.0-kbp NsiI fragment contained the ApxIII-coding gene. Nucleotide sequence analysis of the 5.0-kbp NsiI fragment revealed the presence of two genes, apxIIIC and apxIIIA. These genes coded for proteins ApxIIIC and ApxIIIA, respectively, which were 53 and 50% identical to the prototypic RTX proteins HlyC and HlyA of E. coli. We assumed that the apxIIIA gene coded for the structural RTX toxin and that the apxIIIC gene coded for its activator. In addition, we found that ApxIII could be secreted from E. coli by the heterologous RTX transporter proteins HlyB and HlyD. The deduced amino acid sequence of ApxIIIA was 50% identical to that of ApxIA and 41% identical to that of ApxIIA. We concluded that, beside ApxI and ApxII, ApxIII is the third RTX toxin produced by A. pleuropneumoniae.</jats:p>",
+"container": "Infection and Immunity"
+},
+"10.1002/j.1460-2075.1988.tb03249.x": {
+"in_crossref": true,
+"title": "Cell binding function of E\u2010cadherin is regulated by the cytoplasmic domain.",
+"abstract": "",
+"container": "The EMBO Journal"
+},
+"10.1128/jb.176.17.5372-5377.1994": {
+"in_crossref": true,
+"title": "Secretion of the Serratia marcescens HasA protein by an ABC transporter",
+"abstract": "<jats:p>We previously identified a Serratia marcescens extracellular protein, HasA, able to bind heme and required for iron acquisition from heme and hemoglobin by the bacterium. This novel type of extracellular protein does not have a signal peptide and does not show sequence similarities to other proteins. HasA secretion was reconstituted in Escherichia coli, and we show here that like many proteins lacking a signal peptide, HasA has a C-terminal targeting sequence and is secreted by a specific ATP binding cassette (ABC) transporter consisting of three proteins, one inner membrane protein with a conserved ATP binding domain, called the ABC; a second inner membrane protein; and a third, outer membrane component. Since the three S. marcescens components of the HasA transporter have not yet been identified, the reconstituted HasA secretion system is a hybrid. It consists of the two S. marcescens inner membrane-specific components, HasD and HasE, associated with an outer membrane component coming from another bacterial ABC transporter, such as the E. coli TolC protein, the outer membrane component of the hemolysin transporter, or the Erwinia chrysanthemi PrtF protein, the outer membrane component of the protease transporter. This hybrid transporter was first shown to allow the secretion of the S. marcescens metalloprotease and the E. chrysanthemi metalloproteases B and C. On account of that, the two S. marcescens components HasD and HasE were previously named PrtDSM and PrtESM, respectively. However, HasA is secreted neither by the PrtD-PrtE-PrtF transporter (the genuine E. chrysanthemi protease transporter) nor by the HlyB-HlhD-TolC transporter (the hemolysin transporter). Moreover, HasA, coexpressed in the same cell, strongly inhibits the secretion of proteases B and C by their own transporter, indicating that the E. chrysanthemi transporter recognizes HasA. Since PrtF could replace TolC in the constitution of the HasA transporter, this indicates that the secretion block does not take place at the level of the outer membrane component but rather at an earlier step of interaction between HasA and the inner membrane components.</jats:p>",
+"container": "Journal of Bacteriology"
+},
+"10.1128/jb.172.5.2343-2350.1990": {
+"in_crossref": true,
+"title": "Secretion and expression of the Pasteurella haemolytica Leukotoxin",
+"abstract": "<jats:p>The Pasteurella haemolytica leukotoxin gene cluster (lktCABD) is homologous to the Escherichia coli hemolysin locus (hlyCABD). Since the cloned leukotoxin (LktA) is not secreted from E. coli cells, a heteroplasmid complementation system was developed that permits secretion of the leukotoxin from cells expressing the hemolysin transport proteins HlyB and HlyD. We observed that the secreted leukotoxin protein had weak hemolytic activity when activated by either the HlyC or LktC proteins and that LktC expressed in E. coli could confer weak hemolytic activity upon hemolysin. Thus, it appears that the accessory proteins of the leukotoxin and hemolysin gene clusters are functionally similar, although their expression in E. coli is not equivalent. Northern (RNA) blot analysis of the P. haemolytica leukotoxin gene cluster revealed a major 3.5-kilobase transcript that includes the lktC and lktA genes. The start site for this transcript mapped to a cytosine residue 30 nucleotides upstream from the putative start of lktC; a similar initiation site was observed in E. coli, although adjacent cytosine and adenine residues were also utilized. The 3.5-kilobase transcript terminated near the rho-independent terminator structure between lktA and lktB, but transcription may continue, via antitermination or de novo transcription initiation, into the downstream lktB and lktD genes. We propose that the lack of LktB and LktD function in E. coli is a result, at least in part, of poor lktBD transcription and suggest that a P. haemolytica-specific regulator is required for optimal expression of the leukotoxin genes.</jats:p>",
+"container": "Journal of Bacteriology"
+},
+"10.1128/JB.01319-06": {
+"in_crossref": true,
+"title": "Identification and Characterization of an RTX Toxin in the Emerging Pathogen\n            <i>Kingella kingae</i>",
+"abstract": "<jats:title>ABSTRACT</jats:title>\n          <jats:p>\n            <jats:italic>Kingella kingae</jats:italic>\n            is an emerging bacterial pathogen that is increasingly recognized as the causative agent of a variety of pediatric diseases, including septic arthritis and osteomyelitis. The pathogenesis of\n            <jats:italic>K. kingae</jats:italic>\n            disease is believed to begin with colonization of the upper respiratory tract. In the present study, we examined interactions between\n            <jats:italic>K. kingae</jats:italic>\n            and cultured respiratory epithelial cells and observed potent cytotoxicity, detected by both microscopy and lactic acid dehydrogenase (LDH) release assays. Experiments with synovial and macrophage cell lines revealed cytotoxicity for these cell types as well. Using mariner mutagenesis and a screen for loss of cytotoxicity, a genetic locus encoding an RTX toxin system was identified. Disruption of the\n            <jats:italic>K. kingae</jats:italic>\n            RTX locus resulted in a loss of cytotoxicity for respiratory epithelial, synovial, and macrophage cell lines. DNA sequence analysis demonstrated that the RTX locus is flanked by insertion elements and has a reduced G+C content compared to that of the whole genome. Two relatively less invasive\n            <jats:italic>Kingella</jats:italic>\n            species,\n            <jats:italic>K. oralis</jats:italic>\n            and\n            <jats:italic>K. denitrificans</jats:italic>\n            , were found to be noncytotoxic and to lack the RTX region, as determined by LDH release assays and Southern blotting. We concluded that\n            <jats:italic>K. kingae</jats:italic>\n            expresses an RTX toxin that has wide cellular specificity and was likely acquired horizontally. The possible roles for this toxin in the pathogenesis of\n            <jats:italic>K. kingae</jats:italic>\n            disease include breaching of the epithelial barrier and destruction of target tissues, such as synovium (joint lining).\n          </jats:p>",
+"container": "Journal of Bacteriology"
+},
+"10.3389/fmicb.2011.00155": {
+"in_crossref": true,
+"title": "Protein Secretion Systems in Pseudomonas aeruginosa: An Essay on Diversity, Evolution, and Function",
+"abstract": "",
+"container": "Frontiers in Microbiology"
+},
+"10.1128/jb.00322-15": {
+"in_crossref": true,
+"title": "Xanthomonas campestris pv. vesicatoria Secretes Proteases and Xylanases via the Xps Type II Secretion System and Outer Membrane Vesicles",
+"abstract": "<jats:title>ABSTRACT</jats:title>\n          <jats:p>\n            Many plant-pathogenic bacteria utilize type II secretion (T2S) systems to secrete degradative enzymes into the extracellular milieu. T2S substrates presumably mediate the degradation of plant cell wall components during the host-pathogen interaction and thus promote bacterial virulence. Previously, the Xps-T2S system from\n            <jats:named-content xmlns:xlink=\"http://www.w3.org/1999/xlink\" content-type=\"genus-species\" xlink:type=\"simple\">Xanthomonas campestris</jats:named-content>\n            pv. vesicatoria was shown to contribute to extracellular protease activity and the secretion of a virulence-associated xylanase. The identities and functions of additional T2S substrates from\n            <jats:named-content xmlns:xlink=\"http://www.w3.org/1999/xlink\" content-type=\"genus-species\" xlink:type=\"simple\">X. campestris</jats:named-content>\n            pv. vesicatoria, however, are still unknown. In the present study, the analysis of 25 candidate proteins from\n            <jats:named-content xmlns:xlink=\"http://www.w3.org/1999/xlink\" content-type=\"genus-species\" xlink:type=\"simple\">X. campestris</jats:named-content>\n            pv. vesicatoria led to the identification of two type II secreted predicted xylanases, a putative protease and a lipase which was previously identified as a virulence factor of\n            <jats:named-content xmlns:xlink=\"http://www.w3.org/1999/xlink\" content-type=\"genus-species\" xlink:type=\"simple\">X. campestris</jats:named-content>\n            pv. vesicatoria. Studies with mutant strains revealed that the identified xylanases and the protease contribute to virulence and\n            <jats:italic>in planta</jats:italic>\n            growth of\n            <jats:named-content xmlns:xlink=\"http://www.w3.org/1999/xlink\" content-type=\"genus-species\" xlink:type=\"simple\">X. campestris</jats:named-content>\n            pv. vesicatoria. When analyzed in the related pathogen\n            <jats:named-content xmlns:xlink=\"http://www.w3.org/1999/xlink\" content-type=\"genus-species\" xlink:type=\"simple\">X. campestris</jats:named-content>\n            pv. campestris, several T2S substrates from\n            <jats:named-content xmlns:xlink=\"http://www.w3.org/1999/xlink\" content-type=\"genus-species\" xlink:type=\"simple\">X. campestris</jats:named-content>\n            pv. vesicatoria were secreted independently of the T2S systems, presumably because of differences in the T2S substrate specificities of the two pathogens. Furthermore, in\n            <jats:named-content xmlns:xlink=\"http://www.w3.org/1999/xlink\" content-type=\"genus-species\" xlink:type=\"simple\">X. campestris</jats:named-content>\n            pv. vesicatoria T2S mutants, secretion of T2S substrates was not completely absent, suggesting the contribution of additional transport systems to protein secretion. In line with this hypothesis, T2S substrates were detected in outer membrane vesicles, which were frequently observed for\n            <jats:named-content xmlns:xlink=\"http://www.w3.org/1999/xlink\" content-type=\"genus-species\" xlink:type=\"simple\">X. campestris</jats:named-content>\n            pv. vesicatoria. We, therefore, propose that extracellular virulence-associated enzymes from\n            <jats:named-content xmlns:xlink=\"http://www.w3.org/1999/xlink\" content-type=\"genus-species\" xlink:type=\"simple\">X. campestris</jats:named-content>\n            pv. vesicatoria are targeted to the Xps-T2S system and to outer membrane vesicles.\n          </jats:p>\n          <jats:p>\n            <jats:bold>IMPORTANCE</jats:bold>\n            The virulence of plant-pathogenic bacteria often depends on TS2 systems, which secrete degradative enzymes into the extracellular milieu. T2S substrates are being studied in several plant-pathogenic bacteria, including\n            <jats:named-content xmlns:xlink=\"http://www.w3.org/1999/xlink\" content-type=\"genus-species\" xlink:type=\"simple\">Xanthomonas campestris</jats:named-content>\n            pv. vesicatoria, which causes bacterial spot disease in tomato and pepper. Here, we show that the T2S system from\n            <jats:named-content xmlns:xlink=\"http://www.w3.org/1999/xlink\" content-type=\"genus-species\" xlink:type=\"simple\">X. campestris</jats:named-content>\n            pv. vesicatoria secretes virulence-associated xylanases, a predicted protease, and a lipase. Secretion assays with the related pathogen\n            <jats:named-content xmlns:xlink=\"http://www.w3.org/1999/xlink\" content-type=\"genus-species\" xlink:type=\"simple\">X. campestris</jats:named-content>\n            pv. campestris revealed important differences in the T2S substrate specificities of the two pathogens. Furthermore, electron microscopy showed that T2S substrates from\n            <jats:named-content xmlns:xlink=\"http://www.w3.org/1999/xlink\" content-type=\"genus-species\" xlink:type=\"simple\">X. campestris</jats:named-content>\n            pv. vesicatoria are targeted to outer membrane vesicles (OMVs). Our results, therefore, suggest that OMVs provide an alternative transport route for type II secreted extracellular enzymes.\n          </jats:p>",
+"container": "Journal of Bacteriology"
+},
+"10.1016/j.celrep.2016.07.020": {
+"in_crossref": true,
+"title": "MAPK-Mediated YAP Activation Controls Mechanical-Tension-Induced Pulmonary Alveolar Regeneration",
+"abstract": "",
+"container": "Cell Reports"
+},
+"10.1371/journal.ppat.1001068": {
+"in_crossref": true,
+"title": "Burkholderia Type VI Secretion Systems Have Distinct Roles in Eukaryotic and Bacterial Cell Interactions",
+"abstract": "",
+"container": "PLoS Pathogens"
+},
+"10.1016/j.chom.2024.04.012": {
+"in_crossref": true,
+"title": "Bacterial esterases reverse lipopolysaccharide ubiquitylation to block host immunity",
+"abstract": "",
+"container": "Cell Host &amp; Microbe"
+},
+"10.1016/j.chom.2012.04.007": {
+"in_crossref": true,
+"title": "A Widespread Bacterial Type VI Secretion Effector Superfamily Identified Using a Heuristic Approach",
+"abstract": "",
+"container": "Cell Host &amp; Microbe"
+},
+"10.1038/nature11600": {
+"in_crossref": true,
+"title": "Principles for designing ideal protein structures",
+"abstract": "",
+"container": "Nature"
+},
+"10.1073/pnas.1614902114": {
+"in_crossref": true,
+"title": "Manganese scavenging and oxidative stress response mediated by type VI secretion system in\n                    <i>Burkholderia thailandensis</i>",
+"abstract": "<jats:title>Significance</jats:title>\n                  <jats:p>\n                    As an essential micronutrient, Gram-negative bacteria must concentrate Mn\n                    <jats:sup>2+</jats:sup>\n                    into the cytosol via active transport systems to meet cellular demands. Whereas inner membrane Mn\n                    <jats:sup>2+</jats:sup>\n                    transporters have been characterized, an active transporter for translocation of Mn\n                    <jats:sup>2+</jats:sup>\n                    across the outer membrane has not been described. Here we report a Mn\n                    <jats:sup>2+</jats:sup>\n                    -scavenging pathway consisting of a newly identified TonB-dependent outer membrane manganese transporter, MnoT, and a type VI secretion system (T6SS)-secreted Mn\n                    <jats:sup>2+</jats:sup>\n                    -binding protein, TseM. Traditionally, T6SS is recognized as a contact-dependent nanomachine to inject effectors into eukaryotic or prokaryotic cells for virulence or for interbacterial competition. The contact-independent functions of T6SS for metal acquisition and bacteria\u2013bacteria competition, reported here, suggest that T6SS may have been retrofitted by some bacteria to gain additional adaptive functions during evolution.\n                  </jats:p>",
+"container": "Proceedings of the National Academy of Sciences"
+},
+"10.1016/j.celrep.2017.06.081": {
+"in_crossref": true,
+"title": "The Type VI Secretion System Engages a Redox-Regulated Dual-Functional Heme Transporter for Zinc Acquisition",
+"abstract": "",
+"container": "Cell Reports"
+},
+"10.1128/JB.01816-08": {
+"in_crossref": false,
+"title": "",
+"abstract": "",
+"container": ""
+},
+"10.1073/pnas.0510322103": {
+"in_crossref": true,
+"title": "Identification of a conserved bacterial protein secretion system in\n                    <i>Vibrio cholerae</i>\n                    using the\n                    <i>Dictyostelium</i>\n                    host model system",
+"abstract": "<jats:p>\n                    The bacterium\n                    <jats:italic>Vibrio cholerae</jats:italic>\n                    , like other human pathogens that reside in environmental reservoirs, survives predation by unicellular eukaryotes. Strains of the O1 and O139 serogroups cause cholera, whereas non-O1/non-O139 strains cause human infections through poorly defined mechanisms. Using\n                    <jats:italic>Dictyostelium discoideum</jats:italic>\n                    as a model host, we have identified a virulence mechanism in a non-O1/non-O139\n                    <jats:italic>V. cholerae</jats:italic>\n                    strain that involves extracellular translocation of proteins that lack N-terminal hydrophobic leader sequences. Accordingly, we have named these genes \u201cVAS\u201d genes for virulence-associated secretion, and we propose that these genes encode a prototypic \u201ctype VI\u201d secretion system. We show that\n                    <jats:italic>vas</jats:italic>\n                    genes are required for cytotoxicity of\n                    <jats:italic>V. cholerae</jats:italic>\n                    cells toward\n                    <jats:italic>Dictyostelium</jats:italic>\n                    amoebae and mammalian J774 macrophages by a contact-dependent mechanism. A large number of Gram-negative bacterial pathogens carry genes homologous to\n                    <jats:italic>vas</jats:italic>\n                    genes and potential effector proteins secreted by this pathway (i.e., hemolysin-coregulated protein and VgrG). Mutations in\n                    <jats:italic>vas</jats:italic>\n                    homologs in other bacterial species have been reported to attenuate virulence in animals and cultured macrophages. Thus, the genes encoding the VAS-related, type VI secretion system likely play an important conserved function in microbial pathogenesis and represent an additional class of targets for vaccine and antimicrobial drug-based therapies.\n                  </jats:p>",
+"container": "Proceedings of the National Academy of Sciences"
+},
+"10.1128/iai.74.4.2328-2337.2006": {
+"in_crossref": true,
+"title": "Essential Role of the Type III Secretion System Effector NleB in Colonization of Mice by\n            <i>Citrobacter rodentium</i>",
+"abstract": "<jats:title>ABSTRACT</jats:title>\n          <jats:p>\n            Attaching and effacing (A/E) pathogens are a significant cause of gastrointestinal illness in humans and animals. All A/E pathogens carry a large pathogenicity island, termed the locus for enterocyte effacement (LEE), which encodes a type III secretion system that translocates several effector proteins into host cells. To identify novel virulence determinants in A/E pathogens, we performed a signature-tagged mutagenesis screen in C57BL/6 mice by using the mouse A/E pathogen\n            <jats:italic>Citrobacter rodentium</jats:italic>\n            . Five hundred seventy-six derivatives of\n            <jats:italic>C. rodentium</jats:italic>\n            were tested in pools of 12 mutants. One attenuated mutant carried a transposon insertion in\n            <jats:italic>nleB</jats:italic>\n            , which encodes a putative effector of the LEE-encoded type III secretion system (T3SS).\n            <jats:italic>nleB</jats:italic>\n            is present in a genomic pathogenicity island that also encodes another putative effector, NleE, immediately downstream. Using translational fusions with \u03b2-lactamase (TEM-1), we showed that both NleB and NleE were translocated into host cells by the LEE-encoded T3SS of enteropathogenic\n            <jats:italic>Escherichia coli</jats:italic>\n            . In addition, deletion of the gene encoding NleB in\n            <jats:italic>C. rodentium</jats:italic>\n            resulted in reduced colonization of mice in single infections and reduced colonic hyperplasia. In contrast, the deletion of other non-LEE-encoded effector genes in\n            <jats:italic>C. rodentium</jats:italic>\n            ,\n            <jats:italic>nleC</jats:italic>\n            ,\n            <jats:italic>nleD</jats:italic>\n            , or\n            <jats:italic>nleE</jats:italic>\n            , had no effect on host colonization or disease. These results suggest that\n            <jats:italic>nleB</jats:italic>\n            encodes an important virulence determinant of A/E pathogens.\n          </jats:p>",
+"container": "Infection and Immunity"
+},
+"10.1074/jbc.M610343200": {
+"in_crossref": false,
+"title": "",
+"abstract": "",
+"container": ""
+},
+"10.1126/science.aag1029": {
+"in_crossref": false,
+"title": "",
+"abstract": "",
+"container": ""
+},
+"10.1016/j.chom.2012.06.002": {
+"in_crossref": true,
+"title": "Peptidoglycan Sensing by the Receptor PGRP-LE in the Drosophila Gut Induces Immune Responses to Infectious Bacteria and Tolerance to Microbiota",
+"abstract": "",
+"container": "Cell Host &amp; Microbe"
+},
+"10.1016/j.celrep.2020.107813": {
+"in_crossref": true,
+"title": "A Family of T6SS Antibacterial Effectors Related to l,d-Transpeptidases Targets the Peptidoglycan",
+"abstract": "",
+"container": "Cell Reports"
+},
+"10.1016/j.chom.2014.06.002": {
+"in_crossref": true,
+"title": "Agrobacterium tumefaciens Deploys a Superfamily of Type VI Secretion DNase Effectors as Weapons for Interbacterial Competition In Planta",
+"abstract": "",
+"container": "Cell Host &amp; Microbe"
+},
+"10.3389/fcimb.2018.00074": {
+"in_crossref": true,
+"title": "Herpes Simplex Virus Type 1 Infects Enteric Neurons and Triggers Gut Dysfunction via Macrophage Recruitment",
+"abstract": "",
+"container": "Frontiers in Cellular and Infection Microbiology"
+},
+"10.1016/S0021-9258(18)81905-6": {
+"in_crossref": true,
+"title": "Protease Secretion by Erwinia chrysanthemi",
+"abstract": "",
+"container": "Journal of Biological Chemistry"
+},
+"10.1099/mic.0.26171-0": {
+"in_crossref": true,
+"title": "Genetic and biochemical characterization of PrtA, an RTX-like metalloprotease from Photorhabdus",
+"abstract": "<jats:p>Proteases play a key role in the interaction between pathogens and their hosts. The bacterial entomopathogen<jats:italic>Photorhabdus</jats:italic>lives in symbiosis with nematodes that invade insects. Following entry into the insect, the bacteria are released from the nematode gut into the open blood system of the insect. Here they secrete factors which kill the host and also convert the host tissues into food for the replicating bacteria and nematodes. One of the secreted proteins is PrtA, which is shown here to be a repeats-in-toxin (RTX) alkaline zinc metalloprotease. PrtA has high affinity for artificial substrates such as casein and gelatin and can be inhibited by zinc metalloprotease inhibitors. The metalloprotease also shows a calcium- and temperature-dependent autolysis. The<jats:italic>prtA</jats:italic>gene carries the characteristic RTX repeated motifs and predicts high similarity to proteases from<jats:italic>Erwinia chrysanthemi</jats:italic>,<jats:italic>Pseudomonas aeruginosa</jats:italic>and<jats:italic>Serratia marcescens</jats:italic>. The<jats:italic>prtA</jats:italic>gene resides in a locus encoding both the protease ABC transporter (<jats:italic>prtBCD</jats:italic>) and an intervening ORF encoding a protease inhibitor (<jats:italic>inh</jats:italic>). PrtA activity is detectable 24\u2005h after artificial bacterial infection of an insect, suggesting that the protease may play a key role in degrading insect tissues rather than in overcoming the insect immune system. Purified PrtA also shows cytotoxicity to mammalian cell cultures, supporting its proposed role in bioconversion of the insect cadaver into food for bacterial and nematode development.</jats:p>",
+"container": "Microbiology"
+},
+"10.1111/j.1365-2958.1991.tb02128.x": {
+"in_crossref": true,
+"title": "The secretion genes of <i>Pseudomonas aeruginosa</i> alkaline protease are functionally related to those of <i>Erwinia chrysanthemi</i> proteases and <i>Escherichia coli</i>\u03b1\u2010haemolysin",
+"abstract": "<jats:title>Summary</jats:title><jats:p>The extracellular alkaline protease produced by <jats:italic>Pseudomonas aeruginosa</jats:italic> is secreted by a specific pathway, independent of the pathway used by most of the other extracellular proteins of this organism. Secretion of this protease is dependent on the presence of several genes located adjacent to the <jats:italic>apr</jats:italic> gene. Complementation studies have shown that PrtD, E, and F, the three secretion functions for <jats:italic>Erwinia chrysanthemi</jats:italic> proteases B and C (L\u00e9toff\u00e9<jats:italic>et al.</jats:italic>, 1990), can mediate the secretion of the alkaline protease by <jats:italic>Escherichia coli.</jats:italic> he secretion functions involved in \u03b1\u2010haemloysin secretion in <jats:italic>E. coli(hlyB, hlyD, tolC</jats:italic>) can also be used to complement alkaline protease secretion by <jats:italic>E. coli</jats:italic>, although less efficiently. These data indicate that protease secretion mechanisms in <jats:italic>Pseudomonas</jats:italic> and <jats:italic>Erwinia</jats:italic> are very similar and are homologous to that of <jats:italic>E. coli</jats:italic>\u03b1\u2010haemolysin.</jats:p>",
+"container": "Molecular Microbiology"
+},
+"10.1111/j.1574-6968.2009.01801.x": {
+"in_crossref": true,
+"title": "<i>Legionella pneumophila</i>secretes an endoglucanase that belongs to the family-5 of glycosyl hydrolases and is dependent upon type II secretion",
+"abstract": "",
+"container": "FEMS Microbiology Letters"
+},
+"10.1111/j.1365-2958.2005.04973.x": {
+"in_crossref": true,
+"title": "Proteomic and functional analysis of the suite of Ysp proteins exported by the Ysa type III secretion system of <i>Yersinia enterocolitica</i> Biovar 1B",
+"abstract": "<jats:title>Summary</jats:title><jats:p>Full virulence of <jats:italic>Yersinia enterocolitica</jats:italic> Biovar 1B requires two distinct and distantly related contact\u2010dependent type III secretion (T3S) systems. The plasmid\u2010encoded Ysc T3S system is essential for systemic stages of infection and the Yop effector proteins it translocates have been extensively studied. The chromosome\u2010encoded Ysa T3S system contributes to gastrointestinal stages of infection, but the suite of Ysp effectors proteins it translocates into host cells remains obscure. Using a proteomics\u2010based approach, the Ysa T3S system was analysed revealing a complex set of 15 secreted Ysp proteins. Seven of these proteins were previously described (YspA, YspB, YspC, YspD, YopE, YopN and YopP). Eight of these Ysps (YspK, YspI, YspE, YspF, YspP, YspY, YspN and YspL) had not previously been characterized. Several of the new Ysps are homologous to other virulence factors, including YspP with similarity to the <jats:italic>Yersinia</jats:italic> protein tyrosine phosphatase YopH and YspK with similarity to the <jats:italic>Shigella</jats:italic> serine/threonine kinase OspG. Biochemical analysis of purified hexa\u2010histidine tagged YspK and YspP established that these proteins have kinase and phosphatase activity respectively. Infection of eukaryotic cells with <jats:italic>Y.\u2003enterocolitica</jats:italic> strains expressing a Ysp\u2010CyaA chimeric protein resulted in Ysa T3S system\u2010dependent increases in cytosolic levels of cAMP for six Ysps (YspK, YspI, YspE, YspF, YspP and YspL), but not two others (YspY and YspN). YspN, however, was required for translocation of effector proteins into eukaryotic cells by the Ysa T3S system. Competition assays in BALB/c mice revealed that mutants defective for the production of an individual Ysp are affected for colonization of gastrointestinal tissues. Collectively, the results of this study support the hypothesis that the Ysa T3S system targets a complex suite of effector proteins into host cells to affect the outcome of an infection. Identification of the suite of effectors delivered by the Ysa T3S system reveals that host cell signalling pathways are the probable targets of several Ysp effectors.</jats:p>",
+"container": "Molecular Microbiology"
+},
+"10.1046/j.1462-5822.2000.00082.x": {
+"in_crossref": true,
+"title": "Targeting of an enteropathogenic Escherichia coli (EPEC) effector protein to host mitochondria",
+"abstract": "",
+"container": "Cellular Microbiology"
+},
+"10.1046/j.1365-2958.2003.03329.x": {
+"in_crossref": true,
+"title": "EspH, a new cytoskeleton\u2010modulating effector of enterohaemorrhagic and enteropathogenic <i> Escherichia coli</i>",
+"abstract": "<jats:title>Summary</jats:title><jats:p>Enteropathogenic <jats:italic>Escherichia coli</jats:italic> (EPEC) and enterohaemorrhagic <jats:italic>E. coli</jats:italic> (EHEC) are closely related pathogens. During infection, EPEC and EHEC use a type III secretion system (TTSS) to translocate effector proteins into the infected cells and thereby modify specific host functions. These include transient filopodium formation which is Cdc42\u2010dependent. Filopodia formation is followed by assembly of actin pedestals, the process enhanced by inhibition of Cdc42. We discovered that <jats:italic>orf</jats:italic> 18 of the enterocyte effacement locus encodes a new effector, which we termed EspH<jats:italic>.</jats:italic> We show that EspH is translocated efficiently into the infected cells by the TTSS and localizes beneath the EPEC microcolonies. Inactivation of <jats:italic>espH</jats:italic> resulted in enhanced formation of filopodia and attenuated the pedestals formation. Furthermore, overexpression of EspH resulted in strong repression of filopodium formation and heightened pedestal formation. We also demonstrate that overexpression of EspH by EHEC induces marked elongation of the typically flat pedestals. Similar pedestal elongation was seen upon infection of COS cells overexpressing EspH. EspH transiently expressed by the COS cells was localized to the membrane and disrupted the actin cytoskeletal structure. Our findings indicate that EspH is a modulator of the host actin cytoskeleton structure.</jats:p>",
+"container": "Molecular Microbiology"
+},
+"10.1128/IAI.73.7.4327-4337.2005": {
+"in_crossref": true,
+"title": "SepZ/EspZ Is Secreted and Translocated into HeLa Cells by the Enteropathogenic\n            <i>Escherichia coli</i>\n            Type III Secretion System",
+"abstract": "<jats:title>ABSTRACT</jats:title>\n          <jats:p>\n            Enteropathogenic\n            <jats:italic>Escherichia coli</jats:italic>\n            (EPEC) is a major bacterial cause of infantile diarrhea in developing countries and is the prototype for a group of gastrointestinal pathogens causing characteristic attaching and effacing (A/E) histopathology on intestinal epithelia. A/E pathogens utilize a type III secretion system (TTSS), encoded by the locus of enterocyte effacement (LEE) pathogenicity island, to deliver effector proteins into host cells. Here, we investigate sequence divergence of the LEE-encoded SepZ protein and identify it as a TTSS-secreted and -translocated molecule. SepZ is hypervariable among A/E pathogens, with sequences sharing between 60 to 81% amino acid identity with SepZ of EPEC. A SepZ-CyaA fusion was secreted and translocated into HeLa cells in a TTSS-dependent manner. Additionally, we determined that the first 20 amino acids of SepZ were sufficient to direct its translocation. In contrast to previous studies suggesting a role in invasion and the structure and/or regulation of the TTSS, we found that SepZ does not mediate uptake of EPEC into host cells or affect translocation and tyrosine phosphorylation of the translocated intimin receptor. Immunohistochemistry reveals that, after an extended HeLa cell infection, accumulated SepZ can be detected beneath the site of bacterial attachment in a subset of pedestal regions. To indicate its newly identified status as a translocated effector protein, we propose to rename SepZ as EspZ.\n          </jats:p>",
+"container": "Infection and Immunity"
+},
+"10.1093/emboj/cdf319": {
+"in_crossref": true,
+"title": "Shigella deliver an effector protein to trigger host microtubule destabilization, which promotes Rac1 activity and efficient bacterial internalization",
+"abstract": "",
+"container": "The EMBO Journal"
+},
+"10.1128/JB.187.18.6556-6560.2005": {
+"in_crossref": true,
+"title": "Multinucleated Giant Cell Formation and Apoptosis in Infected Host Cells Is Mediated by\n            <i>Burkholderia pseudomallei</i>\n            Type III Secretion Protein BipB",
+"abstract": "",
+"container": "Journal of Bacteriology"
+},
+"10.1046/j.1365-2958.2000.02212.x": {
+"in_crossref": true,
+"title": "Evidence for the secretion of <i>Chlamydia trachomatis</i> CopN by a type III secretion mechanism",
+"abstract": "<jats:p>The medically significant, obligate intracellular pathogen <jats:italic>Chlamydia trachomatis</jats:italic> replicates within vacuoles termed inclusions. A developmental cycle is initiated after entry into a host cell and is manifested by the transformation of infectious elementary bodies (EBs) to larger, non\u2010infectious reticulate bodies (RBs). Analysis of the <jats:italic>C. trachomatis</jats:italic> genome has revealed that chlamydiae possess genes that may encode a type III secretion apparatus. In other Gram\u2010negative pathogens, the type III secretion mechanism is used to target virulence factors directly to the host cell cytoplasm and is essential for full virulence. To evaluate the possibility of a functional type III secretion mechanism in <jats:italic>C. trachomatis</jats:italic>, we initially focused on a locus containing genes encoding products with similarity to chaperones (Scc1), secretion pore components (Cds1 and Cds2) and secreted proteins (CopN) from other type III systems. Gene expression was tested by reverse transcriptase\u2013polymerase chain reaction (RT\u2013PCR) of total RNA extracted from infected HeLa cell monolayers at 2, 6, 12 and 20\u2003h after infection and normalized for the number of <jats:italic>C. trachomatis</jats:italic> genomes present. Message was detected for Scc1 at all times, whereas message for all other tested genes was detected in significant amounts at 12\u2003h and 20\u2003h. Immunoblot analysis with Scc1\u2010 and CopN\u2010specific antibodies revealed that CopN and Scc1 were present in EBs, RBs and whole\u2010culture extracts harvested 20\u2003h after infection. CopN is homologous to the secreted protein YopN of <jats:italic>Yersinia</jats:italic> sp., and analysis of monolayers 20\u2003h after infection via indirect immunofluorescence showed specific labelling of inclusion membranes when probed with CopN\u2010specific antibodies but not with Scc1\u2010specific antibodies. His\u2010tagged CopN and a chlamydial cytoplasmic control protein (NrdB) were expressed in <jats:italic>Yersinia enterocolitica</jats:italic> containing or lacking the virulence plasmid pYV. CopN, but not NrdB, was secreted by <jats:italic>Y. enterocolitica</jats:italic> in a Ca<jats:sup>2+</jats:sup>\u2010 and pYV\u2010dependent fashion. These data indicate that components of the putative type III apparatus of <jats:italic>C.\u00a0trachomatis</jats:italic> are expressed and that at least one of these products is secreted by chlamydiae to the inclusion membrane. The observation that CopN is also secreted by the <jats:italic>Yersinia</jats:italic> type III apparatus provides support for the notion that chlamydiae secrete proteins via a type III mechanism.</jats:p>",
+"container": "Molecular Microbiology"
+},
+"10.1016/j.celrep.2016.07.012": {
+"in_crossref": true,
+"title": "The Pseudomonas aeruginosa Type VI Secretion PGAP1-like Effector Induces Host Autophagy by Activating Endoplasmic Reticulum Stress",
+"abstract": "",
+"container": "Cell Reports"
+},
+"10.4161/auto.6246": {
+"in_crossref": true,
+"title": "Stimulation of autophagy suppresses the intracellular survival of<i>Burkholderia pseudomallei</i>in mammalian cell lines",
+"abstract": "",
+"container": "Autophagy"
+},
+"10.1073/pnas.1608858113": {
+"in_crossref": true,
+"title": "<i>Salmonella</i>\n                    Typhimurium utilizes a T6SS-mediated antibacterial weapon to establish in the host gut",
+"abstract": "<jats:title>Significance</jats:title>\n                  <jats:p>\n                    Gram-negative bacteria use the type VI secretion system (T6SS) to deliver effectors into adjacent cells.\n                    <jats:italic>Salmonella</jats:italic>\n                    Typhimurium is an enteric pathogen that causes disease in millions of individuals each year. Its ability to infect the mammalian gut is a key factor that contributes to its virulence and transmission to new hosts. However, many of the details on how\n                    <jats:italic>Salmonella</jats:italic>\n                    successfully colonizes the gut and persists among members of the gut microbiota remain to be deciphered. In this work, we provide evidence that\n                    <jats:italic>Salmonella</jats:italic>\n                    uses an antibacterial weapon, the type VI secretion system, to establish infection in the gut. In addition, our results suggest that\n                    <jats:italic>S.</jats:italic>\n                    Typhimurium selectively targets specific members of the microbiota to invade the gastrointestinal tract.\n                  </jats:p>",
+"container": "Proceedings of the National Academy of Sciences"
+},
+"10.1111/mmi.13292": {
+"in_crossref": true,
+"title": "A phospholipase A<sub>1</sub> antibacterial Type VI secretion effector interacts directly with the C\u2010terminal domain of the VgrG spike protein for delivery",
+"abstract": "<jats:title>Summary</jats:title><jats:p>The Type VI secretion system (T6SS) is a multiprotein machine that delivers protein effectors in both prokaryotic and eukaryotic cells, allowing interbacterial competition and virulence. The mechanism of action of the T6SS requires the contraction of a sheath\u2010like structure that propels a needle towards target cells, allowing the delivery of protein effectors. Here, we provide evidence that the entero\u2010aggregative <jats:italic>Escherichia coli</jats:italic> Sci\u20101 T6SS is required to eliminate competitor bacteria. We further identify Tle1, a toxin effector encoded by this cluster and showed that Tle1 possesses phospholipase A<jats:sub>1</jats:sub> and A<jats:sub>2</jats:sub> activities required for the interbacterial competition. Self\u2010protection of the attacker cell is secured by an outer membrane lipoprotein, Tli1, which binds Tle1 in a 1:1 stoichiometric ratio with nanomolar affinity, and inhibits its phospholipase activity. Tle1 is delivered into the periplasm of the prey cells using the VgrG1 needle spike protein as carrier. Further analyses demonstrate that the C\u2010terminal extension domain of VgrG1, including a transthyretin\u2010like domain, is responsible for the interaction with Tle1 and its subsequent delivery into target cells. Based on these results, we propose an additional mechanism of transport of T6SS effectors in which cognate effectors are selected by specific motifs located at the C\u2010terminus of VgrG proteins.</jats:p>",
+"container": "Molecular Microbiology"
+},
+"10.1002/j.1460-2075.1988.tb03288.x": {
+"in_crossref": true,
+"title": "Secretion of cyclolysin, the calmodulin\u2010sensitive adenylate cyclase\u2010haemolysin bifunctional protein of Bordetella pertussis.",
+"abstract": "",
+"container": "The EMBO Journal"
+},
+"10.1128/IAI.70.11.6094-6106.2002": {
+"in_crossref": true,
+"title": "Characterization of the Gene Encoding the Major Secreted Lysophospholipase A of\n            <i>Legionella pneumophila</i>\n            and Its Role in Detoxification of Lysophosphatidylcholine",
+"abstract": "<jats:title>ABSTRACT</jats:title>\n          <jats:p>\n            We previously showed that\n            <jats:italic>Legionella pneumophila</jats:italic>\n            secretes, via its type II secretion system, phospholipase A activities that are distinguished by their specificity for certain phospholipids. In this study, we identified and characterized\n            <jats:italic>plaA</jats:italic>\n            , a gene encoding a phospholipase A that cleaves fatty acids from lysophospholipids. The\n            <jats:italic>plaA</jats:italic>\n            gene encoded a 309-amino-acid protein (PlaA) which had homology to a group of lipolytic enzymes containing the catalytic signature GDSL. In\n            <jats:italic>Escherichia coli</jats:italic>\n            , the cloned gene conferred trypsin-resistant hydrolysis of lysophosphatidylcholine and lysophosphatidylglycerol. An\n            <jats:italic>L. pneumophila plaA</jats:italic>\n            mutant was generated by allelic exchange. Although the mutant grew normally in standard buffered yeast extract broth, its culture supernatants lost greater than 80% of their ability to release fatty acids from lysophosphatidylcholine and lysophosphatidylglycerol, implying that PlaA is the major secreted lysophospholipase A of\n            <jats:italic>L. pneumophila</jats:italic>\n            . The mutant's reduced lipolytic activity was confirmed by growth on egg yolk agar and thin layer chromatography and was complemented by reintroduction of an intact copy of\n            <jats:italic>plaA</jats:italic>\n            . Overexpression of\n            <jats:italic>plaA</jats:italic>\n            completely protected\n            <jats:italic>L. pneumophila</jats:italic>\n            from the toxic effects of lysophosphatidylcholine, suggesting a role for PlaA in bacterial detoxification of lysophospholipids. The\n            <jats:italic>plaA</jats:italic>\n            mutant grew like the wild type in U937 cell macrophages and\n            <jats:italic>Hartmannella vermiformis</jats:italic>\n            amoebae, indicating that PlaA is not essential for intracellular infection of\n            <jats:italic>L. pneumophila</jats:italic>\n            . In the course of characterizing\n            <jats:italic>plaA</jats:italic>\n            , we discovered that wild-type legionellae secrete a phospholipid cholesterol acyltransferase activity, highlighting the spectrum of lipolytic enzymes produced by\n            <jats:italic>L. pneumophila</jats:italic>\n            .\n          </jats:p>",
+"container": "Infection and Immunity"
+},
+"10.1128/JB.185.16.4992-4996.2003": {
+"in_crossref": true,
+"title": "A<i>Burkholderia pseudomallei</i>Type III Secreted Protein, BopE, Facilitates Bacterial Invasion of Epithelial Cells and Exhibits Guanine Nucleotide Exchange Factor Activity",
+"abstract": "<jats:title>ABSTRACT</jats:title><jats:p>We report the characterization of BopE, a type III secreted protein that is encoded adjacent to the<jats:italic>Burkholderia pseudomallei bsa</jats:italic>locus and is homologous to<jats:italic>Salmonella</jats:italic><jats:italic>enterica</jats:italic>SopE/SopE2. Inactivation of<jats:italic>bopE</jats:italic>impaired bacterial entry into HeLa cells, indicating that BopE facilitates invasion. Consistent with this notion, BopE expressed in eukaryotic cells induced rearrangements in the subcortical actin cytoskeleton, and purified BopE exhibited guanine nucleotide exchange factor activity for Cdc42 and Rac1 in vitro.</jats:p>",
+"container": "Journal of Bacteriology"
+},
+"10.1038/nature12074": {
+"in_crossref": true,
+"title": "Diverse type VI secretion phospholipases are functionally plastic antibacterial effectors",
+"abstract": "",
+"container": "Nature"
+}
+}

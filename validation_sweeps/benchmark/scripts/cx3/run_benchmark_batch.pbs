@@ -1,0 +1,148 @@
+#!/bin/bash
+# Phase 2 actual-recall: run ssign on a batch of benchmark genomes, serially.
+#
+# Fixed benchmark config (must NOT drift between genomes):
+#   --tier extended  -> DeepLocPro + SignalP + DeepSecE + PLM-Effector ON (the secretion
+#                       predictors recall depends on). Run LOCAL (GPU): the compute nodes are
+#                       offline, so the remote DTU fallback would fail mid-job.
+#   annotation OFF   -> --skip-eggnog/interproscan/plmblast/protparam (blastp+hhsuite already
+#                       off at extended). Annotation runs after the secreted call, can't change
+#                       recall, and skipping it avoids hours of cold-cache DB loading.
+#
+# INPUT_MODE knob (Teo: run both, compare) — does Bakta re-annotation change recall vs the
+# exact RefSeq path?
+#   genbank (default): input = $INPUT_DIR_GB/<unit>.gbff + --use-input-annotations. ssign uses
+#                      the RefSeq CDS, so its locus_tags ARE the gold-set tags and recall is
+#                      measured in the same gene order as the Phase 1 ceiling. No Bakta.
+#   fasta            : input = $INPUT_DIR/<unit>.fasta. ssign re-annotates with Bakta (needs
+#                      BAKTA_DB); the Bakta->RefSeq bridge (task 6.3) then maps results back.
+#
+# Env knobs (all have defaults matching the CX3 tier-2 install):
+#   BATCH_FILE  : file with one unit-id per line (required).
+#   INPUT_MODE  : genbank | fasta              (default genbank)
+#   INCLUDE_T3SS: 0 | 1                         (default 0 = stock exclusion; 1 = include T3SS)
+#   RUN_TAG     : output subdir tag            (default = INPUT_MODE)
+#   INPUT_DIR   : FASTA inputs                 (default $HOME/bench/inputs)
+#   INPUT_DIR_GB: GenBank inputs              (default $HOME/bench/inputs_gb)
+#   OUT_ROOT    : output root                  (default $HOME/runs/benchmark_phase2)
+#   SSIGN_DB    : flat DB root                 (default $EPHEMERAL/ssign-databases)
+#   SSIGN_VENV  : ssign venv                   (default $HOME/blastp_t5a/ssign/.venv)
+#
+# Submit (pilot, both modes + T3SS variant):
+#   qsub -v BATCH_FILE=$HOME/bench/batches/pilot.txt,INPUT_MODE=genbank,RUN_TAG=genbank_default run_benchmark_batch.pbs
+#   qsub -v BATCH_FILE=$HOME/bench/batches/pilot.txt,INPUT_MODE=fasta,RUN_TAG=fasta_default     run_benchmark_batch.pbs
+#   qsub -v BATCH_FILE=$HOME/bench/batches/pilot.txt,INPUT_MODE=genbank,INCLUDE_T3SS=1,RUN_TAG=genbank_t3ss run_benchmark_batch.pbs
+
+# 16 cores / 64 GB / 1 GPU: this run is GPU-bound with annotation OFF, so it doesn't need the
+# serial script's 64-core chunk (that was sized for EggNOG/IPS/pLM-BLAST, which we skip). The
+# smaller chunk also places far faster on gpu72 (a 64-core ask needs a near-empty GPU node).
+# 64 GB clears the PLM-Effector OOM seen at 32 GB in the calibration logs.
+#
+# gpu_type IS MANDATORY on gpu72. Omitting it makes PBS unable to resolve a placement set
+# ("Not Running: Placement set is too small") and the job sits in Q forever, never schedules.
+# Valid: RTX6000 (24GB, known-good for ssign), L40S (48GB), A100 (40/80GB). To switch pools
+# (e.g. if RTX6000 is contended) override on the qsub line:
+#   qsub -l select=1:ncpus=16:mem=64gb:ngpus=1:gpu_type=L40S -v ... run_benchmark_batch.pbs
+#PBS -l select=1:ncpus=16:mem=64gb:ngpus=1:gpu_type=RTX6000
+#PBS -l walltime=08:00:00
+#PBS -N ssign_bench
+#PBS -j oe
+#PBS -o ssign_bench.log
+#PBS -S /bin/bash
+
+set -eo pipefail
+
+: "${BATCH_FILE:?set BATCH_FILE to a file listing one unit-id per line}"
+: "${INPUT_MODE:=genbank}"
+: "${INCLUDE_T3SS:=0}"
+# EXCLUDED carries a space ("Flagellum Tad ..."), which cannot pass cleanly through
+# `qsub -v` (PBS splits the comma-list and the space mangles it). So derive it here from
+# the space-free INCLUDE_T3SS knob instead of passing EXCLUDED over -v.
+if [ "$INCLUDE_T3SS" = "1" ]; then EXCLUDED="Flagellum Tad"; else EXCLUDED="Flagellum Tad T3SS"; fi
+: "${RUN_TAG:=$INPUT_MODE}"
+: "${INPUT_DIR:=$HOME/bench/inputs}"
+: "${INPUT_DIR_GB:=$HOME/bench/inputs_gb}"
+: "${OUT_ROOT:=$HOME/runs/benchmark_phase2}"
+: "${SSIGN_DB:=$EPHEMERAL/ssign-databases}"
+VENV="${SSIGN_VENV:-$HOME/blastp_t5a/ssign/.venv}"
+
+case "$INPUT_MODE" in
+    genbank) IN_DIR="$INPUT_DIR_GB"; IN_EXT="gbff"; MODE_FLAGS=(--use-input-annotations) ;;
+    fasta)   IN_DIR="$INPUT_DIR";    IN_EXT="fasta"; MODE_FLAGS=() ;;
+    *) echo "FATAL: INPUT_MODE must be 'genbank' or 'fasta' (got '$INPUT_MODE')"; exit 1 ;;
+esac
+
+test -f "$BATCH_FILE" || { echo "FATAL: BATCH_FILE not found: $BATCH_FILE"; exit 1; }
+UNITS=()
+while read -r u; do [ -n "$u" ] && UNITS+=("$u"); done < <(grep -v '^[[:space:]]*$' "$BATCH_FILE")
+
+RUN_ROOT="$OUT_ROOT/$RUN_TAG"
+mkdir -p "$RUN_ROOT" && cd "$RUN_ROOT"
+
+echo "===== BENCHMARK BATCH START $(date -Is) | $(hostname) | $PBS_JOBID ====="
+echo "  batch       : $BATCH_FILE (${#UNITS[@]} genomes)"
+echo "  input mode  : $INPUT_MODE  (dir $IN_DIR)"
+echo "  excluded SS : $EXCLUDED"
+echo "  run tag     : $RUN_TAG  ->  $RUN_ROOT"
+echo "  DB root     : $SSIGN_DB"
+echo
+
+nvidia-smi || { echo "FATAL: no GPU"; exit 1; }
+
+source ~/.bashrc 2>/dev/null || true
+module load Java/11.0.25 2>/dev/null || true   # only InterProScan needs it (skipped); harmless
+source "$VENV/bin/activate"
+command -v ssign >/dev/null || { echo "FATAL: ssign not on PATH after venv activation."; exit 1; }
+echo "  ssign -> $(command -v ssign)"
+
+# bakta-deps conda env on PATH (Bakta sub-tools: tRNAscan-SE, aragorn, PilerCR, AMRFinder).
+export PATH="$PATH:$HOME/.conda/envs/bakta-deps/bin"
+
+# DB env vars (flat layout: $SSIGN_DB/<db>). Only the ones our toolset needs.
+export BAKTA_DB="$SSIGN_DB/bakta"
+export SSIGN_PLM_EFFECTOR_WEIGHTS="$SSIGN_DB/plm_effector_weights"
+
+# Pre-flight: local predictors + DeepSecE checkpoint must exist (offline node can't fetch).
+SIGNALP_PATH="$HOME/.conda/envs/signalp6/bin"
+DEEPLOCPRO_PATH="$HOME/.conda/envs/deeplocpro/bin"
+test -x "$SIGNALP_PATH/signalp6"     || echo "WARN: signalp6 not at $SIGNALP_PATH (will fall back to remote, may fail offline)"
+test -x "$DEEPLOCPRO_PATH/deeplocpro" || echo "WARN: deeplocpro not at $DEEPLOCPRO_PATH (will fall back to remote, may fail offline)"
+test -f "$HOME/.ssign/models/deepsece_checkpoint.pt" || echo "WARN: DeepSecE checkpoint missing at ~/.ssign/models/ (offline node can't download it)"
+
+for u in "${UNITS[@]}"; do
+    test -f "$IN_DIR/$u.$IN_EXT" || { echo "FATAL: input not found: $IN_DIR/$u.$IN_EXT"; exit 1; }
+done
+
+FAILED=()
+for u in "${UNITS[@]}"; do
+    in="$IN_DIR/$u.$IN_EXT"
+    run_dir="$RUN_ROOT/$u"
+    mkdir -p "$run_dir/results"
+    echo "---------------------------------------------------------------"
+    echo "===== GENOME: $u — START $(date -Is) ====="
+    if ssign run "$in" \
+            --outdir "$run_dir/results" \
+            --tier extended \
+            --excluded-systems $EXCLUDED \
+            "${MODE_FLAGS[@]}" \
+            --signalp-mode local   --signalp-path "$SIGNALP_PATH" \
+            --deeplocpro-mode local --deeplocpro-path "$DEEPLOCPRO_PATH" \
+            --skip-eggnog --skip-interproscan --skip-plmblast --skip-protparam \
+            2>&1 | tee "$run_dir/ssign.run.log"; then
+        echo "===== GENOME: $u — OK $(date -Is) ====="
+    else
+        rc=${PIPESTATUS[0]}
+        echo "===== GENOME: $u — FAILED (rc=$rc) $(date -Is) ====="
+        FAILED+=("$u")
+    fi
+done
+
+echo
+echo "===== BENCHMARK BATCH END $(date -Is) ====="
+echo "Output root: $RUN_ROOT"
+if [ "${#FAILED[@]}" -eq 0 ]; then
+    echo "All ${#UNITS[@]} genomes succeeded."
+    exit 0
+fi
+echo "Failures (${#FAILED[@]}/${#UNITS[@]}): ${FAILED[*]}"
+exit 1
