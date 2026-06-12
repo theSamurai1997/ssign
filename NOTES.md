@@ -85,8 +85,24 @@ byte-identical on re-run from the backup.
   carry the SAME wrong DOIs — confirmed: a second EspZ instance (T3SS_24) still cites the T6SS-discovery PNAS
   paper. Fixing those is the full-corpus citation sweep (the original "prevalence unknown" item), still deferred.
 
-**STILL OPEN:** item 4 (precision estimate for the ~1.9k unlabeled emissions) + the full-corpus citation sweep,
-both deferred to discussion with Teo.
+**ITEM 4 DONE (2026-06-12, effector-recovery-benchmark §8)** — deterministic precision estimate, scripts
+28→29→30→31, `data/phase2/PRECISION.md` + `figures/precision/01..03`. Teo chose deterministic tiers only
+(DB-confirmed floor + obvious-FP), agent-sampled adjudication deferred. Denominator = the 1,572 proximity
+substrate calls (default); 361 T5SS-self assessed separately (correct-by-construction; 68% effector /
+0.3% housekeeping → T5SS detection sound). **Result: proximity precision is a wide band, ~3% provable
+floor (DB-confirmed homology to SecReT4/6; T6SS the only well-covered type at 8.3%) → ~75% soft ceiling
+(not-obviously-non-secreted), with ~19% clearly-FP housekeeping, ~6% machinery, ~11% annotation-effector,
+and ~64% (hypothetical+other) unresolvable by DB or annotation.** Pairs with recall (8–10% emitted of
+testable): the proximity rule is both permissive AND low-recall → the case for the classifier, which can
+adjudicate the unresolvable middle. Tier-1 used pyhmmer phmmer (no external aligner; the repo venv is at
+`../../.venv`, NOT `benchmark/.venv` — stdlib scripts silently fell back to system python3).
+
+**Caveats baked into PRECISION.md:** no negative ground truth (ceiling overstates); annotation-based tier
+inherits genome-annotation errors (NleB mis-annotated "IS3 transposase"); DB floor covers only T4/T6SS.
+
+**STILL OPEN:** the full-corpus citation sweep (point 41→42→43 at the unaudited rows; defect confirmed
+beyond the found slice), and optionally a stratified agent-adjudicated precision sample to place a point
+estimate inside the 3–75% band. Both deferred to discussion with Teo.
 
 ### Earlier deferred repair items (from the 19-row audit; full table in `data/phase2/discordant_audit.md`):
 - **Wrong/nonexistent sourcing DOI (≥9):** celA, plaA, VirA, ChlaDub1(404), CopN(404), Tle4, TplE, Tle1, Tae4_Stm. Re-source before trusting.

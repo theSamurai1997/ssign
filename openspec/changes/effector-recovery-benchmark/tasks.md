@@ -86,3 +86,34 @@
 - [ ] 7.1 Update `validation_sweeps/README.md` to point at the new benchmark section.
 - [ ] 7.2 Record deferred items (ssign whole-genome-flag bug, any external DB that stayed unreachable, the T5aSS-neighbor follow-up) in the repo's NOTES/backlog with triggers.
 - [ ] 7.3 Run the simplify pass over the new analysis scripts; verify reproducibility from a clean checkout.
+
+## 8. Precision estimate (complement of the recall benchmark)
+
+The benchmark measures recall (of known effectors); it says nothing about precision. ssign emits
+1,933 (default) / 2,321 (T3SS-included) substrate calls panel-wide, only 51 of which are gold. There
+is **no ground-truth negative set** and "is this novel protein a real effector" is often unprovable,
+so precision is reported as a **tiered deterministic estimate (a range), not a single number** (Teo
+2026-06-12, deterministic + obvious-FP tiers only; agent-sampled adjudication deferred). Scope: the
+proximity-called subset is the real question (1,572 default); the 361 T5SS-self calls are correct by
+construction and reported separately as a T5SS-detection sanity check.
+
+- [x] 8.1 `28_emissions.py` → `emissions.<tag>.tsv`. 1,933 emissions (default) / 2,321 (t3ss); split
+  361 T5SS-self + 1,572/1,960 proximity. is_gold = 37/49 (distinct gold proteins; the duplicate
+  Tle4/TplE=PA1510 collapses to one emission). All carry sequences.
+- [x] 8.2 `29_db_confirmed.py` (pyhmmer phmmer, no external aligner) → `emissions_dbmatch.<tag>.tsv`.
+  Floor = (gold|≥90%-id-to-SecReT4/6) / proximity = **3.2%** overall; **T6SS 8.3%** (only DB-covered
+  type). 25 confirmed (14 novel), incl. 2 Legionella Dot/Icm T4SS effectors ssign emitted but
+  mis-assigned to T2SS/T4aP. T1/T2/T5SS read ~0 = no independent DB, not low precision.
+- [x] 8.3 `30_fp_annotation.py` → `emissions_fpclass.<tag>.tsv`. Proximity buckets: effector 11.1%,
+  hypothetical 28.5%, other 35.2%, apparatus 5.7%, **housekeeping (obvious-FP) 19.4%**. Gold-in-
+  housekeeping sanity flag caught NleB mis-annotated "IS3 transposase" (excluded from FP count).
+- [x] 8.4 `31_precision_figures.py` → `figures/precision/01..03` (all viewed) + `data/phase2/PRECISION.md`.
+  Headline: proximity precision is a **~3% floor → ~75% ceiling band, ~64% unresolvable** by DB or
+  annotation. Paired with recall (8–10% emitted) = the full permissive-AND-low-recall case for the
+  classifier. T5SS-self 68% effector / 0.3% housekeeping → T5SS detection sound.
+- [x] 8.5 Put-it-together summary figures (`32_summary_figures.py` → `figures/summary/01..03`, all viewed):
+  **01** per-type recall @ window 3 as-shipped (of 582: found 39 / could-have 109 / unreachable@3 390 /
+  non-testable 83); **02** the T3SS story (excluded by default → found 3; even included only 15, because
+  ~73% of T3SS effectors are genome-dispersed = unreachable@±3 of the injectisome); **03** emission
+  quality per assigned type (overall 13% reasonable / 62% unresolvable / 25% wrong; T4aP worst at 41%
+  wrong, T1SS best at 23% reasonable).
