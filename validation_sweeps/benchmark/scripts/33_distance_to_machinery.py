@@ -13,7 +13,6 @@ Run:     <repo>/.venv/bin/python scripts/33_distance_to_machinery.py
 
 from __future__ import annotations
 
-import csv
 import sys
 from pathlib import Path
 
@@ -21,6 +20,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent))
+import clean_dataset  # noqa: E402,F401
 
 BENCH = Path(__file__).resolve().parents[1]
 FIGDIR = BENCH / "data" / "phase2" / "figures" / "summary"
@@ -45,7 +45,7 @@ def main():
     FIGDIR.mkdir(parents=True, exist_ok=True)
     rows = [
         r
-        for r in csv.DictReader(open(BENCH / "data" / "phase1" / "ceiling_per_effector.tsv"), delimiter="\t")
+        for r in clean_dataset.clean_ceiling(BENCH / "data" / "phase1" / "ceiling_per_effector.tsv")
         if r.get("testable") == "yes"
     ]
     dists = {ss: [] for ss in TYPES}

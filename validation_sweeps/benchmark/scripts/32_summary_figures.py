@@ -27,6 +27,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent))
+import clean_dataset  # noqa: E402,F401
 from bench_io import read_tsv  # noqa: E402
 
 BENCH = Path(__file__).resolve().parents[1]
@@ -63,7 +64,7 @@ _INDEX = []
 
 def recall_tab(tag):
     """ss -> {total, found, reach_miss, unreach, nontest} at window 3."""
-    a = read_tsv(P2 / f"actual_per_effector.{tag}.tsv")
+    a = clean_dataset.load_clean_actual(P2 / f"actual_per_effector.{tag}.tsv")
     out = {}
     for ss in TYPES:
         rows = [r for r in a if r["ss_type"] == ss]

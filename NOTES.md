@@ -284,3 +284,12 @@ positives_all shrank 925->458, which invalidates everything built on the old tab
   refuted (mostly wrong_organism) and got dropped — so the surviving "validated" set is itself cleaner now.
 - **The earlier found-set audit (scripts 41/42/43, positives 930->925) is now subsumed** by this full-table
   pass. Don't double-count its removals; 47 operates on the post-43 table (925) as input.
+
+## T3SS on by default (requested 2026-06-15)
+Teo: make T3SS detection ON by default in ssign and test it, then remove the "T3SS off by default"
+footnote from the recall figures. The benchmark already validates a T3SS-on path (panel_genbank_t3ss
+tag); MacSyFinder detects ~30 T3SS in the panel and the false-positive risk (DeepSecE flagellar
+misclassification, 1808 spurious T3SS calls on the dev set) is the historical reason it was excluded
+by default. **Trigger:** ssign-side default flip = drop T3SS from `excluded_systems` default in
+constants.py; re-run the panel; confirm T3SS precision (the DeepSecE-misclassification concern) is
+acceptable before shipping the default change. Figure footnote removed from 52_system_recall.py now.

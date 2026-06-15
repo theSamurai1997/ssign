@@ -1,5 +1,17 @@
 # Why ssign misses effectors it COULD have found (reachable @±3 but not emitted)
 
+> **UPDATE (2026-06-15) — counts and the T1SS explanation below are SUPERSEDED.** This was written on
+> the pre-audit answer key. Two things changed since: (1) the full-table citation audit dropped the
+> fabricated-citation effectors, so the denominator is now the 337 citation-verified set; (2) the T1SS
+> misses were diagnosed as a **benchmark staging artifact**, NOT a TolC-co-localization rule. Each RTX
+> toxin (HlyA, ApxIA, LtxA, LktA) was staged on the single plasmid/WGS contig carrying its operon,
+> which lacks the chromosomal TolC (OMF). TXSScan marks OMF as a `loner`, so a distant TolC is fine;
+> staging the **complete assembly** (script 50) restores TolC and all four detect a T1SS (confirmed by
+> MacSyFinder). After the audit + staging fix the reachable-missed counts are T1SS **0**, T3SS 7, T4SS 4,
+> T6SS 5 (see `figures/summary/05`). The "needs a co-localized TolC" claim in the original text below is
+> WRONG. Recall figure: `figures/summary/01` (T1SS 19/19 reachable found). The clean_dataset filter
+> (`scripts/clean_dataset.py`) folds both changes into the figures.
+
 These are ssign's true false negatives: the literature machinery is within ±3 genes (so proximity
 *could* reach them), yet ssign did not emit them. 62 effectors (T1SS 5, T2SS 0, T3SS 40, T4SS 6,
 T6SS 11; T3SS counted with detection enabled). The diagnosis is uniform and important.

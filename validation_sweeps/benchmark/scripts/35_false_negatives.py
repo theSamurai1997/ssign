@@ -10,9 +10,11 @@ per-protein tool signals in the actual-call table:
   processed_not_emit - the predictors DID run (signals present) but cross-validation / filtering did
                        not emit it.
 
-T1SS is the cleanest illustration: all 5 misses are detection misses on canonical RTX toxins (HlyA,
-ApxIA, LtxA, LktA, ZapA) whose HlyB/HlyD transporter is annotated 1-2 genes away — but TXSScan's T1SS
-model needs a co-localized TolC (a separate housekeeping gene), so MacSyFinder calls no system.
+T1SS now has 0 false negatives: its RTX-toxin misses (HlyA, ApxIA, LtxA, LktA) were a benchmark
+staging artifact, each effector was staged on the single plasmid/contig carrying its operon, which
+lacks the chromosomal TolC (OMF). The TXSScan T1SS model marks OMF as a loner, so a distant TolC is
+fine; staging the complete assembly (script 50) restores it and all four detect a T1SS. The clean_dataset
+filter folds those recoveries in. Remaining misses are genuine detection failures (mostly T3SS/T4SS).
 
 Inputs : data/phase2/actual_per_effector.panel_genbank_{default,t3ss}.tsv  (T3SS uses the t3ss tag)
 Output : data/phase2/figures/summary/05_false_negative_modes.png
@@ -30,6 +32,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent))
+import clean_dataset  # noqa: E402,F401
 
 BENCH = Path(__file__).resolve().parents[1]
 FIGDIR = BENCH / "data" / "phase2" / "figures" / "summary"
@@ -64,8 +67,8 @@ def rd(p):
 
 def main():
     FIGDIR.mkdir(parents=True, exist_ok=True)
-    ad = rd(BENCH / "data" / "phase2" / "actual_per_effector.panel_genbank_default.tsv")
-    a3 = rd(BENCH / "data" / "phase2" / "actual_per_effector.panel_genbank_t3ss.tsv")
+    ad = clean_dataset.load_clean_actual(BENCH / "data" / "phase2" / "actual_per_effector.panel_genbank_default.tsv")
+    a3 = clean_dataset.load_clean_actual(BENCH / "data" / "phase2" / "actual_per_effector.panel_genbank_t3ss.tsv")
     per = {}
     for ss in TYPES:
         src = a3 if ss == "T3SS" else ad
@@ -114,9 +117,11 @@ def main():
     ax.text(
         0.02,
         0.96,
-        "T1SS: all 5 are RTX toxins (e.g. E. coli HlyA) whose HlyB/HlyD\n"
-        "transporter is annotated 1-2 genes away, but TXSScan needs a\n"
-        "co-localized TolC, so no T1SS is called.",
+        "T1SS: 0 misses after the full-assembly staging fix. The RTX toxins\n"
+        "(HlyA, ApxIA, LtxA, LktA) were missed only because each was staged on a\n"
+        "plasmid/contig lacking the chromosomal TolC; staging the whole assembly\n"
+        "lets the loner-OMF rule find TolC and the T1SS is called. Remaining\n"
+        "misses are mostly genuine detection failures (T3SS/T4SS).",
         transform=ax.transAxes,
         fontsize=8,
         color="#555",
