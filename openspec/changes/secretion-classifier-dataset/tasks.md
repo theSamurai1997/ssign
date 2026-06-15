@@ -78,3 +78,35 @@ audited rows fall inside this set, so the deterministic check is validated again
   Overlay must re-run after any `37` rebuild; `40_pair_features.py` needs re-run (2 ss_type changes + 5
   drops). **Out of scope (noted):** other non-found instances may still carry the same wrong DOIs (e.g.
   a second EspZ instance still cites the T6SS-discovery paper) — that's the full-corpus sweep, deferred.
+
+## 7. Full-table citation audit (all 925 positives)
+
+The full-corpus sweep deferred at the end of 6.3. Same two-pass design as group 6 but over EVERY
+positives row, not just the ssign-found 51. User policy (2026-06-15): **strict — drop every refuted row.**
+
+- [x] 7.1 Pass-1 deterministic CrossRef gene/genus check over all 925 (`44_citation_consistency_full.py`
+  → `citation_consistency_full.tsv`, reuses script 41's CrossRef machinery; per-distinct-DOI fetch, 330
+  DOIs). Verdicts: 503 CONSISTENT, 170 INDETERMINATE, 92 FLAG_WRONG_TOPIC, 74 FLAG_GENE_ABSENT, 86
+  DOI_UNRESOLVED, 0 FETCH_ERROR.
+- [x] 7.2 Build drop list + balanced agent batches over the 673 survivors (CONSISTENT+INDETERMINATE),
+  grouped by paper (`45_build_deepverify_input.py`: 243 papers → 20 bin-packed batches; 252 dropped to
+  `deepverify_dropped.tsv`). Anti-hallucination contract in `deepverify_input/CONTRACT.md` (SUPPORTED needs
+  a verbatim quote; REFUTED needs positive counter-evidence + reason; absence-from-unretrievable-text is
+  INACCESSIBLE, never REFUTED).
+- [x] 7.3 20 batched agents read each cited paper (PubMed PMC full-text / abstract / WebFetch) and judged
+  per effector. Coxiella select-agent paper (2 rows) blocked by a content filter → deterministic fallback;
+  2 rows dropped by agents → fallback. 669/673 agent-covered. Contract v1 mislabelled paywall-absence as
+  NOT_SUPPORTED on 2 batches → caught, fixed contract, re-ran (02/03), schema = SUPPORTED/REFUTED/INACCESSIBLE.
+- [x] 7.4 Merge + per-row trust tier (`46_merge_deepverify.py` → `deepverify_results_full.tsv`): 333 verified
+  (330 paper + 3 external), 121 unverifiable, 215 refuted (152 wrong_organism, 30 no_effector_evidence,
+  27 wrong_protein, 6 wrong_system), 4 fallback. Positional align within batch (validates gene), keyed
+  (gene, inst, organism).
+- [x] 7.5 Apply strict drop (`47_apply_deepverify.py`): positives_all **925 → 458** (467 removed = 252 pass-1
+  + 215 refuted). New cols `citation_trust` + `citation_quote`. Backup `positives_all.pre_deepverify.tsv`,
+  log `deepverify_removed.tsv`. Headline: only ~36% of original rows had a citation that holds up when read;
+  many refutes are fabricated DOIs (resolve to unrelated papers). Simplify pass done (dead-code + empty-input
+  guards + FETCH_ERROR docstring).
+- [ ] 7.6 PROPAGATE the 458-row table downstream (STALE until done): re-run benchmark ceiling/actual/figure
+  scripts (recall denominator shrank → recall % rises); re-run `40_pair_features.py` to 458; build group-4
+  feature matrix on 458. Decide recall headline scope: citation-verified only vs verified+unverifiable.
+  **Trigger:** before presenting any recall number or shipping `training_dataset.tsv`. See NOTES cascade block.

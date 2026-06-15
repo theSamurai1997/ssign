@@ -249,3 +249,38 @@ Deferred:
 - **Feature side (group 4) is blocked on CX3 Phase-2 panel runs.** `training_dataset.tsv` (positives + DLP/DSE/SignalP/PLM-E + ESM ref + gene-distance + PU unlabeled set) joins `results_raw` via `bench_runout` once runs land. **Trigger:** Phase-2 pilots flip Q→R on CX3 gpu72; then rsync runs back and run group-4 scripts (4.1-4.5, not yet written). The 4.5 assembler's output schema is now **pinned**: it must emit the columns in `secretion-classifier/secretion_classifier/schema.py` (REQUIRED_COLUMNS), which the model's `TrainingDataset` loader validates against. 4.2 pair-features (`pair_features.tsv`) already supplies the pair/system columns.
 - **Model-prep core is built** (2026-06-11, separate repo `reidmat/secretion-classifier`, commits f641d32..3b04d54): data-independent loader/losses/prior/model/splits/metrics/sweep, 33 tests green. Only the trainer + ESM extraction + `training_dataset.tsv` remain, all gated on the same CX3 runs. See memory [[project_secretion_classifier_model]].
 - **Label sentinels are a bare-string cross-file contract.** `evidence_tier`, `instance_source`, `type_level`, `self_secreted` values are bare literals shared across scripts 36/37 and (soon) group 4 (e.g. `self_secreted == "true"` in 37 depends on 36 writing `str(...).lower()`). A typo mislabels rows silently. **Trigger:** when writing the group-4 feature scripts, hoist these into a small shared label-constants block (e.g. in `bench_io.py`) and reuse across 36/37/group-4 rather than re-typing literals.
+
+## Full-table citation audit (secretion-classifier-dataset, 2026-06-15)
+
+Two-pass provenance audit over ALL 925 positives (not just the ssign-found 51 from the earlier pass).
+Scripts 44-47. Pass 1 = deterministic CrossRef gene/genus check (44); pass 2 = 20 batched agents read
+each cited paper and judged SUPPORTED/REFUTED/INACCESSIBLE under an anti-hallucination contract
+(`deepverify_input/CONTRACT.md`); 46 merges, 47 applies. User policy = **strict: drop every refuted row.**
+
+Result: **positives_all 925 -> 458.** Removed 467 = 252 pass-1 (wrong-topic 92 / gene-absent 74 / dead-DOI 86)
++ 215 deep-verify refuted (wrong_organism 152 / no_effector_evidence 30 / wrong_protein 27 / wrong_system 6).
+Kept 458: verified_paper 330 (with verbatim quote), unverifiable 121 (paywalled, no counter-evidence),
+verified_external 3, fallback_consistent 4. New cols on positives_all: `citation_trust`, `citation_quote`.
+Backup `positives_all.pre_deepverify.tsv`; removal log `deepverify_removed.tsv`; per-row verdicts
+`deepverify_results_full.tsv`; pass-1 verdicts `citation_consistency_full.tsv`.
+
+Headline: only ~36% (333/925) of the original "literature-sourced" rows had a citation that holds up when
+the paper is actually read. Many refutes are fabricated-DOI cases (DOI resolves to an unrelated paper:
+SptP->GroEL, IcsB->vitamin-D, a T6SS effector->an astronomy paper). Consistent with an LLM-built answer key.
+
+### DOWNSTREAM CASCADE (STALE — must propagate before any dataset/benchmark claim ships)
+positives_all shrank 925->458, which invalidates everything built on the old table:
+- **Benchmark recall/precision/false-negative figures** (`data/phase2/figures/summary/01-05`,
+  `precision/01-03`) and the per-effector tables (`ceiling_per_effector.tsv`, `actual_per_effector.*.tsv`)
+  use the old positives. The recall DENOMINATOR shrinks; recall % almost certainly RISES (most dropped rows
+  were never in the ssign-found set). **Trigger:** before presenting any recall number, re-run the ceiling +
+  actual + figure scripts against the 458-row table. Decide first whether the benchmark should measure recall
+  over (a) only citation-verified effectors, or (b) verified+unverifiable. Recommend (a) for the headline,
+  (b) as a sensitivity check.
+- **40_pair_features.tsv** (was re-run to 925 rows) needs re-run to 458.
+- **secretion-classifier-dataset group-4 feature matrix** (gated on CX3 runs) must build on the 458-row table.
+- **evidence_tier vs citation_trust**: these are now two separate axes. validated/predicted is the curator's
+  claim; citation_trust is what the paper actually supports. 67 rows are evidence_tier=validated but were
+  refuted (mostly wrong_organism) and got dropped — so the surviving "validated" set is itself cleaner now.
+- **The earlier found-set audit (scripts 41/42/43, positives 930->925) is now subsumed** by this full-table
+  pass. Don't double-count its removals; 47 operates on the post-43 table (925) as input.
