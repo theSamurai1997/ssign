@@ -21,6 +21,14 @@ sys.path.insert(0, str(Path(__file__).parent))
 from bench_io import read_tsv  # noqa: E402
 
 DATASET = Path(__file__).resolve().parents[1] / "data" / "dataset"
+GOLD_BUILD = Path(__file__).resolve().parents[1] / "data" / "gold_build"
+# effectors quarantined by the answer-key audit: round 1 (citation/dup/misclass) + round 2 (re-audit
+# strict same-species-evidence bar). Both figure scripts (52, 54) must filter on the SAME set or the
+# plotted recall and recall_figure_proteins.tsv silently disagree -- so it lives here, once.
+AUDIT_REMOVED = [
+    GOLD_BUILD / "effector_gold_set.removed_audit.tsv",
+    GOLD_BUILD / "effector_gold_set.removed_reaudit2.tsv",
+]
 # hlyA, apxIA, ltxA, lktA — reachable@3 T1SS, full-assembly T1SS detection confirmed (script 50)
 T1SS_STAGING_FIX = {"P08715", "P55128", "P16462", "P55117"}
 
@@ -62,3 +70,23 @@ def clean_ceiling(path) -> list[dict]:
     """ceiling_per_effector restricted to verified effectors."""
     keys = _keep_keys()
     return [r for r in read_tsv(path) if _verified(r, keys)]
+
+
+def dropped_id() -> set:
+    """(gene, uniprot) + (gene, locus_tag) pairs quarantined by the answer-key audit (both rounds).
+
+    Keyed by genome identity, NOT (ss_type, gene): a gene can have several rows differing only by
+    organism (cya in B. bronchiseptica vs B. pertussis; lktA across 4 hosts) where only some are
+    dropped. Membership checks assume these pairs are disjoint from kept rows (true for the current
+    gold set); a future audit dropping one host of a gene whose sibling shares an accession would
+    need a finer key.
+    """
+    out = set()
+    for f in AUDIT_REMOVED:
+        if f.exists():
+            for r in read_tsv(f):
+                if r["uniprot"] and r["uniprot"] != "-":
+                    out.add((r["gene"], r["uniprot"]))
+                if r["locus_tag"]:
+                    out.add((r["gene"], r["locus_tag"]))
+    return out

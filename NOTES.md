@@ -293,3 +293,217 @@ misclassification, 1808 spurious T3SS calls on the dev set) is the historical re
 by default. **Trigger:** ssign-side default flip = drop T3SS from `excluded_systems` default in
 constants.py; re-run the panel; confirm T3SS precision (the DeepSecE-misclassification concern) is
 acceptable before shipping the default change. Figure footnote removed from 52_system_recall.py now.
+
+## 2026-06-15 poster figures (deferred simplify)
+- Skipped: full 4-agent simplify pass on the poster edits (52_system_recall.py render() refactor; 03_plot_fragmentation.py fig_04_recovery_poster; build_paired_heatmaps.py poster gate). Edits are small font-scale multipliers + a poster output gate; figures verified by eye. Trigger to revisit: next simplify sweep over benchmark scripts.
+
+## 2026-06-16 T6SS audit (task #74) deferred fixes
+Reconciled file: validation_sweeps/benchmark/data/phase2/verification/reconciled_T6SS.tsv (37 proteins R190-R226; 0 fabricated, 0 wrong genomes). Per-row suggested_fix is in that table. Two items need a decision beyond a citation swap:
+- R207 BopC / R208 BopE (B. thailandensis E264, T6SS-5 / T6SS_09): all 4 audit passes agree these are misattributed. UniProt accessions point to a TssG baseplate subunit (BTH_II0865) + a 107aa uncharacterized protein (BTH_II0874); cited DOI (chom.2024.04.012) is the TssM-esterase paper and never mentions them; BopC/BopE are canonically T3SS(Bsa) effectors. Decision needed: DROP both from the gold set, or reclassify the B.thai T6SS-5 effector to VgrG5. Trigger: post-audit fix pass.
+- Serratia Ssp/Rhs rows R221-R226 (SMDB11_ locus tags): source papers (English 2012, Fritsch 2013) use SMA tags; agent3 could not cross-confirm the SMDB11->SMA mapping and flagged possible drift for Ssp5 (SMDB11_2278, may be RhsI1 immunity region) and Ssp6 (SMDB11_4259 vs 4673). Proteins/refs are real; only the locus_tag provenance is unverified. Trigger: post-audit, spot-check the 6 SMDB11 tags against the Db10 GenBank.
+- R214 YPK_3548: effector status rests on a T6SS4-expression/regulation paper (ppat.1013356), not a secretion/translocation assay; needs a better primary ref + a non-deleted accession.
+
+## 2026-06-16 T5SS audit (task #74) — FINAL batch, full 245 audit complete
+
+T5SS batch (19 proteins R227-R245, self-secreting autotransporters/TPS, in_gold_set=no): 4 independent passes (claude + 3 blind agents). **Fully clean: 0 fabricated, 0 wrong genome, 0 wrong/deleted UniProt, 0 wrong_ref.** 14 verified, 5 weak_ref (citation is on-topic but not the ideal secretion primary): R232 fhaB (prodomain-mechanism paper), R233 flu/Ag43 (chaperone-QC paper), R234 hmw1A (cites HMW1B translocator not HMW1A), R235 hpmA (cross-complementation paper), R237 iga (IgG3-specificity paper; UniProt Q51163 is a 496aa fragment of the ~1500aa AT). All 15 supplied accessions + all genomes correct (incl. correctly plasmid-encoded espP/pO157 and yadA/pYV). See reconciled_T5SS.tsv.
+
+### Consolidated deliverable (deferred fixes, all 6 batches)
+`validation_sweeps/benchmark/data/phase2/verification/audit_fixes_consolidated.tsv` — 101 rows needing a provenance fix, built from the 6 reconciled_*.tsv by /tmp/build_audit_summary2.py.
+- 245 proteins audited, **0 fabricated, 0 wrong genome-accessions** (the 2 T1SS "wrong_organism" are citation-species mismatches, genome fine).
+- 144 clean/verified (incl. 12 T2SS secretome-verified).
+- 101 need a fix: 39 weak_ref, 24 wrong_ref, 14 wrong/bad DOI, 13 deleted_uniprot, 7 wrong_uniprot, 2 wrong_organism, 2 misattributed (T6SS R207/R208 BopC/BopE = real loci but T3SS effectors, drop-or-reclassify). 4 rows carry a deleted_uniprot on top of a ref defect.
+- Verified-DOI replacements already captured in the per-batch reconciled files; weak_ref suggested_fixes are mostly direction-only (marked "unverified") — Crossref-confirm before writing any replacement DOI into the answer key.
+
+**Conclusion: the recall-figure biology is trustworthy (no hallucinated proteins, no wrong genomes). The answer-key's provenance fields (DOIs + a handful of UniProt accessions) need repair, and BopC/BopE need a drop-or-reclassify call.**
+
+## 2026-06-16 Answer-key fix-finding (task #75-79): fresh, blind-agent + reconcile
+
+Per user "do a fresh finding, don't rely on old suggested DOIs". 9 blind agents (2x ClassA-DOI, 2x ClassB1 T1/T2, 1x B2 T3, 2x B3 T4/T5/T6, 2x ClassC uniprot) + my own pass, all finding via PubMed search -> abstract -> Crossref/EuropePMC title gate (never from memory). Reconciled to `validation_sweeps/benchmark/data/phase2/verification/reconciled_fixes.tsv` (101 rows). Final DOI set re-verified in one batch: 0 unresolved.
+
+Counts: 91 auto-apply (74 DOI replacements + 20 uniprot remaps + 4 uniprot->blank + 9 locus_tag fixes), 2 keep_current (R060 lip, R066 zmpA: no better primary exists), 8 FLAG (need Teo's call).
+
+Fresh-pass catches that the OLD suggested fixes got wrong (vindicates the rerun):
+- R177 VirE3: old hint DOI 10.1073/pnas.0500396102 is DEAD (404). Correct = Vergunst 2003 Plant Physiol 10.1104/pp.103.029223.
+- R113 VopS: old hint accession Q87GE8 is VPA1368 (T3SS inner-rod, 85aa), WRONG. Correct = Q87P32 (reviewed VopS, 387aa).
+- R187 VceC: row locus is BAB2_0123 -> Marchesini 2011 (locus-exact); old hint de Jong 2008's VceC is BAB1_1058 (different locus).
+- R006 aprA -> Liehl 2006 (P. entomophila, correct organism, not the P. aeruginosa homolog).
+- R014/R015 lktA -> Davies 2002 (covers B. trehalosi + M. glucosida, fixes the wrong-organism citation).
+
+NEW defect class uncovered: 9 wrong locus_tags in the answer key (not just citations):
+- Ralstonia swaps: R104 PopC RSc0608->RSp0875, R106 AvrA RSp1130->RSc0608, R107 RipJ RSp0871->RSc2132 (RSp0871 was HrpD apparatus).
+- R061 chiY YE3650->YE3576; R160 MavQ lpg2813->lpg2552; R161 MitF lpg2818->lpg1976; R168 SdjA lpg2155->lpg2508; R174 CinF CBU0041->CBU0513; R185 BtpB BAB1_0782->BAB1_0756.
+- Also locus-uncertain (DOI fixed, locus flagged): R162 PieE lpg1924?->lpg1969, R163 PieF lpg1959?->lpg1972.
+
+4 uniprots genuinely purged by UniProt (proteome removed, no same-locus replacement) -> set blank, keep refseq+locus: R062 engY(GenBank CAL12863), R063 ye3650(CAL13678), R064 cbpE(ABR85197), R213 YPK_0952(NCBI Gene 6091262).
+
+8 FLAG / judgment calls pending Teo:
+- R207 BopC, R208 BopE: misclassified T6SS dup; gold set already has correct T3SS/Bsa rows 203/204. RECOMMEND DROP.
+- R214 YPK_3548: demonstrated substrate is YPK_3549=YezP (=R215); likely DUPLICATE or wrong locus. DROP-or-relocus.
+- R179/R186 TcpB/Btp1: no VirB-translocation assay exists; keep-weak (Salcedo 2008, best-available) or drop.
+- R159 MavF: lpg2391=SdbC vs MavF=lpg2351 name/locus collision; decide which protein is intended.
+- R162/R163 PieE/PieF: DOI applied; CONFIRM locus (canonical lpg1969/lpg1972).
+
+APPLY not yet run. Targets = data/gold_build/effector_gold_set.tsv (primary_ref/uniprot/locus_tag for T1-4,6) + data/dataset/positives_all.tsv (T5SS + superset). Follow script-43 pattern: backup + identity-matched edits + reversible log + quarantine for drops. Then regenerate recall_figure_proteins.tsv (script 54) + re-run citation_consistency check.
+
+## 2026-06-16 APPLIED (script 55) + figure-table regen (script 54)
+
+Ran scripts/55_apply_audit_corrections.py. Decisions (Teo, this session): drop R207/R208 (BopC/BopE T6SS dups), R214 (YPK_3548 dup of R215), R179/R186 (TcpB, no VirB-translocation assay); R159 MavF->SdbC (lpg2391 IS sdbC, a Dot/Icm substrate; uniprot Q5ZSX5; DOI Huang 2011); keep_current R060/R066.
+
+Applied to data/gold_build/effector_gold_set.tsv (582->577) + data/dataset/positives_all.tsv (T5SS DOIs): 71 primary_ref + 25 uniprot + 9 locus_tag + 1 gene edits = 113 changelog entries, 5 quarantined.
+Reversibility: *.pre_audit_fix.tsv backups, effector_gold_set.removed_audit.tsv (quarantine), audit_fix_changelog.tsv.
+
+Script 54 reworked: the recall-figure table backbone is the ssign actual_per_effector tables (pre-audit identity), so it now (a) sources provenance from the corrected gold row via gold_provenance(), (b) applies the MavF->SdbC rename via a changelog-derived gene_alias, (c) excludes quarantined effectors via dropped_keys from removed_audit. Regenerated recall_figure_proteins.tsv: 245 -> 240 proteins (T4SS 42->40, T6SS 37->34). Verified: all 5 drops gone, corrected accessions/loci/DOIs surface (VopS Q87P32, SdbC, CinF Q83E23, VirE3 Vergunst2003, RipJ RSc2132, MitF lpg1976).
+
+### STILL TODO (follow-ups)
+- **Plotted figure 52 (52_system_recall.py) NOT yet regenerated.** It reads actual_per_effector + instance classification directly, independent of gold drops. The 5 dropped effectors slightly change instance-level recall; script 52 needs the same dropped_keys exclusion for the plotted figure to match the corrected answer key. (T4SS/T6SS bars affected.)
+- positives_all.tsv only had its T5SS rows touched here; the T1-4,6 citation fixes were NOT mirrored into positives_all (it's the secretion-classifier-dataset training table with its own audit, script 43). If training labels should share the corrected DOIs/accessions, run a parallel sync.
+- R162 PieE / R163 PieF: DOI fixed; locus left as-is (key lpg1924/lpg1959 vs canonical lpg1969/lpg1972) - confirm if it matters.
+- simplify review on scripts 54/55: self-checked (55 follows script-43 pattern + bench_io; 54 edits reuse read_tsv, add one helper). Full 4-agent simplify not run (context).
+
+## 2026-06-16 RE-AUDIT of corrected answer key (task #81) — acceptance test, STRICT bar
+
+Method: re-audit all 240 corrected recall-figure proteins, my manual pass + 4 blind agents per batch, reconcile union. Worklists in data/phase2/verification/reaudit/ (batch_*.tsv from the regenerated recall_figure_proteins.tsv; agent{1-4}_<TYPE>.tsv; claude_<TYPE>.tsv; reconciled_<TYPE>.tsv).
+
+USER DECISION (evidence bar): **STRICT + DROP** rows that lack a direct same-species secretion assay naming the protein (wrong-species citation, or sequence/structure/review/homology-only with no secretion assay). Keep rows with a same-species secretion-mutant/secretome assay (operon-level within the correct species/system counts as kept).
+
+HEADLINE so far (T1SS+T2SS = 75 rows, 5 passes each): provenance 100% clean — 0 fabricated, 0 wrong accession, 0 wrong genome, 0 dead/wrong DOI. The corrected key passes the hallucination axes. The only issues are evidence-strength (the strict-drop targets).
+
+### Running STRICT-DROP list
+- T1008 cya (B. bronchiseptica): cites Glaser1988 = B. pertussis (wrong species; no bronchiseptica CyaA secretion paper exists).
+- T1012 lktA (B. trehalosi): Davies2002 = lkt-operon sequence/evolution, no secretion assay.
+- T1013 lktA (M. glucosida): same Davies2002, no secretion assay.
+- T2042 plcB (P. aeruginosa PA0026): cited to Filloux2011 REVIEW; primary Barker2004 shows Sec secretion NOT T2SS -> possible misclassification.
+- T2054 zmpA (B. cenocepacia): mic.0.26243-0 = homology-only ("likely GSP-secreted"), no T2SS-secreton-mutant assay.
+
+### Fix-not-drop (T2SS)
+- T2023 lipA (X. euvesicatoria): real Xps-T2SS substrate (JB.00322-15), but accession A0ABS8LNA2 points to a different assembly (LN463_12775) than stated XCV0536/NC_007508.1. Needs accession re-map, not a drop.
+
+### Borderline KEPT (same-species secretome/operon evidence, strict-pass)
+T1SS indirect-but-kept: T1001 Serralysin, T1003 aprA(entomophila), T1006 apxIIIA, T1015/T1016/T1017 prtA, T1018 prtB. T2SS indirect-but-kept: paeY, pelA, pelD, pelL, paAP, lasA, lapA (same-species Out/Xcp/Hxc secretome or foundational secreton paper).
+
+### REMAINING re-audit batches: T3SS(72), T4SS(40), T5SS(19), T6SS(34) — agents not yet launched.
+Then: consolidated strict-drop pass (extend script 55 pattern), regenerate figure table, final clean report.
+
+### Re-audit (task #81) — T3SS batch done 2026-06-16
+- **Agent channel BLOCKED**: all 4 blind agents (and a reframed probe) tripped the usage-policy content filter ~8 tool-calls in, on the T3SS pathogen-virulence content (plague/Yersinia/Shigella/Burkholderia). Same expected for T4/T5/T6 (intracellular pathogens). Substituted a rigorous main-session pass: every DOI resolved via crossref+europepmc, every UniProt accession resolved live, BopA row checked via PubMed. Redundancy (4 independent agents) NOT achievable for these batches by that route — user must know method deviated.
+- **Provenance 100% clean** (34/34 DOIs real+on-topic T3SS papers; 49/49 UniProt accessions correct incl. held locus fixes RipJ→RSc2132, AvrA→RSc0608, PopC→RSp0875, VopS→Q87P32).
+- **T3SS verdict: 54 keep / 3 drop / 15 fixable.** File: reaudit/reconciled_T3SS.tsv.
+  - DROP (3): T3005 BopA (cited DOI is the TssM T6SS-DUB paper Szczesna 2024, not BopA/not T3SS; instance tag "T6SS-5" on a T3SS row — incoherent), T3013 (EXACT dup of T3011 EspA/ROD_30191), T3025 (EXACT dup of T3023 EspZ/ROD_30281).
+  - FIX-not-drop (15): A/E nle/esp ortholog rows in EPEC or C.rodentium cited to a sister-species paper (mostly O157 Tobe 2006 pnas.0604891103, or the EPEC Map/NleA paper). Real verified effectors; same-species primaries exist. Rows: T3011,T3016,T3018,T3031,T3033,T3035,T3036,T3041,T3042,T3044,T3045,T3047,T3048,T3050,T3051.
+- **DECISIONS PENDING (before T4/T5/T6):** (a) the 15 fixable — swap to same-species refs / accept as panel-convention / drop? (b) agent-block: accept main-session pass for remaining pathogen batches, or pause?
+- Running drop list now: T1008,T1012,T1013,T2042,T2054,T3005,T3013,T3025. Fix-not-drop: T2023 lipA accession + the 15 T3SS rows above.
+
+### Re-audit (task #81) — ALL 6 batches done 2026-06-16 (main-session pass)
+HEADLINE: **provenance 100% clean across all 240 rows** — every DOI resolves to a real on-topic paper (crossref/europepmc), every UniProt accession correct (live), all prior locus/accession fixes held (RipJ→RSc2132, AvrA→RSc0608, PopC→RSp0875, VopS→Q87P32, CinF→Q83E23, MavF→SdbC, VceC→Marchesini, YezP→YPK_3549). 0 fabricated, 0 wrong-genome. All remaining issues are evidence-STRENGTH (strict bar) + a few duplicates + citation refinements.
+
+Per-batch (reconciled_<TYPE>.tsv): provenance clean everywhere.
+- T1SS 21: drop 3 (T1008,T1012,T1013). 
+- T2SS 54: drop 2 (T2042,T2054); fix accession T2023 lipA.
+- T3SS 72: drop 3 (T3005 BopA mis-sourced, T3013+T3025 exact dups); FIX 15 cross-species A/E orthologs (same-species refs).
+- T4SS 40: drop 0; FIX 5 (T4016 Lem8 locus lpg0945->lpg1290?, T4025 PieE lpg1924->lpg1969?, T4026 PieF lpg1959->lpg1972?, T4039 VirE3 DOI is a VirE2 paper, T4007 BtpB verify translocation assay).
+- T5SS 19: drop 0; FIX 1 (T5011 iga cross-species gonorrhoeae->meningitidis).
+- T6SS 34: drop 1 (T6021 Tle4 = dup of T6022/PA1510); FIX T6027 TseH (bioRxiv preprint->published Altindis 2015), normalize T6002 PMID:16432199->10.1073/pnas.0510322103; VERIFY T6020 Tle3 ref + T6033 YPK_0952; DEFINITIONAL FLAG T6001/T6002 Hcp = structural tube protein but secreted (hallmark), generic gene names EFF00001/EFF00006 — user call: keep-as-secreted vs reconsider.
+
+TOTALS: 9 drops (T1008,T1012,T1013,T2042,T2054,T3005,T3013,T3025,T6021); ~24 citation/locus/accession fixes; 3 verifies; 1 definitional flag (Hcp x2).
+USER DECISIONS (this session): main-session pass OK for pathogen batches (agents blocked); FIX the 15 A/E orthologs with same-species refs (Citrobacter rows with genuinely no same-species secretion assay fall back to strict drop, flag them).
+NEXT: fix-finding pass (verify+source each fix), then consolidated apply (extend script 55 quarantine+changelog pattern) for the 9 drops + fixes, regenerate recall_figure_proteins.tsv (script 54), then plotted figure 52 (task #80).
+
+### Decision 2026-06-16: DROP Hcp rows T6001 + T6002 (user call)
+Hcp is a structural T6SS tube protein (secreted as hallmark but not a cargo effector); generic gene names. User: drop both. Drop list now 11: T1008,T1012,T1013,T2042,T2054,T3005,T3013,T3025,T6021,T6001,T6002. Still open: BtpB (T4007, verifying), Citrobacter A/E orthologs (drop-vs-keep).
+
+### BtpB resolved 2026-06-16: KEEP (not drop)
+Salcedo 2013 (fcimb.2013.00028) abstract: BtpB "is a novel Brucella effector that is translocated into host cells." Same-species translocation claim present -> clears the bar TcpB/Btp1 failed (those had no translocation assay). T4007 BtpB = keep with current ref.
+Citrobacter A/E orthologs: NO new decision needed — prior decisions ("fix same-species refs" + "drop thin") determine it: fix-if-same-species-assay-exists, else strict-drop. Execute as part of fix-finding.
+Drop list stays 11. Correction phase = 11 drops + fix-finding (EPEC orthologs ~5 have refs; Citrobacter ~9 search-then-fix-or-drop; T4 loci x3; VirE3; T5011 iga; T6027 TseH; T2023 lipA; normalize T6002 PMID->DOI).
+
+### Fix-finding started 2026-06-16 — checkpoint after 1 result + 1 near-miss
+VERIFIED so far:
+- T3047 NleE (EPEC) -> Nadler 2010 PLoS Pathog "NleE inhibits NF-kB activation" 10.1371/journal.ppat.1000743 (abstract: NleE INJECTED by EPEC into host cell = same-species translocation). GOOD FIX.
+WARNING / do-not-use:
+- PMID 15496394 is Mundy 2004 J Med Microbiol (espI epidemiology survey, 10.1099/jmm.0.45684-0), NOT the NleA/EspI translocation paper. The real NleA identification+translocation = Gruenheid 2004 Mol Microbiol (find correct PMID). Caught by metadata check — reaffirms: verify every PMID->paper, never trust the search-rank guess.
+PENDING fix-finding (task #82): EPEC NleA(T3035), NleC(T3041), NleD(T3044), NleF(T3050); O157 Map(T3031); Citrobacter x9 (T3011 EspA,T3016 EspH,T3018 EspJ,T3033 Map,T3036 NleA,T3042 NleC,T3045 NleD,T3048 NleE,T3051 NleF) = search same-species, fix-or-strict-drop. Then task #83 (T4 loci/VirE3/iga/TseH/lipA/T6002-normalize) + task #84 (apply 11 drops + fixes, regen 54, then 52).
+RECOMMEND: /compact before continuing fix-finding (precision-critical per-paper work; context heavy from full audit). All state durable here + reconciled_*.tsv.
+
+### Fix-finding T3SS A/E orthologs COMPLETE 2026-06-16 (all 15 verified via PubMed get_article_metadata)
+Every DOI below confirmed = real paper, abstract shows the claimed same-species secretion/translocation/mutant. None drop; all keep with same-species (or same-system for EspA) ref.
+
+EPEC E2348/69 (5):
+- T3035 NleA  -> Thanabalasuriar 2009 Cell Microbiol 10.1111/j.1462-5822.2009.01376.x ("NleA...type III translocated...during EPEC infection")
+- T3041 NleC  -> Pearson 2011 Mol Microbiol 10.1111/j.1365-2958.2011.07568.x ("Delivery of NleC by the T3SS of EPEC")
+- T3044 NleD  -> Creuzburg 2017 Infect Immun 10.1128/IAI.00620-16 ("NleD...translocated into host enterocytes"; EPEC-infected cells)
+- T3047 NleE  -> Nadler 2010 PLoS Pathog 10.1371/journal.ppat.1000743 (NleE injected by EPEC) [prior]
+- T3050 NleF  -> Pallett 2014 Infect Immun 10.1128/IAI.02131-14 ("T3SS-dependent translocation of NleF" by EPEC)
+
+O157:H7 Sakai (1):
+- T3031 Map   -> Tobe 2006 PNAS 10.1073/pnas.0604891103 (O157 Sakai repertoire; 28 confirmed by translocation assay incl. Map/IpgB family) = same paper as other O157 rows
+
+Citrobacter rodentium (9):
+- T3011 EspA  -> Deng 2015 J Bacteriol 10.1128/JB.02401-14 (EspA/B/D translocator T3 secretion, A/E T3SS incl. C.rodentium). NOTE: secretion experiments in EPEC; C.rodentium named as same system. SYSTEM-LEVEL same-species (flag for Teo). EspA = translocon filament, in-scope (cf. EPEC EspA row T3012 kept).
+- T3016 EspH  -> Mundy 2004 Infect Immun 10.1128/IAI.72.4.2288-2302.2004 (C.rodentium espH mutant, in vivo)
+- T3018 EspJ  -> Dahan 2005 Infect Immun 10.1128/IAI.73.2.679-686.2005 (EspJ translocated TTSS effector; C.rodentium mouse infection dynamics)
+- T3033 Map   -> Mundy 2004 10.1128/IAI.72.4.2288-2302.2004 (C.rodentium map mutant; significant colonization defect)
+- T3036 NleA  -> Mundy 2004 10.1128/IAI.72.4.2288-2302.2004 (identifies EspI=NleA, T3SS-dependent secretion IN C.rodentium = direct same-species secretion assay)
+- T3042 NleC  -> Sham 2011 Infect Immun 10.1128/IAI.05033-11 (delta-nleC C.rodentium mice -> worsened colitis)
+- T3045 NleD  -> Kelly 2006 Infect Immun 10.1128/IAI.74.4.2328-2337.2006 (nleD deletion constructed+tested in C.rodentium; null colonization). WEAK same-species genetic (flag).
+- T3048 NleE  -> Kelly 2006 10.1128/IAI.74.4.2328-2337.2006 (nleE deletion in C.rodentium; NleE shown translocated by A/E LEE-T3SS). same-species genetic.
+
+FLAGS for Teo (keep, but evidence is system/genetic-level not a strain-specific functional secretion assay): T3011 EspA-Cr (Deng2015 experiments are EPEC), T3045 NleD-Cr + T3048 NleE-Cr (Kelly2006 null deletions). All defensible under "operon-level same-species counts as kept"; surfacing for transparency.
+
+Drop list UNCHANGED at 11: T1008,T1012,T1013,T2042,T2054,T3005,T3013,T3025,T6021,T6001,T6002.
+Machine-readable fix table: reaudit/fixes_verified.tsv (built next). NEXT task #83: T4 loci (Lem8/PieE/PieF), VirE3 DOI, T5011 iga, T6027 TseH, T2023 lipA accession, normalize T6002 PMID->DOI, verify T6020 Tle3 + T6033 YPK_0952.
+
+### Fix-finding T4/T5/T6 + misc COMPLETE 2026-06-16 (task #83) — all verified live
+Net result: only 3 applicable fixes; several of my own re-audit flags were FALSE ALARMS (caught by verifying the actual abstracts/loci, not the search-rank guess). This is the value of the pass.
+
+APPLY (3):
+- T4016 Lem8: locus lpg0945 -> lpg1290 (+ accession -> Q5ZVZ8). Confirmed: eLife 2022 PMID 35175192 ("Lem8 (Lpg1290), 528aa Cys protease, Phldb2") + Huang 2011 (cited ref) + UniProt Q5ZVZ8 lpg1290 528aa YopT-peptidase. Row's lpg0945 = legL1 (wrong). Ref 01531.x kept.
+- T6027 TseH: DOI 10.1101/868539 (bioRxiv preprint) -> 10.1128/mBio.00075-15 (Altindis 2015 mBio; "VCA0285 (TseH)...secreted by T6SS" V.cholerae). [it's mBio not PNAS]
+- T2023 lipA: accession A0ABS8LNA2 -> Q3BXQ3 (reviewed LIPA_XANE5, XCV0729, 337aa secreted lipase) + locus XCV0536 -> XCV0729. A0ABS8LNA2 = LN463_12775 420aa, NOT lipA (wrong protein). Ref JB.00322-15 (Sole 2015) CONFIRMED correct: abstract names "a lipase...virulence factor" as Xps-T2S substrate.
+
+VERIFIED-NO-CHANGE (my re-audit re-flags were wrong; current refs already correct):
+- T4039 VirE3: pp.103.029223 (Vergunst 2003) DOES assay VirE3 translocation by VirB/D4 (CRAFT): "C-terminal 50 aa of VirE2 and VirE3 sufficient to mediate Cre translocation". KEEP. (My reconciled-T4SS note "it's a VirE2 paper" was WRONG.)
+- T6020 Tle3: fmicb.2019.01218 (Berni 2019) DOES characterize Tle3 secretion ("secretion mechanism of Tle3...VgrG2b spike...H2-T6SS"). KEEP.
+- T6033 YPK_0952: spectrum.04278-23 (Yang 2024) names "YPK_0952...effector of T6SS-3...secreted by T6SS-3...DNase". KEEP.
+
+FLAG-NO-CHANGE (don't apply unverified locus changes that conflict with genome annotation):
+- T4025 PieE, T4026 PieF: literature gives loci (mSphere 2024 "PieF (Lpg1972)"; PieE~lpg1969) but UniProt annotates lpg1972 = 125aa "Dot protein" and lpg1969 = LegC3 635aa -- CONFLICT with the genome the benchmark fetches from. Keeping current row loci (PieE=lpg1924, PieF=lpg1959); flag for Teo to reconcile against the specific assembly. Effectors are real; DOIs already fixed prior pass.
+- T5011 iga (N.meningitidis MC58): keep Pohlner 1987 (325458a0) founding IgA-protease autotransporter mechanism. Cross-species (gonorrhoeae) but acceptable for a T5aSS self-secretor under the lenient T5SS bar (mechanism papers OK). van Ulsen 2001 alt is only a genome ORF survey (weaker). Flag.
+
+### CONSOLIDATED correction set for task #84 (apply)
+DROPS (11): T1008,T1012,T1013,T2042,T2054,T3005,T3013,T3025,T6021,T6001,T6002.
+FIXES (18 total): 15 T3SS A/E ortholog DOIs (see prior section) + T4016 Lem8 locus/acc + T6027 TseH DOI + T2023 lipA acc/locus.
+Build reaudit/fixes_verified.tsv next, then extend script 55 pattern -> apply -> regen script 54 -> regen figure 52 (task #80).
+
+### APPLIED re-audit corrections (task #84) + figure regen + plotted-figure regen (task #80) — 2026-06-16
+Scripts: 56_apply_reaudit_corrections.py (gold), edits to 54 (figure table) + 52 (plotted instance-recall).
+
+CAUGHT A MIS-DROP before it shipped: first run of script 56 used script-55's locate() which pre-filters by
+ss_type. The batch file tags T3005 BopA as T3SS, but the incoherent BopA gold row is ss_type=T6SS (locus
+BTH_II0876); meanwhile a LEGIT B.pseudomallei T3SS BopA (Q63K42/BPSS1524) also exists. locate() matched and
+dropped the LEGIT one. Reverted (git-clean: gold was uncommitted working-tree, removed_audit untracked;
+restored from pre_reaudit2 backup), rewrote script 56 matching to GENOME identity (gene+locus/uniprot, ss_type
+NOT used) + organism-mismatch guard + grouped multi-field fixes. Re-ran: correct BopA (B.thailandensis T6SS)
+dropped, B.pseudomallei kept. Audited all 27 applications: every T3SS DOI landed on the right species row.
+
+Gold: 577 -> 568 (9 quarantined). Field edits: 16 primary_ref + 2 locus_tag + 2 uniprot = 20.
+Reversibility: effector_gold_set.pre_reaudit2.tsv (backup), effector_gold_set.removed_reaudit2.tsv (9 drops),
+audit_fix_changelog_reaudit2.tsv (29 entries). removed_audit.tsv left at round-1 (5 rows); script 54/52 read BOTH.
+
+Script 54 changes: (a) dropped_keys -> dropped_id keyed by genome identity (gene,uniprot)+(gene,locus), NOT
+(ss_type,gene) -- required because cya (B.bronchiseptica drop vs B.pertussis keep) and lktA (drop 2 of 4 hosts)
+share a gene; coarse key would over-drop. Reads removed_audit + removed_reaudit2. (b) instance-dedup: collapse
+same (ss,gene,locus,organism) keeping 'found' over 'unreach' -> removes the 2 EspA/EspZ-Cr T3SS_28 dup rows
+(logged, not silent).
+recall_figure_proteins.tsv: 240 -> 230 (8 drops-in-figure + 2 dedup; BopA-thai wasn't in figure so its gold
+drop removes 0 figure rows). Per-type: T1SS 18, T2SS 52, T3SS 70, T4SS 40, T5SS 19, T6SS 31.
+
+Script 52 (plotted instance-recall 06_recall_systems.png): added same dropped_id filter (dedup N/A at instance
+level). Instance-recall before->after audit drops (excl T5SS): found 36/46 -> 33/43 reachable. Deltas: T1SS
+testable 21->18 (cya-Bb + lktA x2 were singleton-effector instances; recall RATE unchanged 100%), T2SS 12->11,
+T4SS 10->9 (round-1 TcpB/Btp1). T3SS/T6SS unchanged (dropped effectors shared instances or were instance-less).
+Final plotted: ssign found 48/60 reachable systems (incl T5SS 15/17).
+
+TASK #81 ACCEPTANCE TEST RESULT: provenance 100% clean across all 240 (0 fabricated/wrong-genome/dead-DOI);
+strict-bar corrections = 11 drops + 18 verified fixes, all applied + propagated. Re-audit COMPLETE.
+Open flags for Teo (keep, low-priority): T3011 EspA-Cr (Deng2015 system-level), T3045/T3048 NleD/E-Cr (Kelly2006
+genetic), T4025/T4026 PieE/PieF loci (lit vs UniProt annotation conflict), T5011 iga (cross-species mechanism).
