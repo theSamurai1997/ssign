@@ -260,7 +260,12 @@ class PipelineConfig:
     # (too expensive for the marginal information gained — they're auxiliary
     # evidence, not the test statistic).
     enrichment_stats: bool = False
-    n_null_proteins: int = 200
+    # Default 1000: a 200-protein null undersamples the ~1.5% genome positive rate and
+    # inflates significance (validated on PAO1; a null-size sweep showed 200 over-calls
+    # while 1000 matches the exact whole-genome background). When predictors ran
+    # whole-genome the background uses ALL non-neighborhood proteins instead (see
+    # _step_sample_null_proteins). openspec: enrichment-background-and-plme-default-off.
+    n_null_proteins: int = 1000
     null_seed: int = 42
 
     # Phase 5: Annotation tools
@@ -1664,6 +1669,14 @@ class PipelineRunner:
         null_fasta = self._wf(f"{self.config.sample_id}_null_proteins.faa")
         null_ids = self._wf(f"{self.config.sample_id}_null_protein_ids.tsv")
 
+        # When DLP and DSE both ran whole-genome, every protein already has a
+        # prediction, so the background can use the EXACT all-non-neighborhood pool
+        # (n=-1) for free instead of a 1000-protein subsample. (The null FASTA/concat
+        # this still writes is unused in whole-genome mode — _resolve_step_input_fasta
+        # returns the full proteome — but harmless.)
+        whole_genome_bg = self.config.dlp_whole_genome and self.config.dse_whole_genome
+        n_req = -1 if whole_genome_bg else self.config.n_null_proteins
+
         rc, _stdout, stderr = run_script(
             "sample_null_proteins.py",
             [
@@ -1676,7 +1689,7 @@ class PipelineRunner:
                 "--window",
                 str(self.config.proximity_window),
                 "--n",
-                str(self.config.n_null_proteins),
+                str(n_req),
                 "--seed",
                 str(self.config.null_seed),
                 "--out-fasta",
@@ -2750,11 +2763,10 @@ class PipelineRunner:
             "--out",
             out,
         ]
-        # PLM-Effector is the third secreted-protein predictor; include it in the test when it ran
-        # (it's tier/skip-dependent, so stays optional — DLP+DSE alone still produce a valid result).
-        plme = self.files.get("plm_effector", "")
-        if plme and os.path.exists(plme):
-            enr_args += ["--plme", plme]
+        # PLM-Effector is deliberately excluded from the enrichment test: at genome scale it
+        # over-predicts (~25% of the proteome) and showed no reliable per-system enrichment, so
+        # its background would swamp the DLP/DSE signal. See the openspec change
+        # enrichment-background-and-plme-default-off.
         rc, _stdout, stderr = run_script("enrichment_testing.py", enr_args)
 
         if rc == 0:

@@ -7,7 +7,6 @@ evidence-only rule, the DSE T3SS flagging guard, and the
 `n_prediction_tools_agreeing` count.
 """
 
-
 import pytest
 from cross_validate_predictions import cross_validate
 
@@ -31,11 +30,14 @@ def _dse_row(locus, ss_type, max_prob=0.9):
     }
 
 
-def _plm_e_row(locus, passes, effector_type="T1SE"):
+def _plm_e_row(locus, passes, effector_type="T1SE", max_stacking=0.95):
+    # max_stacking defaults high so a `passes=True` row clears the 0.8 confidence
+    # gate that _plm_effector_flag now applies (consistent with DLP/DSE).
     return {
         "locus_tag": locus,
         "passes_threshold": "1" if passes else "0",
         "effector_type": effector_type,
+        "max_stacking": str(max_stacking),
     }
 
 
@@ -49,8 +51,13 @@ def _sp_row(locus, prediction, probability=0.95):
 
 
 def _run(
-    dlp=None, dse=None, plm_e=None, sp=None,
-    has_t3ss=False, conf_threshold=0.8, ss_component_info=None,
+    dlp=None,
+    dse=None,
+    plm_e=None,
+    sp=None,
+    has_t3ss=False,
+    conf_threshold=0.8,
+    ss_component_info=None,
 ):
     return list(
         cross_validate(
@@ -88,6 +95,18 @@ class TestEqualTriggers:
         assert rows[0]["is_secreted"] is True
         assert rows[0]["n_prediction_tools_agreeing"] == 1
         assert rows[0]["secretion_evidence"] == "PLM-Effector"
+        assert rows[0]["plm_effector_secreted"] is True
+
+    def test_plm_effector_below_confidence_gate_is_negative(self):
+        # passes_threshold set but max_stacking < 0.8 -> not counted (0.8 gate,
+        # consistent with DLP/DSE). The native per-type call alone is too permissive.
+        rows = _run(plm_e={"G1": _plm_e_row("G1", passes=True, max_stacking=0.6)})
+        assert rows[0]["plm_effector_secreted"] is False
+        assert rows[0]["is_secreted"] is False
+        assert rows[0]["n_prediction_tools_agreeing"] == 0
+
+    def test_plm_effector_at_confidence_gate_is_positive(self):
+        rows = _run(plm_e={"G1": _plm_e_row("G1", passes=True, max_stacking=0.8)})
         assert rows[0]["plm_effector_secreted"] is True
 
     def test_below_dlp_threshold_not_secreted(self):

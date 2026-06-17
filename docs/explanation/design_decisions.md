@@ -213,6 +213,19 @@ Entries are organised by pipeline stage. Each has three parts:
   - [Zhang et al. (2023). _Research_ 6:0258](https://doi.org/10.34133/research.0258) — DeepSecE.
   - [Zheng (2026). _Briefings in Bioinformatics_ 27(2):bbag143](https://doi.org/10.1093/bib/bbag143) — PLM-Effector.
 
+- **Revision (2026-06-17): PLM-Effector demoted to opt-in.** Validation on
+  P. aeruginosa PAO1 showed PLM-Effector calls ~25% of the proteome as effectors
+  (18% even gated at `max_stacking >= 0.8`), with no reliable enrichment near real
+  secretion systems. This is the documented failure mode of effector predictors
+  trained/thresholded on balanced sets and applied genome-wide (the model's paper
+  reports no genome-scale validation; PAO1 truly has ~4 T3SS effectors). Therefore:
+  DLP + DSE are the default equal predictors; **PLM-Effector is OFF by default**
+  (opt in with `--no-skip-plm-effector`), and when used its call is **gated at
+  `max_stacking >= 0.8`** for consistency with DLP/DSE. It is excluded from the
+  enrichment statistical test and retained as an opt-in proximity signal and a
+  classifier-training feature. See openspec change
+  `enrichment-background-and-plme-default-off`.
+
 ### 3.2 SignalP is evidence-only, not a trigger
 
 - **Decision (Phase 3.2.b):** SignalP is recorded as a separate

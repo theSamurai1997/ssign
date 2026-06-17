@@ -20,6 +20,17 @@ Roadmap toward v1.0.0 lives in the [README](README.md#roadmap-to-v100).
 
 ### Changed
 
+- **PLM-Effector is now OFF by default at every tier** (was on). It over-predicts
+  at genome scale (called ~25% of the PAO1 proteome as effectors; the model is
+  validated only on balanced sets) so it no longer runs unless you opt in with
+  `--no-skip-plm-effector`. It stays installable for opt-in use and as a
+  classifier-training feature. When enabled, a PLM-Effector call now requires
+  `max_stacking >= 0.8` (consistent with the DLP/DSE confidence gate).
+- **PLM-Effector removed from the enrichment statistical test** (DLP/DSE only):
+  its ~25% background swamped the signal and showed no reliable per-system enrichment.
+- **Enrichment background**: default null sample bumped 200 → 1000; when predictors
+  run whole-genome the background now uses ALL non-neighborhood proteins (exact, free).
+  The 200-protein sample undersampled the ~1.5% genome rate and inflated significance.
 - DeepSecE checkpoint fetched from a Zenodo mirror first (URL placeholder
   until the v1.0.0 deposit), SJTU origin retained as fallback.
 - Repository moved to the `billerbeck-lab` GitHub organisation. Old

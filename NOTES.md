@@ -2,6 +2,32 @@
 
 Tracks items skipped during tasks. One bullet per item: what, why, trigger to revisit.
 
+## enrichment-stats validation + PLM-E over-prediction (2026-06-17)
+
+Findings on the PAO1 smoke run (job 3013556), analysis in
+`validation_sweeps/benchmark/analysis/enrichment_validation/` (scripts 01/02, figs 01-05):
+- **Background bug**: the 200-protein null undershoots the true non-neighborhood background
+  (DLP 0.5% vs ~1.3-1.65%, DSE 1.0% vs ~1.4-1.7%), inflating significance. Null-size sweep: 200
+  over-calls, 1000 ≈ converged to "all". One false DSE call removed going 200->1000.
+- **PLM-E over-predicts massively**: 25.3% of the PAO1 proteome called effector at native
+  threshold, 18% even gated at max_prob>=0.8. T6SE-dominated (loosest threshold 0.5), T2SE
+  essentially never (their weak type), 36% multi-type. Per-system enrichment: only 2/18 systems
+  significant (both weak/spurious), and the real T3SS is DEPLETED (2/25). PLM-E adds no reliable
+  enrichment signal. Paper (Zheng 2026 bbag143) reports specificity only on ~150 curated negatives,
+  no genome-scale FPR test; recall-tuned thresholds + OR-of-5-ensembles guarantee inflation at scale.
+
+DECISIONS (Teo, 2026-06-17), to implement via a new OpenSpec change (no active change covers this; #70):
+1. n_null default 200 -> 1000; use ALL non-neighborhood proteins for the background when predictors
+   ran whole-genome (free, exact).
+2. PLM-E positivity gated at max_prob >= 0.8 everywhere it's a binary call (enrichment +
+   cross_validate), consistent with DLP/DSE.
+3. PLM-E OFF by default entirely (Teo's call after seeing the 25%/18% over-prediction).
+4. Drop PLM-E from the enrichment test (subsumed by 3, but keep explicit if PLME is ever re-enabled).
+Trigger: run `/opsx:propose` for these, pending the deeper PLM-E paper research (2 agents running).
+
+Pre-fleet-launch: CX3 checkout needs `git pull` (job 3013556 predated the PLME-enrichment wiring
+a7afbd9 and the SP_WHOLE_GENOME opt-in).
+
 ## effector-recovery-benchmark — CITATION-INTEGRITY: NEXT TASK (2026-06-12)
 
 **CONFIRMED real** (not an agent hallucination): 3/3 spot-checks via CrossRef API (deterministic)

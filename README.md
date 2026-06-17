@@ -215,13 +215,15 @@ itself.
   webserver as a fallback (no licence needed on the user's part). NCBI
   remote BLAST, EBI InterProScan webserver, and MPI Toolkit HHpred remote
   modes removed in favour of local binaries.
-- ✅ Bakta + EggNOG whole-genome annotation, PLM-Effector first-class
-  secretion prediction, pLM-BLAST / ECOD30 substrate annotation.
+- ✅ Bakta + EggNOG whole-genome annotation, pLM-BLAST / ECOD30 substrate
+  annotation. PLM-Effector is available but OFF by default (it over-predicts
+  at genome scale; opt in with `--no-skip-plm-effector`).
 - ✅ Re-annotate inputs with Bakta by default; `--use-input-annotations`
   preserves curated GenBank annotations.
-- ✅ Cross-validation rule: DLP, DSE, and PLM-Effector treated as equal
-  secretion predictors (any one flagging means a candidate). SignalP is
-  evidence-only. `n_prediction_tools_agreeing` column carried through.
+- ✅ Cross-validation rule: DLP and DSE are the default secretion predictors
+  (any one flagging means a candidate). PLM-Effector, when opted in, is gated
+  at `max_stacking >= 0.8`. SignalP is evidence-only.
+  `n_prediction_tools_agreeing` column carried through.
 - ✅ Pipeline order: `enrichment_testing` runs before substrate filtering;
   stats filter default ON for ≥10 genomes.
 

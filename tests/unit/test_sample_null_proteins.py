@@ -52,9 +52,13 @@ class TestSampleNull:
         picked = sample_null(["a", "b"], exclude={"a", "b"}, n=10, rng=random.Random(42))
         assert picked == []
 
-    def test_zero_n_returns_empty(self):
-        picked = sample_null(["a", "b", "c"], exclude=set(), n=0, rng=random.Random(42))
-        assert picked == []
+    def test_nonpositive_n_returns_all_candidates(self):
+        # n <= 0 means "use the entire complement" — the exact whole-genome
+        # background path (predictors ran on every protein).
+        ids = ["a", "b", "c", "d"]
+        for n in (0, -1):
+            picked = sample_null(ids, exclude={"d"}, n=n, rng=random.Random(42))
+            assert picked == ["a", "b", "c"]
 
 
 # ---------------------------------------------------------------------------

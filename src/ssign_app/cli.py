@@ -446,7 +446,10 @@ def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
         "--skip-plm-effector",
         action=argparse.BooleanOptionalAction,
         default=None,
-        help="Skip PLM-Effector step (overrides --tier default).",
+        help=(
+            "PLM-Effector is OFF by default (it over-predicts at genome scale; "
+            "see docs). Opt in with --no-skip-plm-effector."
+        ),
     )
     g.add_argument("--plm-effector-weights-dir", default="", help="Directory with PLM-Effector weights + ProtT5 cache.")
     g.add_argument(

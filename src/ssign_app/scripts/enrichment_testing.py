@@ -87,16 +87,6 @@ def is_dse_positive(row: dict, conf: float) -> bool:
         return False
 
 
-def is_plme_positive(row: dict) -> bool:
-    """PLM-Effector called this protein a secreted effector for >=1 SS type.
-
-    Mirrors cross_validate_predictions._plm_effector_flag: the merged output's
-    ``passes_threshold`` is the OR across the five per-type ensembles. PLM-E is a
-    threshold call, not a probability, so (unlike DLP/DSE) there is no conf gate.
-    """
-    return str(row.get("passes_threshold", "0")).strip() in ("1", "True", "true")
-
-
 def load_predictions_keyed(path: str) -> dict:
     """Read a tool-output TSV indexed by locus_tag.
 
@@ -161,11 +151,14 @@ def bh_fdr(
         rows[orig_idx][sig_key] = q_adj[rank0] < alpha
 
 
-def score_scope(scope_id, ss_type, scope_kind, neigh_loci, dlp, dse, plme, p_dlp, p_dse, p_plme, conf):
-    """Build one row per tool for a given scope (system or broad_type).
+def score_scope(scope_id, ss_type, scope_kind, neigh_loci, dlp, dse, p_dlp, p_dse, conf):
+    """Build one row per tool (DLP, DSE) for a given scope (system or broad_type).
 
-    PLM-Effector is included only when ``plme`` is not None (i.e. --plme was
-    supplied and the tool ran); DLP + DSE are always emitted.
+    PLM-Effector is deliberately NOT an enrichment predictor: at genome scale it
+    calls a large fraction of the proteome positive (~25% on PAO1, recall-tuned +
+    OR-of-5-ensembles), so its background swamps any neighborhood signal and it
+    showed no reliable per-system enrichment. See the openspec change
+    enrichment-background-and-plme-default-off.
     """
     if not neigh_loci:
         return []
@@ -174,8 +167,6 @@ def score_scope(scope_id, ss_type, scope_kind, neigh_loci, dlp, dse, plme, p_dlp
         ("DLP", sum(1 for L in neigh_loci if is_dlp_positive(dlp.get(L, {}), conf)), p_dlp),
         ("DSE", sum(1 for L in neigh_loci if is_dse_positive(dse.get(L, {}), conf)), p_dse),
     ]
-    if plme is not None:
-        tools.append(("PLME", sum(1 for L in neigh_loci if is_plme_positive(plme.get(L, {}))), p_plme))
     out = []
     for tool, k, p_bg in tools:
         fold = round((k / M) / p_bg, 4) if p_bg > 0 else ""
@@ -212,7 +203,6 @@ def main():
     parser.add_argument("--gene-order", required=True)
     parser.add_argument("--dlp", required=True, help="DeepLocPro output TSV")
     parser.add_argument("--dse", required=True, help="DeepSecE output TSV")
-    parser.add_argument("--plme", default="", help="PLM-Effector merged output TSV (optional; adds a PLME test)")
     parser.add_argument("--null-ids", required=True, help="One locus_tag per line: the null sample")
     parser.add_argument("--window", type=int, default=3)
     parser.add_argument("--conf-threshold", type=float, default=0.8)
@@ -223,13 +213,6 @@ def main():
     null_ids = {line.strip() for line in open(args.null_ids) if line.strip()}
     dlp = load_predictions_keyed(args.dlp)
     dse = load_predictions_keyed(args.dse)
-    # PLM-Effector's merged output keys on `seq_id`, not `locus_tag` (both hold the protein id),
-    # so allow the seq_id/protein_id fallback when keying it (mirrors cross_validate._load_tsv_by_locus).
-    plme = (
-        load_tsv_by_key(args.plme, key_columns=("locus_tag", "protein_id", "seq_id"))
-        if args.plme and _os.path.exists(args.plme)
-        else None
-    )
 
     n_null = len(null_ids)
     p_dlp = (
@@ -238,18 +221,7 @@ def main():
     p_dse = (
         sum(1 for nid in null_ids if is_dse_positive(dse.get(nid, {}), args.conf_threshold)) / n_null if n_null else 0.0
     )
-    p_plme = (
-        sum(1 for nid in null_ids if is_plme_positive(plme.get(nid, {}))) / n_null
-        if (plme is not None and n_null)
-        else 0.0
-    )
-    logger.info(
-        "Null sample: %d proteins; p_DLP=%.4f, p_DSE=%.4f%s",
-        n_null,
-        p_dlp,
-        p_dse,
-        f", p_PLME={p_plme:.4f}" if plme is not None else " (PLME off)",
-    )
+    logger.info("Null sample: %d proteins; p_DLP=%.4f, p_DSE=%.4f", n_null, p_dlp, p_dse)
 
     systems, ss_type_of_sys = load_systems(args.ss_components)
     if not systems:
@@ -265,9 +237,7 @@ def main():
     for sys_id, components in systems.items():
         ss_type = ss_type_of_sys.get(sys_id, "")
         neigh = get_neighborhood_proteins(gene_order, components, args.window) - all_components
-        rows.extend(
-            score_scope(sys_id, ss_type, "system", neigh, dlp, dse, plme, p_dlp, p_dse, p_plme, args.conf_threshold)
-        )
+        rows.extend(score_scope(sys_id, ss_type, "system", neigh, dlp, dse, p_dlp, p_dse, args.conf_threshold))
 
     # Per-broad-type aggregates (only when there are multiple systems of
     # that broad type; otherwise the aggregate equals the single system).
@@ -279,7 +249,7 @@ def main():
             continue
         combined = set().union(*(systems[sid] for sid in sys_ids))
         neigh = get_neighborhood_proteins(gene_order, combined, args.window) - all_components
-        rows.extend(score_scope(bt, bt, "broad_type", neigh, dlp, dse, plme, p_dlp, p_dse, p_plme, args.conf_threshold))
+        rows.extend(score_scope(bt, bt, "broad_type", neigh, dlp, dse, p_dlp, p_dse, args.conf_threshold))
 
     bh_fdr(rows)
     write_rows(args.out, args.sample, rows, n_null)

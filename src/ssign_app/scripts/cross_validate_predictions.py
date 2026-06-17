@@ -157,18 +157,26 @@ def _dse_flag(dse_row: dict, has_t3ss: bool) -> tuple:
     return is_secreted, dse_type, dse_max, t3ss_flagged
 
 
-def _plm_effector_flag(plm_row: dict) -> bool:
-    """True if PLM-Effector's `passes_threshold` is set for this protein.
+def _plm_effector_flag(plm_row: dict, conf_threshold: float) -> bool:
+    """True if PLM-Effector called this protein a secreted effector AND it clears
+    the confidence gate.
 
-    PLM-Effector emits one row per protein with `passes_threshold=1`
-    if the ensemble called it a secreted effector for at least one
-    secretion-system type. The runner (Phase 3.2.d) is responsible for
-    merging the five per-type outputs into a single "secreted by at
-    least one" summary row before handing to cross_validate.
+    PLM-Effector emits one row per protein with `passes_threshold=1` if the
+    ensemble flagged it for at least one secretion-system type; the runner merges
+    the five per-type outputs into one summary row (with `max_stacking` = highest
+    stacking probability) before handing to cross_validate.
+
+    We additionally require `max_stacking >= conf_threshold` (0.8), matching the
+    DLP/DSE positivity convention. PLM-E's native per-type thresholds are all <= 0.8
+    (T6SE as low as 0.5), so the bare `passes_threshold` call is far more permissive
+    than DLP/DSE; gating at 0.8 makes the three predictors consistent and cuts the
+    genome-scale over-prediction (see openspec change
+    enrichment-background-and-plme-default-off).
     """
     if not plm_row:
         return False
-    return str(plm_row.get("passes_threshold", "0")).strip() in ("1", "True", "true")
+    passes = str(plm_row.get("passes_threshold", "0")).strip() in ("1", "True", "true")
+    return passes and _float_or_zero(plm_row.get("max_stacking", 0.0)) >= conf_threshold
 
 
 def _signalp_supports(sp_row: dict) -> tuple:
@@ -252,7 +260,7 @@ def cross_validate(
         ss_type, gene_name = ss_component_info.get(locus, ("", ""))
         dlp_secreted, ext_prob = _dlp_flag(dlp, conf_threshold, ss_type, gene_name)
         dse_secreted, dse_type, dse_max, t3ss_flagged = _dse_flag(dse, has_t3ss)
-        plm_e_secreted = _plm_effector_flag(plm_e)
+        plm_e_secreted = _plm_effector_flag(plm_e, conf_threshold)
         sp_supports, sp_pred, sp_prob = _signalp_supports(sp)
 
         evidence = []

@@ -180,7 +180,14 @@ PLME_TO_MACSYFINDER = {
 # invariant separately; not in this table.
 # Each tool listed exactly once at the tier it first becomes available.
 # The full per-tier on/off map is built below.
-_BASE_ENABLED = frozenset({"deeplocpro", "signalp", "deepsece", "plm_effector", "protparam"})
+_BASE_ENABLED = frozenset({"deeplocpro", "signalp", "deepsece", "protparam"})
+# PLM-Effector is installable at every tier but OFF by default: at genome scale it
+# over-predicts heavily (called ~25% of the PAO1 proteome; the model is validated only
+# on balanced sets, see openspec change enrichment-background-and-plme-default-off and
+# the PLM-E over-prediction memo). Opt in with --no-skip-plm-effector. Listed here (not
+# in any tier's enabled set) so the tier resolver emits a definite skip=True default
+# rather than leaving skip_plm_effector unresolved (which would default it back ON).
+_OPT_IN = frozenset({"plm_effector"})
 # HH-suite is NOT in extended because its hhblits MSA step needs UniRef30
 # (~25 GB), which only ships with --tier full. The wrapper currently
 # aborts when UniRef30 is missing rather than degrading to hhsearch-only;
@@ -196,7 +203,7 @@ _TIER_ENABLED = {
     "extended": _BASE_ENABLED | _EXTENDED_ADDS,
     "full": _BASE_ENABLED | _EXTENDED_ADDS | _FULL_ADDS,
 }
-_ALL_TOOLS = _TIER_ENABLED["full"]
+_ALL_TOOLS = _TIER_ENABLED["full"] | _OPT_IN
 
 TIER_TOOL_DEFAULTS = {tier: {tool: (tool in enabled) for tool in _ALL_TOOLS} for tier, enabled in _TIER_ENABLED.items()}
 DEFAULT_TIER = "extended"

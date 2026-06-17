@@ -36,15 +36,18 @@ logger = logging.getLogger(__name__)
 def sample_null(all_ids, exclude, n, rng):
     """Pick up to n IDs from ``all_ids - exclude``. Returns a sorted list.
 
-    Sorting the candidate pool before sampling makes the output
-    deterministic given a seed -- dict iteration order isn't guaranteed
-    to be stable across runs even with PYTHONHASHSEED, but a sorted list
-    plus a seeded RNG is.
+    ``n <= 0`` means "take the entire complement" (the exact whole-genome
+    background, used when predictors ran on every protein). Otherwise sample n;
+    if the pool is smaller than n, return the whole pool (no error).
+
+    Sorting the candidate pool before sampling makes the output deterministic
+    given a seed -- dict iteration order isn't guaranteed to be stable across
+    runs even with PYTHONHASHSEED, but a sorted list plus a seeded RNG is.
     """
     candidates = sorted(set(all_ids) - set(exclude))
     if not candidates:
         return []
-    if n >= len(candidates):
+    if n <= 0 or n >= len(candidates):
         return candidates
     return sorted(rng.sample(candidates, n))
 

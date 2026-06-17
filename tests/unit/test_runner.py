@@ -98,12 +98,25 @@ class TestPipelineConfig:
         assert c.skip_hhsuite is True
         assert c.skip_interproscan is True
         assert c.skip_plmblast is True
-        # base-tier predictors all run
+        # base-tier predictors all run, EXCEPT PLM-Effector (off by default at
+        # every tier: it over-predicts at genome scale; opt in with --no-skip-plm-effector).
         assert c.skip_deeplocpro is False
         assert c.skip_signalp is False
         assert c.skip_deepsece is False
-        assert c.skip_plm_effector is False
+        assert c.skip_plm_effector is True
         assert c.skip_protparam is False
+
+    def test_plm_effector_off_by_default_every_tier(self):
+        for tier in ("base", "extended", "full"):
+            assert PipelineConfig(tier=tier).skip_plm_effector is True, tier
+
+    def test_plm_effector_opt_in_respected(self):
+        # Explicit --no-skip-plm-effector (skip=False) must run it, overriding the default.
+        c = PipelineConfig(tier="extended", skip_plm_effector=False)
+        assert c.skip_plm_effector is False
+
+    def test_n_null_proteins_default_is_1000(self):
+        assert PipelineConfig().n_null_proteins == 1000
 
     def test_skip_flags_extended_tier_enables_annotation_tools(self):
         # At tier='extended', EggNOG / IPS / pLM-BLAST come on because
