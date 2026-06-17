@@ -84,3 +84,6 @@ CLAUDE.md
 
 # Stray pipeline outputs from interactive testing
 macsyfinder_out/
+
+# Regenerable Phase-2 enrichment-validation work dir (macsyfinder output + synth TSVs)
+validation_sweeps/benchmark/analysis/**/phase2_work/
