@@ -1,0 +1,191 @@
+{
+  "_meta": {
+    "fit_date": "2026-06-17",
+    "guards": {
+      "loo_pct_lowconf": 30.0,
+      "min_points": 3,
+      "spread_min": 0.25
+    },
+    "n_clean_points": 193,
+    "n_cpu_runs_excluded": 3,
+    "n_raw_rows": 351,
+    "reference_machine": "CX3-A40",
+    "units": "reference-machine seconds; effort = a*size + b"
+  },
+  "models": {
+    "bakta": {
+      "fixed": {
+        "a": 0.003358,
+        "b": 139.335,
+        "loo_med_abs_s": 35.4,
+        "loo_med_pct": 27.9,
+        "low_confidence": false,
+        "method": "linear",
+        "n": 20,
+        "size_max": 5680,
+        "size_min": 3588
+      }
+    },
+    "deeplocpro": {
+      "neighborhood": {
+        "a": 0.072373,
+        "b": 70.889,
+        "loo_med_abs_s": 4.6,
+        "loo_med_pct": 6.0,
+        "low_confidence": false,
+        "method": "linear",
+        "n": 17,
+        "size_max": 291,
+        "size_min": 128
+      },
+      "whole_genome": {
+        "a": 0.0,
+        "b": 96.667,
+        "loo_med_abs_s": 14.5,
+        "loo_med_pct": 16.7,
+        "low_confidence": true,
+        "method": "mean",
+        "n": 3,
+        "size_max": 4314,
+        "size_min": 4290
+      }
+    },
+    "deepsece": {
+      "neighborhood": {
+        "a": 0.047795,
+        "b": 36.337,
+        "loo_med_abs_s": 3.8,
+        "loo_med_pct": 9.0,
+        "low_confidence": false,
+        "method": "linear",
+        "n": 17,
+        "size_max": 291,
+        "size_min": 128
+      },
+      "whole_genome": {
+        "a": 0.0,
+        "b": 49.0,
+        "loo_med_abs_s": 12.0,
+        "loo_med_pct": 29.3,
+        "low_confidence": true,
+        "method": "mean",
+        "n": 3,
+        "size_max": 4314,
+        "size_min": 4290
+      }
+    },
+    "eggnog": {
+      "substrates": {
+        "a": 13.122406,
+        "b": 1340.094,
+        "loo_med_abs_s": 1137.1,
+        "loo_med_pct": 86.2,
+        "low_confidence": true,
+        "method": "linear",
+        "n": 24,
+        "size_max": 93,
+        "size_min": 0
+      }
+    },
+    "interproscan": {
+      "substrates": {
+        "a": 2.970384,
+        "b": 709.015,
+        "loo_med_abs_s": 244.7,
+        "loo_med_pct": 29.9,
+        "low_confidence": false,
+        "method": "linear",
+        "n": 29,
+        "size_max": 93,
+        "size_min": 1
+      }
+    },
+    "macsyfinder": {
+      "fixed": {
+        "a": 0.0,
+        "b": 20.4,
+        "loo_med_abs_s": 5.2,
+        "loo_med_pct": 28.9,
+        "low_confidence": false,
+        "method": "mean",
+        "n": 20,
+        "size_max": 5680,
+        "size_min": 3588
+      }
+    },
+    "plm_blast": {
+      "substrates": {
+        "a": 43.112257,
+        "b": 857.533,
+        "loo_med_abs_s": 194.3,
+        "loo_med_pct": 16.0,
+        "low_confidence": false,
+        "method": "linear",
+        "n": 14,
+        "size_max": 92,
+        "size_min": 0
+      }
+    },
+    "plm_effector": {
+      "neighborhood": {
+        "a": 1.794323,
+        "b": 387.938,
+        "loo_med_abs_s": 55.5,
+        "loo_med_pct": 8.3,
+        "low_confidence": false,
+        "method": "linear",
+        "n": 16,
+        "size_max": 291,
+        "size_min": 128
+      },
+      "whole_genome": {
+        "a": 0.0,
+        "b": 1533.0,
+        "loo_med_abs_s": null,
+        "loo_med_pct": null,
+        "low_confidence": true,
+        "method": "mean",
+        "n": 2,
+        "size_max": 4314,
+        "size_min": 4314
+      }
+    },
+    "protparam": {
+      "substrates": {
+        "a": 0.0,
+        "b": 0.125,
+        "loo_med_abs_s": null,
+        "loo_med_pct": null,
+        "low_confidence": false,
+        "method": "negligible",
+        "n": 8,
+        "size_max": 17,
+        "size_min": 0
+      }
+    },
+    "signalp": {
+      "neighborhood": {
+        "a": 0.404535,
+        "b": 46.129,
+        "loo_med_abs_s": 13.3,
+        "loo_med_pct": 12.3,
+        "low_confidence": false,
+        "method": "linear",
+        "n": 17,
+        "size_max": 291,
+        "size_min": 128
+      },
+      "whole_genome": {
+        "a": 0.0,
+        "b": 118.333,
+        "loo_med_abs_s": 41.0,
+        "loo_med_pct": 37.7,
+        "low_confidence": true,
+        "method": "mean",
+        "n": 3,
+        "size_max": 4314,
+        "size_min": 4290
+      }
+    }
+  }
+}
