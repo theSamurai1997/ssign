@@ -6,9 +6,9 @@
       "min_points": 3,
       "spread_min": 0.25
     },
-    "n_clean_points": 193,
+    "n_clean_points": 203,
     "n_cpu_runs_excluded": 3,
-    "n_raw_rows": 351,
+    "n_raw_rows": 362,
     "reference_machine": "CX3-A40",
     "units": "reference-machine seconds; effort = a*size + b"
   },
@@ -40,13 +40,13 @@
       },
       "whole_genome": {
         "a": 0.0,
-        "b": 96.667,
-        "loo_med_abs_s": 14.5,
-        "loo_med_pct": 16.7,
+        "b": 261.5,
+        "loo_med_abs_s": 231.3,
+        "loo_med_pct": 215.5,
         "low_confidence": true,
         "method": "mean",
-        "n": 3,
-        "size_max": 4314,
+        "n": 4,
+        "size_max": 5572,
         "size_min": 4290
       }
     },
@@ -64,38 +64,51 @@
       },
       "whole_genome": {
         "a": 0.0,
-        "b": 49.0,
-        "loo_med_abs_s": 12.0,
-        "loo_med_pct": 29.3,
+        "b": 204.0,
+        "loo_med_abs_s": 215.3,
+        "loo_med_pct": 395.1,
         "low_confidence": true,
         "method": "mean",
-        "n": 3,
-        "size_max": 4314,
+        "n": 4,
+        "size_max": 5572,
         "size_min": 4290
       }
     },
     "eggnog": {
       "substrates": {
-        "a": 13.122406,
-        "b": 1340.094,
-        "loo_med_abs_s": 1137.1,
-        "loo_med_pct": 86.2,
+        "a": 9.593002,
+        "b": 1370.352,
+        "loo_med_abs_s": 1149.1,
+        "loo_med_pct": 95.4,
         "low_confidence": true,
         "method": "linear",
-        "n": 24,
+        "n": 25,
         "size_max": 93,
         "size_min": 0
       }
     },
+    "extract_proteins": {
+      "fixed": {
+        "a": 0.0,
+        "b": 3.0,
+        "loo_med_abs_s": null,
+        "loo_med_pct": null,
+        "low_confidence": false,
+        "method": "negligible",
+        "n": 1,
+        "size_max": 5572,
+        "size_min": 5572
+      }
+    },
     "interproscan": {
       "substrates": {
-        "a": 2.970384,
-        "b": 709.015,
-        "loo_med_abs_s": 244.7,
-        "loo_med_pct": 29.9,
+        "a": 3.619896,
+        "b": 702.299,
+        "loo_med_abs_s": 256.6,
+        "loo_med_pct": 27.9,
         "low_confidence": false,
         "method": "linear",
-        "n": 29,
+        "n": 30,
         "size_max": 93,
         "size_min": 1
       }
@@ -103,25 +116,25 @@
     "macsyfinder": {
       "fixed": {
         "a": 0.0,
-        "b": 20.4,
-        "loo_med_abs_s": 5.2,
-        "loo_med_pct": 28.9,
+        "b": 20.333,
+        "loo_med_abs_s": 4.6,
+        "loo_med_pct": 28.4,
         "low_confidence": false,
         "method": "mean",
-        "n": 20,
+        "n": 21,
         "size_max": 5680,
         "size_min": 3588
       }
     },
     "plm_blast": {
       "substrates": {
-        "a": 43.112257,
-        "b": 857.533,
-        "loo_med_abs_s": 194.3,
-        "loo_med_pct": 16.0,
+        "a": 37.60133,
+        "b": 905.209,
+        "loo_med_abs_s": 253.0,
+        "loo_med_pct": 13.5,
         "low_confidence": false,
         "method": "linear",
-        "n": 14,
+        "n": 15,
         "size_max": 92,
         "size_min": 0
       }
@@ -140,26 +153,26 @@
       },
       "whole_genome": {
         "a": 0.0,
-        "b": 1533.0,
-        "loo_med_abs_s": null,
-        "loo_med_pct": null,
+        "b": 4495.333,
+        "loo_med_abs_s": 5736.5,
+        "loo_med_pct": 131.5,
         "low_confidence": true,
         "method": "mean",
-        "n": 2,
-        "size_max": 4314,
+        "n": 3,
+        "size_max": 5572,
         "size_min": 4314
       }
     },
     "protparam": {
       "substrates": {
         "a": 0.0,
-        "b": 0.125,
+        "b": 0.111,
         "loo_med_abs_s": null,
         "loo_med_pct": null,
         "low_confidence": false,
         "method": "negligible",
-        "n": 8,
-        "size_max": 17,
+        "n": 9,
+        "size_max": 68,
         "size_min": 0
       }
     },
@@ -177,13 +190,13 @@
       },
       "whole_genome": {
         "a": 0.0,
-        "b": 118.333,
-        "loo_med_abs_s": 41.0,
-        "loo_med_pct": 37.7,
+        "b": 758.25,
+        "loo_med_abs_s": 879.7,
+        "loo_med_pct": 663.5,
         "low_confidence": true,
         "method": "mean",
-        "n": 3,
-        "size_max": 4314,
+        "n": 4,
+        "size_max": 5572,
         "size_min": 4290
       }
     }
