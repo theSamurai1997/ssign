@@ -1,6 +1,6 @@
 #!/bin/bash
 # Submit plan for the 2026-06-16 "full" panel run:
-#   T3SS ON + whole-genome DLP/DSE/SignalP/PLM-E + enrichment stats + tier-2 annotation
+#   T3SS ON + whole-genome DLP/DSE/PLM-E (SignalP neighborhood only) + enrichment stats + tier-2 annotation
 #   (InterProScan, EggNOG, pLM-BLAST, ProtParam). BLASTp + HH-suite are tier-full, left OFF.
 #
 # gpu72: explicit gpu_type=RTX6000 is mandatory (else "Placement set too small", queues forever).

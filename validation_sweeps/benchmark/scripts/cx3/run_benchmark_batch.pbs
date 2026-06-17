@@ -8,9 +8,12 @@
 #
 # RECALL knobs default to the original (annotation OFF) panel config so prior runs stay
 # reproducible. The 2026-06-16 "full" run opts in via -v:
-#   WHOLE_GENOME=1 : run DeepLocPro/DeepSecE/SignalP/PLM-Effector on EVERY protein, not just the
-#                    +/-3 SS neighborhood (gives the true genome-wide background rate for the
-#                    enrichment-stats validation). Much heavier (ProtT5/ESM over the full proteome).
+#   WHOLE_GENOME=1 : run DeepLocPro/DeepSecE/PLM-Effector on EVERY protein, not just the +/-3 SS
+#                    neighborhood (gives the true genome-wide background rate for the three
+#                    enrichment-stats predictors). Much heavier (ProtT5/ESM over the full proteome).
+#                    SignalP is NOT included: it is not an enrichment predictor and is the slowest
+#                    whole-genome step (~45m vs ~12m for DLP/DSE on PAO1), so it buys nothing here.
+#   SP_WHOLE_GENOME=1 : additionally run SignalP whole-genome (opt-in; off even when WHOLE_GENOME=1).
 #   ENRICH=1       : --enrichment-stats (samples a null set + per-system binomial tests). The
 #                    "proposed in-run stats" to compare against the whole-genome ground truth.
 #   ANNOT=1        : turn ON the extended annotation tools (InterProScan, EggNOG, pLM-BLAST,
@@ -30,6 +33,7 @@
 #   INPUT_MODE  : genbank | fasta              (default genbank)
 #   INCLUDE_T3SS: 0 | 1                         (default 0 = stock exclusion; 1 = include T3SS)
 #   WHOLE_GENOME: 0 | 1                         (default 0)
+#   SP_WHOLE_GENOME: 0 | 1                      (default 0; SignalP whole-genome, opt-in even if WHOLE_GENOME=1)
 #   ENRICH      : 0 | 1                         (default 0)
 #   ANNOT       : 0 | 1                         (default 0 = annotation skipped)
 #   RUN_TAG     : output subdir tag            (default = INPUT_MODE)
@@ -66,6 +70,7 @@ set -eo pipefail
 : "${INPUT_MODE:=genbank}"
 : "${INCLUDE_T3SS:=0}"
 : "${WHOLE_GENOME:=0}"
+: "${SP_WHOLE_GENOME:=0}"
 : "${ENRICH:=0}"
 : "${ANNOT:=0}"
 # EXCLUDED carries a space ("Flagellum Tad ..."), which cannot pass cleanly through
@@ -91,7 +96,8 @@ esac
 
 # Build the recall + annotation flag set from the knobs.
 EXTRA_FLAGS=()
-[ "$WHOLE_GENOME" = "1" ] && EXTRA_FLAGS+=(--dlp-whole-genome --dse-whole-genome --sp-whole-genome --plme-whole-genome)
+[ "$WHOLE_GENOME" = "1" ] && EXTRA_FLAGS+=(--dlp-whole-genome --dse-whole-genome --plme-whole-genome)
+[ "$SP_WHOLE_GENOME" = "1" ] && EXTRA_FLAGS+=(--sp-whole-genome)
 [ "$ENRICH" = "1" ] && EXTRA_FLAGS+=(--enrichment-stats)
 if [ "$ANNOT" = "1" ]; then
     # tier=extended already defaults these ON; pass --no-skip explicitly so the intent is on the
@@ -112,7 +118,7 @@ echo "===== BENCHMARK BATCH START $(date -Is) | $(hostname) | $PBS_JOBID ====="
 echo "  batch       : $BATCH_FILE (${#UNITS[@]} genomes)"
 echo "  input mode  : $INPUT_MODE  (dir $IN_DIR)"
 echo "  excluded SS : $EXCLUDED"
-echo "  whole-genome: $WHOLE_GENOME | enrichment: $ENRICH | annotation: $ANNOT"
+echo "  whole-genome: $WHOLE_GENOME (signalp-wg: $SP_WHOLE_GENOME) | enrichment: $ENRICH | annotation: $ANNOT"
 echo "  run tag     : $RUN_TAG  ->  $RUN_ROOT"
 echo "  DB root     : $SSIGN_DB"
 echo
