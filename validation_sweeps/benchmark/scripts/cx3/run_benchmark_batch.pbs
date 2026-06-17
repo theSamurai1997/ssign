@@ -8,11 +8,12 @@
 #
 # RECALL knobs default to the original (annotation OFF) panel config so prior runs stay
 # reproducible. The 2026-06-16 "full" run opts in via -v:
-#   WHOLE_GENOME=1 : run DeepLocPro/DeepSecE/PLM-Effector on EVERY protein, not just the +/-3 SS
-#                    neighborhood (gives the true genome-wide background rate for the three
-#                    enrichment-stats predictors). Much heavier (ProtT5/ESM over the full proteome).
-#                    SignalP is NOT included: it is not an enrichment predictor and is the slowest
-#                    whole-genome step (~45m vs ~12m for DLP/DSE on PAO1), so it buys nothing here.
+#   WHOLE_GENOME=1 : run DeepLocPro/DeepSecE on EVERY protein, not just the +/-3 SS neighborhood
+#                    (gives the true genome-wide background rate for the two enrichment-stats
+#                    predictors). Heavier (ESM over the full proteome) but ~1.5h/genome.
+#                    SignalP is NOT included: not an enrichment predictor, slowest whole-genome step.
+#                    PLM-Effector is NOT included and is skipped fleet-wide: it over-predicts (~25%
+#                    of the proteome) and was dropped from the enrichment test.
 #   SP_WHOLE_GENOME=1 : additionally run SignalP whole-genome (opt-in; off even when WHOLE_GENOME=1).
 #   ENRICH=1       : --enrichment-stats (samples a null set + per-system binomial tests). The
 #                    "proposed in-run stats" to compare against the whole-genome ground truth.
@@ -96,8 +97,11 @@ esac
 
 # Build the recall + annotation flag set from the knobs.
 EXTRA_FLAGS=()
-[ "$WHOLE_GENOME" = "1" ] && EXTRA_FLAGS+=(--dlp-whole-genome --dse-whole-genome --plme-whole-genome)
+[ "$WHOLE_GENOME" = "1" ] && EXTRA_FLAGS+=(--dlp-whole-genome --dse-whole-genome)
 [ "$SP_WHOLE_GENOME" = "1" ] && EXTRA_FLAGS+=(--sp-whole-genome)
+# PLM-Effector off fleet-wide: it over-predicts (~25% of the proteome), is dropped from
+# the enrichment test, and is not needed by this fleet. Explicit so it can't run by default.
+EXTRA_FLAGS+=(--skip-plm-effector)
 [ "$ENRICH" = "1" ] && EXTRA_FLAGS+=(--enrichment-stats)
 if [ "$ANNOT" = "1" ]; then
     # tier=extended already defaults these ON; pass --no-skip explicitly so the intent is on the
