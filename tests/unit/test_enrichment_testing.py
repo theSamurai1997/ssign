@@ -176,10 +176,21 @@ class TestScoreScope:
         neigh = {"P1", "P2", "P3", "P4", "P5"}
         dlp = {p: {"dlp_extracellular_prob": "0.95"} for p in neigh}
         dse = {p: {"dse_ss_type": "T2SS", "dse_max_prob": "0.95"} for p in neigh}
-        out = score_scope("sys_1", "T2SS", "system", neigh, dlp, dse, p_dlp=0.1, p_dse=0.1, conf=0.8)
+        out = score_scope("sys_1", "T2SS", "system", neigh, dlp, dse, None, p_dlp=0.1, p_dse=0.1, p_plme=0.0, conf=0.8)
         assert {r["tool"] for r in out} == {"DLP", "DSE"}
         assert all(r["M"] == 5 for r in out)
         assert all(r["k"] == 5 for r in out)
+
+    def test_plme_adds_third_tool_row(self):
+        neigh = {"P1", "P2", "P3", "P4"}
+        dlp = {p: {"dlp_extracellular_prob": "0.95"} for p in neigh}
+        dse = {p: {"dse_ss_type": "T2SS", "dse_max_prob": "0.95"} for p in neigh}
+        # 3 of 4 pass the PLM-Effector threshold
+        plme = {"P1": {"passes_threshold": "1"}, "P2": {"passes_threshold": "1"}, "P3": {"passes_threshold": "True"}}
+        out = score_scope("sys_1", "T2SS", "system", neigh, dlp, dse, plme, p_dlp=0.1, p_dse=0.1, p_plme=0.1, conf=0.8)
+        assert {r["tool"] for r in out} == {"DLP", "DSE", "PLME"}
+        plme_row = next(r for r in out if r["tool"] == "PLME")
+        assert plme_row["k"] == 3 and plme_row["M"] == 4
 
     def test_fold_enrich_empty_when_p_bg_zero(self):
         neigh = {"P1"}
@@ -190,14 +201,16 @@ class TestScoreScope:
             neigh,
             dlp={"P1": {"dlp_extracellular_prob": "0.95"}},
             dse={"P1": {"dse_ss_type": "T2SS", "dse_max_prob": "0.95"}},
+            plme=None,
             p_dlp=0.0,
             p_dse=0.0,
+            p_plme=0.0,
             conf=0.8,
         )
         assert all(r["fold_enrich"] == "" for r in out)
 
     def test_empty_neighborhood_returns_no_rows(self):
-        out = score_scope("sys_1", "T2SS", "system", set(), {}, {}, p_dlp=0.1, p_dse=0.1, conf=0.8)
+        out = score_scope("sys_1", "T2SS", "system", set(), {}, {}, None, p_dlp=0.1, p_dse=0.1, p_plme=0.1, conf=0.8)
         assert out == []
 
 

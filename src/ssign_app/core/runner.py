@@ -2730,29 +2730,32 @@ class PipelineRunner:
                 return StepResult("enrichment", False, f"Missing upstream file for enrichment: {name}")
 
         out = self._wf(f"{self.config.sample_id}_enrichment_stats.tsv")
-        rc, _stdout, stderr = run_script(
-            "enrichment_testing.py",
-            [
-                "--ss-components",
-                ss_components,
-                "--gene-order",
-                gene_order,
-                "--dlp",
-                dlp,
-                "--dse",
-                dse,
-                "--null-ids",
-                null_ids,
-                "--window",
-                str(self.config.proximity_window),
-                "--conf-threshold",
-                str(self.config.conf_threshold),
-                "--sample",
-                self.config.sample_id,
-                "--out",
-                out,
-            ],
-        )
+        enr_args = [
+            "--ss-components",
+            ss_components,
+            "--gene-order",
+            gene_order,
+            "--dlp",
+            dlp,
+            "--dse",
+            dse,
+            "--null-ids",
+            null_ids,
+            "--window",
+            str(self.config.proximity_window),
+            "--conf-threshold",
+            str(self.config.conf_threshold),
+            "--sample",
+            self.config.sample_id,
+            "--out",
+            out,
+        ]
+        # PLM-Effector is the third secreted-protein predictor; include it in the test when it ran
+        # (it's tier/skip-dependent, so stays optional — DLP+DSE alone still produce a valid result).
+        plme = self.files.get("plm_effector", "")
+        if plme and os.path.exists(plme):
+            enr_args += ["--plme", plme]
+        rc, _stdout, stderr = run_script("enrichment_testing.py", enr_args)
 
         if rc == 0:
             self.files["enrichment_stats"] = out
