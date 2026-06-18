@@ -1,14 +1,14 @@
 {
   "_meta": {
-    "fit_date": "2026-06-17",
+    "fit_date": "2026-06-18",
     "guards": {
       "loo_pct_lowconf": 30.0,
       "min_points": 3,
       "spread_min": 0.25
     },
-    "n_clean_points": 203,
+    "n_clean_points": 734,
     "n_cpu_runs_excluded": 3,
-    "n_raw_rows": 362,
+    "n_raw_rows": 893,
     "reference_machine": "CX3-A40",
     "units": "reference-machine seconds; effort = a*size + b"
   },
@@ -39,15 +39,15 @@
         "size_min": 128
       },
       "whole_genome": {
-        "a": 0.0,
-        "b": 261.5,
-        "loo_med_abs_s": 231.3,
-        "loo_med_pct": 215.5,
-        "low_confidence": true,
-        "method": "mean",
-        "n": 4,
-        "size_max": 5572,
-        "size_min": 4290
+        "a": 0.121425,
+        "b": 28.914,
+        "loo_med_abs_s": 25.2,
+        "loo_med_pct": 7.0,
+        "low_confidence": false,
+        "method": "linear",
+        "n": 71,
+        "size_max": 6018,
+        "size_min": 2
       }
     },
     "deepsece": {
@@ -63,78 +63,78 @@
         "size_min": 128
       },
       "whole_genome": {
-        "a": 0.0,
-        "b": 204.0,
-        "loo_med_abs_s": 215.3,
-        "loo_med_pct": 395.1,
-        "low_confidence": true,
-        "method": "mean",
-        "n": 4,
-        "size_max": 5572,
-        "size_min": 4290
+        "a": 0.111138,
+        "b": 11.729,
+        "loo_med_abs_s": 19.7,
+        "loo_med_pct": 6.5,
+        "low_confidence": false,
+        "method": "linear",
+        "n": 71,
+        "size_max": 6018,
+        "size_min": 2
       }
     },
     "eggnog": {
       "substrates": {
-        "a": 9.593002,
-        "b": 1370.352,
-        "loo_med_abs_s": 1149.1,
-        "loo_med_pct": 95.4,
+        "a": 19.261614,
+        "b": 320.939,
+        "loo_med_abs_s": 436.8,
+        "loo_med_pct": 137.5,
         "low_confidence": true,
         "method": "linear",
-        "n": 25,
+        "n": 74,
         "size_max": 93,
         "size_min": 0
       }
     },
     "extract_proteins": {
       "fixed": {
-        "a": 0.0,
-        "b": 3.0,
-        "loo_med_abs_s": null,
-        "loo_med_pct": null,
-        "low_confidence": false,
-        "method": "negligible",
-        "n": 1,
-        "size_max": 5572,
-        "size_min": 5572
+        "a": 0.000293,
+        "b": 1.263,
+        "loo_med_abs_s": 0.7,
+        "loo_med_pct": 75.7,
+        "low_confidence": true,
+        "method": "linear",
+        "n": 68,
+        "size_max": 6018,
+        "size_min": 2
       }
     },
     "interproscan": {
       "substrates": {
-        "a": 3.619896,
-        "b": 702.299,
-        "loo_med_abs_s": 256.6,
-        "loo_med_pct": 27.9,
-        "low_confidence": false,
+        "a": 6.44957,
+        "b": 404.829,
+        "loo_med_abs_s": 232.2,
+        "loo_med_pct": 53.5,
+        "low_confidence": true,
         "method": "linear",
-        "n": 30,
+        "n": 79,
         "size_max": 93,
         "size_min": 1
       }
     },
     "macsyfinder": {
       "fixed": {
-        "a": 0.0,
-        "b": 20.333,
-        "loo_med_abs_s": 4.6,
-        "loo_med_pct": 28.4,
+        "a": 0.002236,
+        "b": 8.374,
+        "loo_med_abs_s": 4.2,
+        "loo_med_pct": 20.5,
         "low_confidence": false,
-        "method": "mean",
-        "n": 21,
-        "size_max": 5680,
-        "size_min": 3588
+        "method": "linear",
+        "n": 88,
+        "size_max": 6018,
+        "size_min": 2
       }
     },
     "plm_blast": {
       "substrates": {
-        "a": 37.60133,
-        "b": 905.209,
-        "loo_med_abs_s": 253.0,
-        "loo_med_pct": 13.5,
-        "low_confidence": false,
+        "a": 38.399931,
+        "b": 334.361,
+        "loo_med_abs_s": 245.2,
+        "loo_med_pct": 37.1,
+        "low_confidence": true,
         "method": "linear",
-        "n": 15,
+        "n": 64,
         "size_max": 92,
         "size_min": 0
       }
@@ -166,27 +166,27 @@
     "protparam": {
       "substrates": {
         "a": 0.0,
-        "b": 0.111,
+        "b": 0.034,
         "loo_med_abs_s": null,
         "loo_med_pct": null,
         "low_confidence": false,
         "method": "negligible",
-        "n": 9,
+        "n": 58,
         "size_max": 68,
         "size_min": 0
       }
     },
     "signalp": {
       "neighborhood": {
-        "a": 0.404535,
-        "b": 46.129,
-        "loo_med_abs_s": 13.3,
-        "loo_med_pct": 12.3,
+        "a": 0.622946,
+        "b": 33.108,
+        "loo_med_abs_s": 21.9,
+        "loo_med_pct": 15.5,
         "low_confidence": false,
         "method": "linear",
-        "n": 17,
-        "size_max": 291,
-        "size_min": 128
+        "n": 84,
+        "size_max": 411,
+        "size_min": 0
       },
       "whole_genome": {
         "a": 0.0,
