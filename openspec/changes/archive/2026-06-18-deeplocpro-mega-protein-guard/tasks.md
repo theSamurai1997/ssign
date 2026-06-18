@@ -20,5 +20,5 @@
 ## 4. Validate
 
 - [x] 4.1 Run the unit suite (`pytest tests/unit/ -v`) green
-- [ ] 4.2 Rerun BX470251 on CX3 (ephemeral, since home FS is ENOSPC) and confirm DeepLocPro completes, the genome reaches 24/24, and plu2670 shows as skipped → fleet at 67/67
+- [x] 4.2 Rerun BX470251 on CX3 — DeepLocPro completed, genome reached 24/24 (25 secreted proteins), plu2670 (16367 aa) + plu3123 (5457 aa) emitted as "Not predicted (too long)" → fleet at 67/67
 - [x] 4.3 Note in NOTES.md that the mega-protein guard is shipped; clear the deferred item
