@@ -17,12 +17,15 @@ DTU install and are exercised by tests/integration/test_run_deeplocpro_integrati
 import os
 
 import pytest
-from _helpers import write_tsv
+from _helpers import read_tsv_rows, run_script_main, write_tsv
 from run_deeplocpro import (
+    OUTPUT_FIELDNAMES,
+    _skipped_localization_row,
     _split_fasta_bytes,
     _use_cuda_for_deeplocpro,
     find_output_file,
     parse_deeplocpro_output,
+    partition_by_length,
 )
 
 # ---------------------------------------------------------------------------
@@ -332,3 +335,145 @@ class TestUseCudaForDeeplocpro:
         monkeypatch.delenv("SSIGN_DEEPLOCPRO_FORCE_CPU", raising=False)
         monkeypatch.setattr(builtins, "__import__", fake_import)
         assert _use_cuda_for_deeplocpro() is False
+
+
+# ---------------------------------------------------------------------------
+# Mega-protein length guard (partition + sentinel + main wiring)
+# ---------------------------------------------------------------------------
+
+
+class TestPartitionByLength:
+    """Withhold over-length proteins (e.g. the 16,367-aa kolossin) that OOM DLP."""
+
+    def test_boundary_equal_is_kept(self):
+        kept, skipped = partition_by_length({"a": "M" * 10}, 10)
+        assert kept == {"a": "M" * 10}
+        assert skipped == []
+
+    def test_strictly_longer_is_skipped(self):
+        kept, skipped = partition_by_length({"a": "M" * 11}, 10)
+        assert kept == {}
+        assert skipped == [("a", 11)]
+
+    def test_mixed_input_splits(self):
+        seqs = {"short": "M" * 5, "mega": "M" * 100}
+        kept, skipped = partition_by_length(seqs, 10)
+        assert kept == {"short": "M" * 5}
+        assert skipped == [("mega", 100)]
+
+    def test_all_short_passthrough(self):
+        seqs = {"a": "MM", "b": "MMM"}
+        kept, skipped = partition_by_length(seqs, 10)
+        assert kept == seqs
+        assert skipped == []
+
+    def test_empty_input(self):
+        assert partition_by_length({}, 10) == ({}, [])
+
+
+class TestSkippedLocalizationRow:
+    def test_schema_and_zero_probs(self):
+        row = _skipped_localization_row("plu2670", 16367, 5000)
+        assert set(row) == set(OUTPUT_FIELDNAMES)
+        assert row["locus_tag"] == "plu2670"
+        assert row["predicted_localization"] == "Not predicted (too long)"
+        for col in (
+            "extracellular_prob",
+            "periplasmic_prob",
+            "outer_membrane_prob",
+            "cytoplasmic_prob",
+            "cytoplasmic_membrane_prob",
+        ):
+            assert row[col] == 0.0
+        assert "5000" in row["product"]
+
+
+class TestMainLengthGuard:
+    """main() must withhold over-length proteins from the model and re-attach
+    them as not-predicted rows. The DeepLocPro binary is never invoked: we
+    monkeypatch run_local_deeplocpro to emit a known native CSV for whatever
+    it is handed, and assert on what it was (not) handed."""
+
+    def _write_input(self, tmp_dir, short_len, mega_len):
+        path = os.path.join(tmp_dir, "in.faa")
+        with open(path, "w") as f:
+            f.write(">short\n" + "M" * short_len + "\n")
+            f.write(">mega\n" + "A" * mega_len + "\n")
+        return path
+
+    def _fake_local(self, seen):
+        import run_deeplocpro as rdp
+
+        def fake(input_fasta, deeplocpro_path, output_dir, organism="gram-"):
+            seen["ids"] = list(rdp.read_fasta(input_fasta).keys())
+            res = os.path.join(output_dir, "results.csv")
+            with open(res, "w") as fh:
+                fh.write("ACC,Extracellular,Periplasmic,Outer Membrane,Cytoplasmic,Cytoplasmic Membrane\n")
+                for pid in seen["ids"]:
+                    fh.write(f"{pid},0.9,0.03,0.03,0.02,0.02\n")
+            return res
+
+        return fake
+
+    def test_over_length_excluded_from_model_and_present_as_skipped(self, tmp_dir, monkeypatch):
+        import run_deeplocpro as rdp
+
+        monkeypatch.setattr(rdp, "DEEPLOCPRO_MAX_AA", 10)
+        inp = self._write_input(tmp_dir, short_len=7, mega_len=50)
+        out = os.path.join(tmp_dir, "dlp.tsv")
+        seen = {}
+        monkeypatch.setattr(rdp, "run_local_deeplocpro", self._fake_local(seen))
+
+        run_script_main(
+            monkeypatch,
+            rdp.main,
+            ["run_deeplocpro.py", "--input", inp, "--sample", "S", "--mode", "local", "--output", out],
+        )
+
+        # The model only ever saw the short protein.
+        assert seen["ids"] == ["short"]
+        rows = {r["locus_tag"]: r for r in read_tsv_rows(out)}
+        assert set(rows) == {"short", "mega"}
+        assert rows["short"]["predicted_localization"] == "Extracellular"
+        assert rows["mega"]["predicted_localization"] == "Not predicted (too long)"
+        assert float(rows["mega"]["extracellular_prob"]) == 0.0
+
+    def test_all_skipped_never_invokes_model(self, tmp_dir, monkeypatch):
+        import run_deeplocpro as rdp
+
+        monkeypatch.setattr(rdp, "DEEPLOCPRO_MAX_AA", 5)
+        inp = self._write_input(tmp_dir, short_len=50, mega_len=50)  # both > 5
+        out = os.path.join(tmp_dir, "dlp.tsv")
+        called = {"n": 0}
+
+        def boom(*a, **k):
+            called["n"] += 1
+            raise AssertionError("DeepLocPro must not run when every protein is skipped")
+
+        monkeypatch.setattr(rdp, "run_local_deeplocpro", boom)
+        run_script_main(
+            monkeypatch,
+            rdp.main,
+            ["run_deeplocpro.py", "--input", inp, "--sample", "S", "--mode", "local", "--output", out],
+        )
+        assert called["n"] == 0
+        rows = {r["locus_tag"]: r for r in read_tsv_rows(out)}
+        assert set(rows) == {"short", "mega"}
+        assert all(r["predicted_localization"] == "Not predicted (too long)" for r in rows.values())
+
+    def test_nothing_skipped_all_passed_through(self, tmp_dir, monkeypatch):
+        import run_deeplocpro as rdp
+
+        monkeypatch.setattr(rdp, "DEEPLOCPRO_MAX_AA", 5000)
+        inp = self._write_input(tmp_dir, short_len=7, mega_len=50)  # both <= 5000
+        out = os.path.join(tmp_dir, "dlp.tsv")
+        seen = {}
+        monkeypatch.setattr(rdp, "run_local_deeplocpro", self._fake_local(seen))
+        run_script_main(
+            monkeypatch,
+            rdp.main,
+            ["run_deeplocpro.py", "--input", inp, "--sample", "S", "--mode", "local", "--output", out],
+        )
+        assert sorted(seen["ids"]) == ["mega", "short"]
+        rows = {r["locus_tag"]: r for r in read_tsv_rows(out)}
+        assert all(r["predicted_localization"] == "Extracellular" for r in rows.values())

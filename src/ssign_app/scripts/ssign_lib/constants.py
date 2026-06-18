@@ -5,8 +5,19 @@ have sensible defaults when run standalone and (b) the Nextflow params
 override them at invocation time via CLI arguments.
 """
 
+import os
+
 # --- DeepLocPro ---
 CONF_THRESHOLD = 0.8  # Minimum extracellular probability
+
+# Max protein length DeepLocPro will be asked to embed. Its ESM-style transformer
+# has ~O(L^2) attention memory, so a single mega-protein OOMs the GPU and, since
+# DeepLocPro is a core step, crashes the whole genome. The motivating case:
+# plu2670 / kolossin synthetase = 16,367 aa, the largest known prokaryotic protein
+# (UniProt Q7N3P5). Sequences longer than this are withheld from the model and
+# marked "not predicted" — they are cytoplasmic NRPS/PKS megasynthases and giant
+# assembly lines, not secretion substrates. Override with SSIGN_DEEPLOCPRO_MAX_AA.
+DEEPLOCPRO_MAX_AA = int(os.environ.get("SSIGN_DEEPLOCPRO_MAX_AA", "5000"))
 
 # --- MacSyFinder ---
 WHOLENESS_THRESHOLD = 0.8  # Minimum system completeness

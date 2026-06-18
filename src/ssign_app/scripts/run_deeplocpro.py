@@ -33,14 +33,63 @@ _scripts_dir = os.path.dirname(os.path.abspath(__file__))
 if _scripts_dir not in sys.path:
     sys.path.insert(0, _scripts_dir)
 from ssign_lib.constants import (  # noqa: E402
+    DEEPLOCPRO_MAX_AA,
     DTU_API_DOWNLOAD_TIMEOUT_S,
     DTU_API_STATUS_TIMEOUT_S,
     DTU_API_SUBMIT_TIMEOUT_S,
     TOOL_TIMEOUT_S,
 )
-from ssign_lib.fasta_io import count_sequences  # noqa: E402  # used in run_local + remote paths
+from ssign_lib.fasta_io import count_sequences, read_fasta, write_fasta  # noqa: E402
 from ssign_lib.retry import retry_with_backoff  # noqa: E402
 from ssign_lib.subprocess_diag import dump_failure_log  # noqa: E402
+
+OUTPUT_FIELDNAMES = [
+    "locus_tag",
+    "predicted_localization",
+    "extracellular_prob",
+    "periplasmic_prob",
+    "outer_membrane_prob",
+    "cytoplasmic_prob",
+    "cytoplasmic_membrane_prob",
+    "product",
+]
+
+
+def partition_by_length(sequences, max_aa):
+    """Split ``{id: seq}`` into ``(kept {id: seq}, skipped [(id, length)])``.
+
+    A sequence is withheld only when *strictly* longer than ``max_aa``
+    (length == max_aa is kept). Skipped proteins are the rare mega-proteins
+    (giant NRPS/PKS, e.g. the 16,367-aa kolossin) that OOM DeepLocPro's GPU.
+    """
+    kept: dict[str, str] = {}
+    skipped: list[tuple[str, int]] = []
+    for pid, seq in sequences.items():
+        if len(seq) > max_aa:
+            skipped.append((pid, len(seq)))
+        else:
+            kept[pid] = seq
+    return kept, skipped
+
+
+def _skipped_localization_row(protein_id, length, max_aa):
+    """Sentinel output row for a protein withheld for exceeding ``max_aa``.
+
+    Not-predicted localization with zero probabilities, so downstream
+    cross-validation reads it as non-extracellular (correct for a cytoplasmic
+    megasynthase) while keeping the skip visible rather than silently dropped.
+    """
+    return {
+        "locus_tag": protein_id,
+        "predicted_localization": "Not predicted (too long)",
+        "extracellular_prob": 0.0,
+        "periplasmic_prob": 0.0,
+        "outer_membrane_prob": 0.0,
+        "cytoplasmic_prob": 0.0,
+        "cytoplasmic_membrane_prob": 0.0,
+        "product": f"skipped: length > {max_aa} aa",
+    }
+
 
 # ── Local mode ──
 
@@ -457,28 +506,40 @@ def main():
     args = parser.parse_args()
 
     try:
+        # Withhold mega-proteins (e.g. the 16,367-aa kolossin NRPS) that would
+        # OOM DeepLocPro: partition before dispatch so the guard covers both the
+        # local and remote paths, then re-attach the skipped proteins as
+        # not-predicted rows. Sequences == max are kept; only longer are skipped.
+        sequences = read_fasta(args.input)
+        kept, skipped = partition_by_length(sequences, DEEPLOCPRO_MAX_AA)
+        if skipped:
+            logger.warning(
+                "DeepLocPro: withholding %d over-length protein(s) (> %d aa) from the model: %s",
+                len(skipped),
+                DEEPLOCPRO_MAX_AA,
+                ", ".join(f"{pid} ({length} aa)" for pid, length in skipped),
+            )
+
         with tempfile.TemporaryDirectory() as tmpdir:
-            if args.mode == "local":
-                results_path = run_local_deeplocpro(args.input, args.deeplocpro_path, tmpdir)
+            if kept:
+                kept_fasta = os.path.join(tmpdir, "deeplocpro_input.faa")
+                write_fasta(kept, kept_fasta)
+                if args.mode == "local":
+                    results_path = run_local_deeplocpro(kept_fasta, args.deeplocpro_path, tmpdir)
+                else:
+                    results_path = run_remote_deeplocpro(kept_fasta, tmpdir)
+                entries = parse_deeplocpro_output(results_path)
             else:
-                results_path = run_remote_deeplocpro(args.input, tmpdir)
+                # Every sequence was skipped (or input was empty): never invoke
+                # DeepLocPro on an empty FASTA — emit only the sentinel rows.
+                entries = []
 
-            entries = parse_deeplocpro_output(results_path)
+        entries.extend(_skipped_localization_row(pid, length, DEEPLOCPRO_MAX_AA) for pid, length in skipped)
 
-        logger.info(f"Parsed {len(entries)} proteins from DeepLocPro")
+        logger.info(f"Parsed {len(entries)} proteins from DeepLocPro ({len(skipped)} skipped as over-length)")
 
-        fieldnames = [
-            "locus_tag",
-            "predicted_localization",
-            "extracellular_prob",
-            "periplasmic_prob",
-            "outer_membrane_prob",
-            "cytoplasmic_prob",
-            "cytoplasmic_membrane_prob",
-            "product",
-        ]
         with open(args.output, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter="\t")
+            writer = csv.DictWriter(f, fieldnames=OUTPUT_FIELDNAMES, delimiter="\t")
             writer.writeheader()
             for e in entries:
                 writer.writerow(e)

@@ -2,6 +2,29 @@
 
 Tracks items skipped during tasks. One bullet per item: what, why, trigger to revisit.
 
+## DeepLocPro crashes on mega-proteins — FIXED 2026-06-18 (openspec deeplocpro-mega-protein-guard)
+
+SHIPPED: DeepLocPro wrapper now withholds sequences > DEEPLOCPRO_MAX_AA (5000, env-overridable)
+from the model and emits them as "Not predicted (too long)" rows; the run no longer crashes.
+Remaining: rerun BX470251 on CX3 to confirm 24/24 → 67/67, then archive the change. Original report:
+
+
+Fleet genome **BX470251** (Photorhabdus laumondii TTO1, 4683 proteins) failed: DeepLocPro
+exited 1 (GPU OOM, deterministic across 2 nodes), and as a CORE step it cascaded the whole
+genome to failure (8/24 steps). Cause: **plu2670 is 16,367 aa** (next longest 5,457) — a giant
+Tc/Mcf toxin / NRPS megasynthase. DeepSecE + SignalP handled the genome fine; only DeepLocPro
+died. `run_deeplocpro.py` local path (`deeplocpro -f .. -o .. -g negative -d cuda`) has NO
+length guard (the 500 cap is DTU sequence-COUNT only). This is a general defect: any toxin/
+secondary-metabolite-rich genome (Photorhabdus, Xenorhabdus, giant adhesins) carries mega-
+proteins that will kill a run. Matters for the publication + zero-maintenance/longevity pitch.
+
+**Fix (a small change, needs /opsx:propose):** in the DeepLocPro wrapper, set aside sequences
+over a safe length (~5000 aa) before invoking DeepLocPro, mark them unpredicted (or default
+localization) in the output with a warning, so a single mega-protein can't crash a core step.
+Consider the same guard for the other PLM predictors (DSE/SignalP/PLM-E) defensively.
+Trigger: implement to get BX470251 to 67/67 and future-proof toxin-rich genomes. Note the
+fleet output currently lives on $EPHEMERAL (home FS was ENOSPC at 9% quota — separate RCS issue).
+
 ## enrichment-stats validation + PLM-E over-prediction (2026-06-17)
 
 Findings on the PAO1 smoke run (job 3013556), analysis in

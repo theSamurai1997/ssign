@@ -119,6 +119,14 @@ class TestEqualTriggers:
         rows = _run(dse={"G1": _dse_row("G1", "Non-secreted", max_prob=0.95)})
         assert rows[0]["is_secreted"] is False
 
+    def test_protein_absent_from_dlp_is_not_extracellular(self):
+        # A protein withheld from DeepLocPro (e.g. an over-length mega-protein
+        # skipped by the length guard) is absent from the DLP dict. cross_validate
+        # must handle it without error and not credit DLP for it.
+        rows = _run(dse={"G1": _dse_row("G1", "T1SS")})  # G1 present via DSE, absent from DLP
+        assert "DeepLocPro" not in rows[0]["secretion_evidence"]
+        assert rows[0]["is_secreted"] is True  # DSE still marks it; no crash from the missing DLP row
+
     def test_plm_effector_not_passing_not_counted(self):
         rows = _run(plm_e={"G1": _plm_e_row("G1", passes=False)})
         assert rows[0]["is_secreted"] is False
