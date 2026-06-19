@@ -28,7 +28,11 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ssign_app.scripts.enrichment_testing import is_dlp_positive, is_dse_positive
+from ssign_app.scripts.enrichment_testing import (  # noqa: F401
+    DSE_NEGATIVE,
+    is_dlp_positive,
+    is_dse_positive,
+)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FLEET = "/tmp/ssign_fleet_67"
@@ -80,13 +84,15 @@ def load_genomes() -> list[dict]:
         raw = os.path.join(FLEET, g, "results", f"{g}_results_raw.csv")
         if not os.path.exists(raw):
             continue
-        dlp_probs, dse_probs, dlp_pos, dse_pos = [], [], [], []
+        dlp_probs, dse_probs, dlp_pos, dse_pos, dse_sec = [], [], [], [], []
         with open(raw) as fh:
             for row in csv.DictReader(fh):
                 dlp_probs.append(_f(row.get("dlp_extracellular_prob")))
                 dse_probs.append(_f(row.get("dse_max_prob")))
                 dlp_pos.append(is_dlp_positive(row, CONF))
                 dse_pos.append(is_dse_positive(row, CONF))
+                # winning DSE class is a real secretion type (not Non-secreted/T3SS), regardless of prob
+                dse_sec.append((row.get("dse_ss_type", "") or "").strip() not in DSE_NEGATIVE)
         if not dlp_pos:
             continue
         out.append(
@@ -97,6 +103,7 @@ def load_genomes() -> list[dict]:
                 "dse_probs": np.array(dse_probs),
                 "dlp_pos": np.array(dlp_pos, dtype=bool),
                 "dse_pos": np.array(dse_pos, dtype=bool),
+                "dse_sec": np.array(dse_sec, dtype=bool),
             }
         )
     return out
@@ -179,12 +186,22 @@ def fig_score_distributions(genomes, n_proteins):
     a1.set_ylabel("proteins (log)")
     a1.set_title(f"DLP scores, all {n_proteins:,} proteins / 67 genomes\n{(dlp >= CONF).mean():.2%} ≥ {CONF}")
     a1.legend(frameon=False, fontsize=8)
-    a2.hist(dse, bins=50, color=THEME["dse"], alpha=0.85)
+    # Split DSE by the winning class: a real secretion type vs "Non-secreted".
+    # Both can be high-confidence, so the raw max-prob alone looks like "most
+    # proteins secreted"; splitting shows the near-1.0 pile is confidently-NOT.
+    dse_sec_mask = np.concatenate([g["dse_sec"] for g in genomes])
+    n_sec = int(dse_sec_mask.sum())
+    a2.hist(
+        dse[~dse_sec_mask], bins=50, color="#BFBFBF", alpha=0.9, label=f"non-secreted call ({(~dse_sec_mask).sum():,})"
+    )
+    a2.hist(dse[dse_sec_mask], bins=50, color=THEME["dse"], alpha=0.9, label=f"secretion-type call ({n_sec:,})")
     a2.axvline(CONF, ls="--", color=THEME["ref"], lw=0.8, label=f"threshold {CONF}")
     a2.set_yscale("log")
-    a2.set_xlabel("DSE max secretion-type probability")
+    a2.set_xlabel("DSE confidence in its winning class")
     a2.set_ylabel("proteins (log)")
-    a2.set_title("DSE scores, all proteins\n(positivity also requires a real SS type)")
+    a2.set_title(
+        f"DSE: confidently secreted vs confidently not\n{n_sec / len(dse):.2%} get a secretion-type call ({(dse_sec_mask & (dse >= CONF)).sum():,} also ≥ {CONF})"
+    )
     a2.legend(frameon=False, fontsize=8)
     fig.tight_layout()
     fig.savefig(os.path.join(FIGS, "01_score_distributions.png"))
